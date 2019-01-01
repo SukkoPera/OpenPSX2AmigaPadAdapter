@@ -62,10 +62,17 @@ const byte PIN_BTNREGCLK = PIN_BTN1;
 const byte ANALOG_IDLE_VALUE = 127;
 
 // Dead zone for analog sticks
-const byte ANALOG_DEAD_ZONE = 60;
+const byte ANALOG_DEAD_ZONE = 40;
 
+// Delay of the quadrature square waves when mouse is moving at the slowest speed
 const byte MOUSE_SLOW_DELTA	= 60;
-const byte MOUSE_FAST_DELTA = 1;
+
+/* Delay of the quadrature square waves when mouse is moving at the fastest speed.
+ * Note that a 16 MHz Arduino Uno produces irregular signals if this is too small
+ * and mouse movements will be affected. The smallest value producing decently-
+ * shaped waves is 6.
+ */
+const byte MOUSE_FAST_DELTA = 6;
 
 // Pin for led that lights up whenever the proper controller is detected
 const byte PIN_LED_PAD_OK = A0;
@@ -79,7 +86,7 @@ const byte PIN_LED_MODE_CD32 = 13;
  ******************************************************************************/
 
 // Send debug messages to serial port
-#define ENABLE_SERIAL_DEBUG
+//~ #define ENABLE_SERIAL_DEBUG
 
 // Print the controller status on serial. Useful for debugging.
 //~ #define DEBUG_PAD
@@ -473,6 +480,8 @@ void loop () {
 			// Directional button pressed, go back to joystick mode
 			isMouse = false;
 		} else {
+			static unsigned long tx = 0, ty = 0;
+			
 			// Right analog stick works as a mouse - Horizontal axis
 			int x = ps2x.Analog (PSS_RX);   // 0 ... 255
 			int deltaX = x - ANALOG_IDLE_VALUE;
@@ -495,8 +504,6 @@ void loop () {
 					leadingPin = PIN_DOWN;
 					trailingPin = PIN_RIGHT;
 				}
-
-				static unsigned long tx = 0;
 
 				if (millis () - tx >= period) {
 					digitalWrite (leadingPin, !digitalRead (leadingPin));
@@ -531,8 +538,6 @@ void loop () {
 					trailingPin = PIN_LEFT;
 				}
 
-				static unsigned long ty = 0;
-
 				if (millis () - ty >= period) {
 					digitalWrite (leadingPin, !digitalRead (leadingPin));
 					ty = millis ();
@@ -540,8 +545,6 @@ void loop () {
 				
 				if (millis () - ty >= period / 2) {
 					digitalWrite (trailingPin, !digitalRead (leadingPin));
-				} else {
-					digitalWrite (trailingPin, digitalRead (leadingPin));
 				}
 			}
 
