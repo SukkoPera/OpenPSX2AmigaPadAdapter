@@ -1,0 +1,3 @@
+(sym_lib_table
+  (lib (name OpenPSX2AmigaPadAdapter-rescue)(type Legacy)(uri ${KIPRJMOD}/OpenPSX2AmigaPadAdapter-rescue.lib)(options "")(descr ""))
+)
