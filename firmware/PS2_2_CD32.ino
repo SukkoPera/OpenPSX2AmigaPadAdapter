@@ -64,6 +64,9 @@ const byte ANALOG_IDLE_VALUE = 127;
 // Dead zone for analog sticks
 const byte ANALOG_DEAD_ZONE = 60;
 
+const byte MOUSE_SLOW_DELTA	= 60;
+const byte MOUSE_FAST_DELTA = 1;
+
 // Pin for led that lights up whenever the proper controller is detected
 const byte PIN_LED_PAD_OK = A0;
 
@@ -76,7 +79,7 @@ const byte PIN_LED_MODE_CD32 = 13;
  ******************************************************************************/
 
 // Send debug messages to serial port
-//~ #define ENABLE_SERIAL_DEBUG
+#define ENABLE_SERIAL_DEBUG
 
 // Print the controller status on serial. Useful for debugging.
 //~ #define DEBUG_PAD
@@ -87,8 +90,9 @@ const byte PIN_LED_MODE_CD32 = 13;
 
 enum PadMode {
 	MODE_UNKNOWN = 0,
-	MODE_AMIGA = 1,
-	MODE_CD32 = 2
+	MODE_JOYSTICK,
+	MODE_MOUSE,
+	MODE_CD32
 };
 
 enum PadError {
@@ -131,6 +135,9 @@ volatile /* register */ byte buttons = 0xFF;
 // Timestamp of last time the pad was switched to CD32 mode
 unsigned long lastSwitchedTime = 0;
 
+// True if mouse mode
+boolean isMouse = false;
+
 
 inline PadMode getMode () {
 	PadMode padMode = MODE_UNKNOWN;
@@ -147,7 +154,7 @@ inline PadMode getMode () {
 	if (lastSwitchedTime > 0 && millis () - lastSwitchedTime <= 200) {
 		padMode = MODE_CD32;
 	} else if (PIND & (1 << PD2)) {
-		padMode = MODE_AMIGA;
+		padMode = isMouse ? MODE_MOUSE : MODE_JOYSTICK;
 	} else {
 		padMode = MODE_UNKNOWN;
 	}
@@ -234,10 +241,10 @@ word readButtons () {
 	if (ps2x.Button (PSB_CIRCLE))
 		pad_status |= BTN_YELLOW;
 
-	if (ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2))
+	if (ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2) || ps2x.Button (PSB_L3))
 		pad_status |= BTN_FRONT_L;
 
-	if (ps2x.Button (PSB_R1) || ps2x.Button (PSB_R2))
+	if (ps2x.Button (PSB_R1) || ps2x.Button (PSB_R2) || ps2x.Button (PSB_R3))
 		pad_status |= BTN_FRONT_R;
 
 	//~ if(ps2x.Button(PSB_L1) || ps2x.Button(PSB_R1)) { //print stick values if either is TRUE
@@ -395,53 +402,203 @@ inline void buttonRelease (byte pin) {
 void loop () {
 	buttonsLive = readButtons ();
 
-	// Handle directions
-	if ((buttonsLive & BTN_UP) || ps2x.Analog (PSS_LY) < ANALOG_IDLE_VALUE - ANALOG_DEAD_ZONE) {
-		buttonPress (PIN_UP);
-	} else {
-		buttonRelease (PIN_UP);
-	}
+	PadMode mode = getMode ();
+	if (mode == MODE_JOYSTICK) {
+		int rx = ps2x.Analog (PSS_RX);   // 0 ... 255
+		int deltaRX = rx - ANALOG_IDLE_VALUE;
+		int deltaRXabs = abs (deltaRX);
 
-	if ((buttonsLive & BTN_DOWN) || ps2x.Analog (PSS_LY) > ANALOG_IDLE_VALUE + ANALOG_DEAD_ZONE) {
-		buttonPress (PIN_DOWN);
-	} else {
-		buttonRelease (PIN_DOWN);
-	}
+		int ry = ps2x.Analog (PSS_RY);
+		int deltaRY = ry - ANALOG_IDLE_VALUE;
+		int deltaRYabs = abs (deltaRY);
+		if (deltaRXabs > ANALOG_DEAD_ZONE || deltaRYabs > ANALOG_DEAD_ZONE) {
+			// Right analog stick moved, go to Mouse mode
+			pinMode (PIN_UP, OUTPUT);
+			pinMode (PIN_DOWN, OUTPUT);
+			pinMode (PIN_LEFT, OUTPUT);
+			pinMode (PIN_RIGHT, OUTPUT);
 
-	if (buttonsLive & BTN_LEFT || ps2x.Analog (PSS_LX) < ANALOG_IDLE_VALUE - ANALOG_DEAD_ZONE) {
-		buttonPress (PIN_LEFT);
-	} else {
-		buttonRelease (PIN_LEFT);
-	}
-
-	if (buttonsLive & BTN_RIGHT || ps2x.Analog (PSS_LX) > ANALOG_IDLE_VALUE + ANALOG_DEAD_ZONE) {
-		buttonPress (PIN_RIGHT);
-	} else {
-		buttonRelease (PIN_RIGHT);
-	}
-
-	// In Amiga mode we reflect B1/B2 to an output pin immediately
-	noInterrupts ();
-	if (getMode () == MODE_AMIGA) {
-		if (buttonsLive & BTN_RED) {
-			buttonPress (PIN_BTN1);
+			isMouse = true;
 		} else {
-			buttonRelease (PIN_BTN1);
+			// Handle directions
+			int lx = ps2x.Analog (PSS_LX);   			// 0 ... 255
+			int deltaLX = lx - ANALOG_IDLE_VALUE;		// --> -127 ... +128
+
+			int ly = ps2x.Analog (PSS_LY);
+			int deltaLY = ly - ANALOG_IDLE_VALUE;
+
+			if ((buttonsLive & BTN_UP) || deltaLY < -ANALOG_DEAD_ZONE) {
+				buttonPress (PIN_UP);
+			} else {
+				buttonRelease (PIN_UP);
+			}
+
+			if ((buttonsLive & BTN_DOWN) || deltaLY > +ANALOG_DEAD_ZONE) {
+				buttonPress (PIN_DOWN);
+			} else {
+				buttonRelease (PIN_DOWN);
+			}
+
+			if ((buttonsLive & BTN_LEFT) || deltaLX < -ANALOG_DEAD_ZONE) {
+				buttonPress (PIN_LEFT);
+			} else {
+				buttonRelease (PIN_LEFT);
+			}
+
+			if ((buttonsLive & BTN_RIGHT) || deltaLX > +ANALOG_DEAD_ZONE) {
+				buttonPress (PIN_RIGHT);
+			} else {
+				buttonRelease (PIN_RIGHT);
+			}
+
+			// Fire Buttons
+			noInterrupts ();
+
+			if (buttonsLive & BTN_RED) {
+				buttonPress (PIN_BTN1);
+			} else {
+				buttonRelease (PIN_BTN1);
+			}
+
+			if (buttonsLive & BTN_BLUE) {
+				buttonPress (PIN_BTN2);
+			} else {
+				buttonRelease (PIN_BTN2);
+			}
+
+			interrupts ();
+		}
+	} else if (mode == MODE_MOUSE) {
+		if (buttonsLive & (BTN_UP | BTN_DOWN | BTN_LEFT | BTN_RIGHT)) {
+			// Directional button pressed, go back to joystick mode
+			isMouse = false;
+		} else {
+			// Right analog stick works as a mouse - Horizontal axis
+			int x = ps2x.Analog (PSS_RX);   // 0 ... 255
+			int deltaX = x - ANALOG_IDLE_VALUE;
+			int deltaXabs = abs (deltaX);
+			if (deltaXabs > ANALOG_DEAD_ZONE) {
+				unsigned int period = map (deltaXabs, ANALOG_DEAD_ZONE, ANALOG_IDLE_VALUE, MOUSE_SLOW_DELTA, MOUSE_FAST_DELTA);
+				debug (F("x = "));
+				debug (x);
+				debug (F(" --> period = "));
+				debugln (period);
+
+				byte leadingPin;
+				byte trailingPin;
+				if (deltaX > 0) {
+					// Right
+					leadingPin = PIN_RIGHT;
+					trailingPin = PIN_DOWN;
+				} else {
+					// Left
+					leadingPin = PIN_DOWN;
+					trailingPin = PIN_RIGHT;
+				}
+
+				static unsigned long tx = 0;
+
+				if (millis () - tx >= period) {
+					digitalWrite (leadingPin, !digitalRead (leadingPin));
+					tx = millis ();
+				}
+				
+				if (millis () - tx >= period / 2) {
+					digitalWrite (trailingPin, !digitalRead (leadingPin));
+				}
+			}
+
+			// Vertical axis
+			int y = ps2x.Analog (PSS_RY);
+			int deltaY = y - ANALOG_IDLE_VALUE;
+			int deltaYabs = abs (deltaY);
+			if (deltaYabs > ANALOG_DEAD_ZONE) {
+				unsigned int period = map (deltaYabs, ANALOG_DEAD_ZONE, ANALOG_IDLE_VALUE, MOUSE_SLOW_DELTA, MOUSE_FAST_DELTA);
+				debug (F("y = "));
+				debug (y);
+				debug (F(" --> period = "));
+				debugln (period);
+
+				byte leadingPin;
+				byte trailingPin;
+				if (deltaY > 0) {
+					// Down
+					leadingPin = PIN_LEFT;
+					trailingPin = PIN_UP;
+				} else {
+					// Up
+					leadingPin = PIN_UP;
+					trailingPin = PIN_LEFT;
+				}
+
+				static unsigned long ty = 0;
+
+				if (millis () - ty >= period) {
+					digitalWrite (leadingPin, !digitalRead (leadingPin));
+					ty = millis ();
+				}
+				
+				if (millis () - ty >= period / 2) {
+					digitalWrite (trailingPin, !digitalRead (leadingPin));
+				} else {
+					digitalWrite (trailingPin, digitalRead (leadingPin));
+				}
+			}
+
+			// Buttons
+			noInterrupts ();
+			
+			if (buttonsLive & BTN_FRONT_L) {
+				buttonPress (PIN_BTN1);
+			} else {
+				buttonRelease (PIN_BTN1);
+			}
+
+			if (buttonsLive & BTN_FRONT_R) {
+				buttonPress (PIN_BTN2);
+			} else {
+				buttonRelease (PIN_BTN2);
+			}
+
+			interrupts ();
+		}
+	} else if (mode == MODE_CD32) {
+		// Directions still behave as in normal joystick mode
+		int lx = ps2x.Analog (PSS_LX);   			// 0 ... 255
+		int deltaLX = lx - ANALOG_IDLE_VALUE;		// --> -127 ... +128
+
+		int ly = ps2x.Analog (PSS_LY);
+		int deltaLY = ly - ANALOG_IDLE_VALUE;
+
+		if ((buttonsLive & BTN_UP) || deltaLY < -ANALOG_DEAD_ZONE) {
+			buttonPress (PIN_UP);
+		} else {
+			buttonRelease (PIN_UP);
 		}
 
-		if (buttonsLive & BTN_BLUE) {
-			buttonPress (PIN_BTN2);
+		if ((buttonsLive & BTN_DOWN) || deltaLY > +ANALOG_DEAD_ZONE) {
+			buttonPress (PIN_DOWN);
 		} else {
-			buttonRelease (PIN_BTN2);
+			buttonRelease (PIN_DOWN);
 		}
 
-		interrupts ();
+		if ((buttonsLive & BTN_LEFT) || deltaLX < -ANALOG_DEAD_ZONE) {
+			buttonPress (PIN_LEFT);
+		} else {
+			buttonRelease (PIN_LEFT);
+		}
 
+		if ((buttonsLive & BTN_RIGHT) || deltaLX > +ANALOG_DEAD_ZONE) {
+			buttonPress (PIN_RIGHT);
+		} else {
+			buttonRelease (PIN_RIGHT);
+		}
+	}
+
+	// Handle mode led
+	if (mode == MODE_JOYSTICK || (mode == MODE_MOUSE && (millis () / 500) % 2 == 0)) {
 		digitalWrite (PIN_LED_MODE_CD32, LOW);
 	} else {
-		interrupts ();
-		
 		digitalWrite (PIN_LED_MODE_CD32, HIGH);
 	}
-
 }
