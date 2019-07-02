@@ -1,0 +1,3 @@
+(fp_lib_table
+  (lib (name OpenPSX2AmigaPadAdapter)(type KiCad)(uri ${KIPRJMOD}/OpenPSX2AmigaPadAdapter.pretty)(options "")(descr ""))
+)

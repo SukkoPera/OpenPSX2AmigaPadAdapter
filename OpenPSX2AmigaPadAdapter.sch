@@ -406,7 +406,7 @@ F 3 "" H 6600 7100 50  0000 C CNN
 	1    0    0    -1  
 $EndComp
 Text Label 6600 7000 2    60   ~ 0
-miso
+mosi
 Text Label 5300 7100 0    60   ~ 0
 reset
 Text Label 5300 6900 0    60   ~ 0
@@ -790,7 +790,7 @@ U 1 1 5D28E286
 P 9700 4800
 F 0 "J1" H 9728 4826 50  0000 L CNN
 F 1 "TO_PSX_PAD" H 9728 4735 50  0000 L CNN
-F 2 "Connector_PinHeader_2.54mm:PinHeader_1x09_P2.54mm_Horizontal" H 9700 4800 50  0001 C CNN
+F 2 "OpenPSX2AmigaPadAdapter:PSX_Pad_Connector" H 9700 4800 50  0001 C CNN
 F 3 "~" H 9700 4800 50  0001 C CNN
 	1    9700 4800
 	1    0    0    -1  
@@ -801,7 +801,7 @@ U 1 1 5D2A2C76
 P 5900 7000
 F 0 "J4" H 5950 7317 50  0000 C CNN
 F 1 "CONN_ICSP" H 5950 7226 50  0000 C CNN
-F 2 "Connector_PinSocket_2.54mm:PinSocket_2x03_P2.54mm_Vertical" H 5900 7000 50  0001 C CNN
+F 2 "Connector_PinHeader_2.54mm:PinHeader_2x03_P2.54mm_Vertical" H 5900 7000 50  0001 C CNN
 F 3 "~" H 5900 7000 50  0001 C CNN
 	1    5900 7000
 	1    0    0    -1  
@@ -812,7 +812,7 @@ U 1 1 5D2AB871
 P 3900 6950
 F 0 "J3" H 4008 7331 50  0000 C CNN
 F 1 "CONN_FTDI" H 4008 7240 50  0000 C CNN
-F 2 "Connector_PinSocket_2.54mm:PinSocket_1x06_P2.54mm_Vertical" H 3900 6950 50  0001 C CNN
+F 2 "Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical" H 3900 6950 50  0001 C CNN
 F 3 "~" H 3900 6950 50  0001 C CNN
 	1    3900 6950
 	1    0    0    -1  
@@ -918,11 +918,11 @@ F 3 "~" H 4340 5375 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L Device:R R220
+L Device:R R12
 U 1 1 5D343E5C
 P 4340 5575
-F 0 "R220" V 4455 5575 50  0000 C CNN
-F 1 "R" V 4546 5575 50  0000 C CNN
+F 0 "R12" V 4455 5575 50  0000 C CNN
+F 1 "220" V 4546 5575 50  0000 C CNN
 F 2 "Resistor_SMD:R_0805_2012Metric_Pad1.15x1.40mm_HandSolder" V 4270 5575 50  0001 C CNN
 F 3 "~" H 4340 5575 50  0001 C CNN
 	1    4340 5575
