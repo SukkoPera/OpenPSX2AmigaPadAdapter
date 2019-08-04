@@ -1,7 +1,7 @@
 (export (version D)
   (design
     (source /home/sukko/Documents/kicad/OpenPSX2AmigaPadAdapter/OpenPSX2AmigaPadAdapter.sch)
-    (date "mer 03 lug 2019 22:11:16 CEST")
+    (date "dom 04 ago 2019 20:59:31 CEST")
     (tool "Eeschema 5.1.2")
     (sheet (number 1) (name /) (tstamps /)
       (title_block

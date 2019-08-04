@@ -1,4 +1,4 @@
-(module PSX_Pad_Connector (layer F.Cu) (tedit 5D1CE3DE)
+(module PSX_Pad_Connector (layer F.Cu) (tedit 5D4725FB)
   (descr "Through hole angled pin header, 1x09, 2.54mm pitch, 6mm pin length, single row")
   (tags "Through hole angled pin header THT 1x09 2.54mm single row")
   (fp_text reference J1 (at 0 -26 180) (layer F.SilkS) hide
@@ -10,7 +10,7 @@
   (fp_line (start -16 -23) (end -16 22.6) (layer F.CrtYd) (width 0.05))
   (fp_line (start -16 22.6) (end 10.55 22.6) (layer F.CrtYd) (width 0.05))
   (fp_line (start 10.55 22.6) (end 10.55 -23) (layer F.CrtYd) (width 0.05))
-  (fp_poly (pts (xy -9.5 -22) (xy 8.5 -22) (xy 8.5 22) (xy -9.5 22)) (layer F.SilkS) (width 0.1))
+  (fp_poly (pts (xy -9.5 -22) (xy 8.5 -22) (xy 8.5 22) (xy -9.5 22)) (layer Dwgs.User) (width 0.1))
   (fp_line (start 10.55 -23) (end -16 -23) (layer F.CrtYd) (width 0.12))
   (pad 1 thru_hole rect (at -14 -16) (size 1.7 1.7) (drill 1) (layers *.Cu *.Mask))
   (pad 2 thru_hole oval (at -14 -12) (size 1.7 1.7) (drill 1) (layers *.Cu *.Mask))
