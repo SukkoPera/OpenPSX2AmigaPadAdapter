@@ -694,7 +694,9 @@ void handleCD32Pad () {
 		buttonRelease (PIN_RIGHT);
 	}
 
-	// Map buttons - Note that 8th bit must be 1 for the ID sequence
+	/* Map buttons - Note that 0 means pressed and that MSB must be 1 for the ID
+	 * sequence
+	 */
 	buttonsLive = 0xFF;
 
 	if (ps2x.Button (PSB_START))
@@ -723,12 +725,20 @@ void loop () {
 	ps2x.read_gamepad ();
 
 	PadMode mode = getMode ();
-	if (mode == MODE_JOYSTICK) {
+
+	// Handle joystick report
+	switch (mode) {
+	case MODE_JOYSTICK:
 		handleJoystick ();
-	} else if (mode == MODE_MOUSE) {
+		break;
+	case MODE_MOUSE:
 		handleMouse ();
-	} else if (mode == MODE_CD32) {
+		break;
+	case MODE_CD32:
 		handleCD32Pad ();
+		break;
+	default:
+		mypanic (2000);
 	}
 
 	// Handle mode led
