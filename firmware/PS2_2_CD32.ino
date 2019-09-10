@@ -62,7 +62,7 @@ const byte PIN_BTNREGCLK = PIN_BTN1;
 const byte ANALOG_IDLE_VALUE = 127;
 
 // Dead zone for analog sticks
-const byte ANALOG_DEAD_ZONE = 40;
+const byte ANALOG_DEAD_ZONE = 65;
 
 // Delay of the quadrature square waves when mouse is moving at the slowest speed
 const byte MOUSE_SLOW_DELTA	= 60;
@@ -406,165 +406,273 @@ inline void buttonRelease (byte pin) {
 	pinMode (pin, INPUT); // Hi-Z
 }
 
+enum JoyButtonMapping {
+	JMAP_NORMAL,
+	JMAP_RACING1,
+	JMAP_RACING2,
+	JMAP_PLATFORM
+};
+
+JoyButtonMapping joyButtonMapping;
+
+// true means pressed
+struct JoyStatus {
+	boolean up: 1;
+	boolean down: 1;
+	boolean left: 1;
+	boolean right: 1;
+	boolean b1: 1;
+	boolean b2: 1;
+}
+
+typedef void (*JoyMappingFunc) (JoyStatus& j);
+
+JoyMappingFunc joyMappingFunc = NULL;
+
+void handleAnalogStick (JoyStatus& j) {
+	int lx = ps2x.Analog (PSS_LX);   			// 0 ... 255
+	int deltaLX = lx - ANALOG_IDLE_VALUE;		// --> -127 ... +128
+	j.left = deltaLX < -ANALOG_DEAD_ZONE;
+	j.right = deltaLX > +ANALOG_DEAD_ZONE;
+	
+	int ly = ps2x.Analog (PSS_LY);
+	int deltaLY = ly - ANALOG_IDLE_VALUE;
+	j.up = deltaLY < -ANALOG_DEAD_ZONE;
+	j.down = deltaLY > +ANALOG_DEAD_ZONE;
+}
+
+void handleJoystickNormal (JoyStatus& j) {
+	handleAnalogStick (j);
+	
+	j.up |= ps2x.Button (PSB_PAD_UP);
+	j.down |= ps2x.Button (PSB_PAD_DOWN);
+	j.left |= ps2x.Button (PSB_PAD_LEFT);
+	j.right |= ps2x.Button (PSB_PAD_RIGHT);
+	
+	j.b1 = ps2x.Button (PSB_SQUARE) || ps2x.Button (PSB_R1) || ps2x.Button (PSB_R2) || ps2x.Button (PSB_R3);
+	j.b2 = ps2x.Button (PSB_CROSS) || ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2) || ps2x.Button (PSB_L3);
+}
+
+void handleJoystickRacing1 (JoyStatus& j) {
+	j.up = ps2x.Button (PSB_SQUARE);
+	j.down = ps2x.Button (PSB_CROSS);
+	
+	j.b1 = ps2x.Button (PSB_R1) || ps2x.Button (PSB_R2) || ps2x.Button (PSB_R3);
+	j.b2 = ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2) || ps2x.Button (PSB_L3);
+}
+
+void handleJoystickRacing2 (JoyStatus& j) {
+	j.up = ps2x.Button (PSB_R1) || ps2x.Button (PSB_R2);
+	j.down = ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2);
+	
+	j.b1 = ps2x.Button (PSB_SQUARE) || ps2x.Button (PSB_R3);
+	j.b2 = ps2x.Button (PSB_CROSS) || ps2x.Button (PSB_L3);
+}
+
+void handleJoystickPlatform (JoyStatus& j) {
+	j.up = ps2x.Button (PSB_CROSS);
+	
+	j.b1 = ps2x.Button (PSB_SQUARE) || ps2x.Button (PSB_R1) || ps2x.Button (PSB_R2) || ps2x.Button (PSB_R3);
+	j.b2 = ps2x.Button (PSB_TRIANGLE) || ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2) || ps2x.Button (PSB_L3);
+}
+
+void handleJoystick () {
+	JoyStatus j = {false, false, false, false, false, false};
+	
+	int rx = ps2x.Analog (PSS_RX);   // 0 ... 255
+	int deltaRX = rx - ANALOG_IDLE_VALUE;
+	int deltaRXabs = abs (deltaRX);
+
+	int ry = ps2x.Analog (PSS_RY);
+	int deltaRY = ry - ANALOG_IDLE_VALUE;
+	int deltaRYabs = abs (deltaRY);
+	if (deltaRXabs > ANALOG_DEAD_ZONE || deltaRYabs > ANALOG_DEAD_ZONE) {
+		// Right analog stick moved, go to Mouse mode
+		pinMode (PIN_UP, OUTPUT);
+		pinMode (PIN_DOWN, OUTPUT);
+		pinMode (PIN_LEFT, OUTPUT);
+		pinMode (PIN_RIGHT, OUTPUT);
+
+		isMouse = true;
+	} else {
+		// Handle directions		
+		//~ int lx = ps2x.Analog (PSS_LX);   			// 0 ... 255
+		//~ int deltaLX = lx - ANALOG_IDLE_VALUE;		// --> -127 ... +128
+		//~ j.left = ps2x.Button (PSB_PAD_LEFT) || deltaLX < -ANALOG_DEAD_ZONE;
+		//~ j.right = ps2x.Button (PSB_PAD_RIGHT) || deltaLX > +ANALOG_DEAD_ZONE;
+		
+		//~ int ly = ps2x.Analog (PSS_LY);
+		//~ int deltaLY = ly - ANALOG_IDLE_VALUE;
+		//~ j.up = ps2x.Button (PSB_PAD_UP) || deltaLY < -ANALOG_DEAD_ZONE;
+		//~ j.down = ps2x.Button (PSB_PAD_DOWN) || deltaLY > +ANALOG_DEAD_ZONE;
+
+		// Handle Buttons
+		//~ switch (joyButtonMapping) {
+		//~ case JMAP_NORMAL;
+		//~ default:
+			//~ break;
+		//~ case JMAP_RACING1:
+		//~ case JMAP_RACING2:
+		//~ case JMAP_PLATFORM:
+			//~ break;
+		//~ }
+
+
+		if (!joyMappingFunc)
+			joyMappingFunc = handleJoystickNormal;
+			
+		*joyMappingFunc (j);
+
+
+		/////////////////
+		
+		if (j.up) {
+			buttonPress (PIN_UP);
+		} else {
+			buttonRelease (PIN_UP);
+		}
+
+		if (j.down) {
+			buttonPress (PIN_DOWN);
+		} else {
+			buttonRelease (PIN_DOWN);
+		}
+
+		if (j.left) {
+			buttonPress (PIN_LEFT);
+		} else {
+			buttonRelease (PIN_LEFT);
+		}
+
+		if (j.right) {
+			buttonPress (PIN_RIGHT);
+		} else {
+			buttonRelease (PIN_RIGHT);
+		}
+
+		/* If the interrupt that switches us to CD32 mode is
+		 * triggered while we are here we might end up setting pin states after
+		 * we should have relinquished control of the pins, so let's avoid this
+		 * disabling interrupts, we will handle them in a few microseconds.
+		 */
+		noInterrupts ();
+
+		if (j.b1) {
+			buttonPress (PIN_BTN1);
+		} else {
+			buttonRelease (PIN_BTN1);
+		}
+
+		if (j.b2) {
+			buttonPress (PIN_BTN2);
+		} else {
+			buttonRelease (PIN_BTN2);
+		}
+
+		interrupts ();
+	}
+}
+
+void handleMouse () {
+	if (buttonsLive & (BTN_UP | BTN_DOWN | BTN_LEFT | BTN_RIGHT)) {
+		// Directional button pressed, go back to joystick mode
+		isMouse = false;
+	} else {
+		static unsigned long tx = 0, ty = 0;
+		
+		// Right analog stick works as a mouse - Horizontal axis
+		int x = ps2x.Analog (PSS_RX);   // 0 ... 255
+		int deltaX = x - ANALOG_IDLE_VALUE;
+		int deltaXabs = abs (deltaX);
+		if (deltaXabs > ANALOG_DEAD_ZONE) {
+			unsigned int period = map (deltaXabs, ANALOG_DEAD_ZONE, ANALOG_IDLE_VALUE, MOUSE_SLOW_DELTA, MOUSE_FAST_DELTA);
+			debug (F("x = "));
+			debug (x);
+			debug (F(" --> period = "));
+			debugln (period);
+
+			byte leadingPin;
+			byte trailingPin;
+			if (deltaX > 0) {
+				// Right
+				leadingPin = PIN_RIGHT;
+				trailingPin = PIN_DOWN;
+			} else {
+				// Left
+				leadingPin = PIN_DOWN;
+				trailingPin = PIN_RIGHT;
+			}
+
+			if (millis () - tx >= period) {
+				digitalWrite (leadingPin, !digitalRead (leadingPin));
+				tx = millis ();
+			}
+			
+			if (millis () - tx >= period / 2) {
+				digitalWrite (trailingPin, !digitalRead (leadingPin));
+			}
+		}
+
+		// Vertical axis
+		int y = ps2x.Analog (PSS_RY);
+		int deltaY = y - ANALOG_IDLE_VALUE;
+		int deltaYabs = abs (deltaY);
+		if (deltaYabs > ANALOG_DEAD_ZONE) {
+			unsigned int period = map (deltaYabs, ANALOG_DEAD_ZONE, ANALOG_IDLE_VALUE, MOUSE_SLOW_DELTA, MOUSE_FAST_DELTA);
+			debug (F("y = "));
+			debug (y);
+			debug (F(" --> period = "));
+			debugln (period);
+
+			byte leadingPin;
+			byte trailingPin;
+			if (deltaY > 0) {
+				// Down
+				leadingPin = PIN_LEFT;
+				trailingPin = PIN_UP;
+			} else {
+				// Up
+				leadingPin = PIN_UP;
+				trailingPin = PIN_LEFT;
+			}
+
+			if (millis () - ty >= period) {
+				digitalWrite (leadingPin, !digitalRead (leadingPin));
+				ty = millis ();
+			}
+			
+			if (millis () - ty >= period / 2) {
+				digitalWrite (trailingPin, !digitalRead (leadingPin));
+			}
+		}
+
+		// Buttons
+		noInterrupts ();
+		
+		if (buttonsLive & BTN_FRONT_L) {
+			buttonPress (PIN_BTN1);
+		} else {
+			buttonRelease (PIN_BTN1);
+		}
+
+		if (buttonsLive & BTN_FRONT_R) {
+			buttonPress (PIN_BTN2);
+		} else {
+			buttonRelease (PIN_BTN2);
+		}
+
+		interrupts ();
+	}
+}
+
 void loop () {
-	buttonsLive = readButtons ();
+	ps2x.read_gamepad ();
 
 	PadMode mode = getMode ();
 	if (mode == MODE_JOYSTICK) {
-		int rx = ps2x.Analog (PSS_RX);   // 0 ... 255
-		int deltaRX = rx - ANALOG_IDLE_VALUE;
-		int deltaRXabs = abs (deltaRX);
-
-		int ry = ps2x.Analog (PSS_RY);
-		int deltaRY = ry - ANALOG_IDLE_VALUE;
-		int deltaRYabs = abs (deltaRY);
-		if (deltaRXabs > ANALOG_DEAD_ZONE || deltaRYabs > ANALOG_DEAD_ZONE) {
-			// Right analog stick moved, go to Mouse mode
-			pinMode (PIN_UP, OUTPUT);
-			pinMode (PIN_DOWN, OUTPUT);
-			pinMode (PIN_LEFT, OUTPUT);
-			pinMode (PIN_RIGHT, OUTPUT);
-
-			isMouse = true;
-		} else {
-			// Handle directions
-			int lx = ps2x.Analog (PSS_LX);   			// 0 ... 255
-			int deltaLX = lx - ANALOG_IDLE_VALUE;		// --> -127 ... +128
-
-			int ly = ps2x.Analog (PSS_LY);
-			int deltaLY = ly - ANALOG_IDLE_VALUE;
-
-			if ((buttonsLive & BTN_UP) || deltaLY < -ANALOG_DEAD_ZONE) {
-				buttonPress (PIN_UP);
-			} else {
-				buttonRelease (PIN_UP);
-			}
-
-			if ((buttonsLive & BTN_DOWN) || deltaLY > +ANALOG_DEAD_ZONE) {
-				buttonPress (PIN_DOWN);
-			} else {
-				buttonRelease (PIN_DOWN);
-			}
-
-			if ((buttonsLive & BTN_LEFT) || deltaLX < -ANALOG_DEAD_ZONE) {
-				buttonPress (PIN_LEFT);
-			} else {
-				buttonRelease (PIN_LEFT);
-			}
-
-			if ((buttonsLive & BTN_RIGHT) || deltaLX > +ANALOG_DEAD_ZONE) {
-				buttonPress (PIN_RIGHT);
-			} else {
-				buttonRelease (PIN_RIGHT);
-			}
-
-			// Fire Buttons
-			noInterrupts ();
-
-			if (buttonsLive & BTN_RED) {
-				buttonPress (PIN_BTN1);
-			} else {
-				buttonRelease (PIN_BTN1);
-			}
-
-			if (buttonsLive & BTN_BLUE) {
-				buttonPress (PIN_BTN2);
-			} else {
-				buttonRelease (PIN_BTN2);
-			}
-
-			interrupts ();
-		}
+		handleJoystick ();
 	} else if (mode == MODE_MOUSE) {
-		if (buttonsLive & (BTN_UP | BTN_DOWN | BTN_LEFT | BTN_RIGHT)) {
-			// Directional button pressed, go back to joystick mode
-			isMouse = false;
-		} else {
-			static unsigned long tx = 0, ty = 0;
-			
-			// Right analog stick works as a mouse - Horizontal axis
-			int x = ps2x.Analog (PSS_RX);   // 0 ... 255
-			int deltaX = x - ANALOG_IDLE_VALUE;
-			int deltaXabs = abs (deltaX);
-			if (deltaXabs > ANALOG_DEAD_ZONE) {
-				unsigned int period = map (deltaXabs, ANALOG_DEAD_ZONE, ANALOG_IDLE_VALUE, MOUSE_SLOW_DELTA, MOUSE_FAST_DELTA);
-				debug (F("x = "));
-				debug (x);
-				debug (F(" --> period = "));
-				debugln (period);
-
-				byte leadingPin;
-				byte trailingPin;
-				if (deltaX > 0) {
-					// Right
-					leadingPin = PIN_RIGHT;
-					trailingPin = PIN_DOWN;
-				} else {
-					// Left
-					leadingPin = PIN_DOWN;
-					trailingPin = PIN_RIGHT;
-				}
-
-				if (millis () - tx >= period) {
-					digitalWrite (leadingPin, !digitalRead (leadingPin));
-					tx = millis ();
-				}
-				
-				if (millis () - tx >= period / 2) {
-					digitalWrite (trailingPin, !digitalRead (leadingPin));
-				}
-			}
-
-			// Vertical axis
-			int y = ps2x.Analog (PSS_RY);
-			int deltaY = y - ANALOG_IDLE_VALUE;
-			int deltaYabs = abs (deltaY);
-			if (deltaYabs > ANALOG_DEAD_ZONE) {
-				unsigned int period = map (deltaYabs, ANALOG_DEAD_ZONE, ANALOG_IDLE_VALUE, MOUSE_SLOW_DELTA, MOUSE_FAST_DELTA);
-				debug (F("y = "));
-				debug (y);
-				debug (F(" --> period = "));
-				debugln (period);
-
-				byte leadingPin;
-				byte trailingPin;
-				if (deltaY > 0) {
-					// Down
-					leadingPin = PIN_LEFT;
-					trailingPin = PIN_UP;
-				} else {
-					// Up
-					leadingPin = PIN_UP;
-					trailingPin = PIN_LEFT;
-				}
-
-				if (millis () - ty >= period) {
-					digitalWrite (leadingPin, !digitalRead (leadingPin));
-					ty = millis ();
-				}
-				
-				if (millis () - ty >= period / 2) {
-					digitalWrite (trailingPin, !digitalRead (leadingPin));
-				}
-			}
-
-			// Buttons
-			noInterrupts ();
-			
-			if (buttonsLive & BTN_FRONT_L) {
-				buttonPress (PIN_BTN1);
-			} else {
-				buttonRelease (PIN_BTN1);
-			}
-
-			if (buttonsLive & BTN_FRONT_R) {
-				buttonPress (PIN_BTN2);
-			} else {
-				buttonRelease (PIN_BTN2);
-			}
-
-			interrupts ();
-		}
+		handleMouse ();
 	} else if (mode == MODE_CD32) {
 		// Directions still behave as in normal joystick mode
 		int lx = ps2x.Analog (PSS_LX);   			// 0 ... 255
