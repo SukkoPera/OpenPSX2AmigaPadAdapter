@@ -308,12 +308,6 @@ void onClockEdge () {
 	} else {
 		PORTB |= (1 << PB0);
 	}*/
-/*  if (++n >= 8) {
-		buttons = 0x01;
-	} else {
-		buttons >>= 1;
-	}
-	*/
 	buttons >>= 1;	/* Again, non-existing button 10 will be reported as pressed
 	                 * for the ID sequence
 	                 */
@@ -746,6 +740,9 @@ void loop () {
 	// Handle mode led
 	if (mode == MODE_JOYSTICK || (mode == MODE_MOUSE && (millis () / 500) % 2 == 0)) {
 		digitalWrite (PIN_LED_MODE_CD32, LOW);
+
+		// Mmmmmh... Not its place but well...
+		detachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK));
 	} else {
 		digitalWrite (PIN_LED_MODE_CD32, HIGH);
 	}
