@@ -30,10 +30,10 @@
 #include <PS2X_lib.h>
 
 // INPUT pins, connected to PS2 controller
+const byte PS2_CLK = 13;
 const byte PS2_DAT = 12;
-const byte PS2_CLK = 11;
-const byte PS2_CMD = 10;
-const byte PS2_SEL = 9;
+const byte PS2_CMD = 11;
+const byte PS2_SEL = 10;
 
 // PS2 Controller Class
 PS2X ps2x;
@@ -75,10 +75,10 @@ const byte MOUSE_SLOW_DELTA	= 60;
 const byte MOUSE_FAST_DELTA = 6;
 
 // Pin for led that lights up whenever the proper controller is detected
-const byte PIN_LED_PAD_OK = A0;
+const byte PIN_LED_PAD_OK = A1;
 
 // Pin for led that lights up whenever the adapter is in CD32 mode
-const byte PIN_LED_MODE_CD32 = 13;
+const byte PIN_LED_MODE_CD32 = A0;
 
 
 /*******************************************************************************
