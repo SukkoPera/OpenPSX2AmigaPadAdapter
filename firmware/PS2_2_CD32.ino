@@ -154,13 +154,15 @@ JoyMappingFunc joyMappingFunc = handleJoystickNormal;
 	#define debugln(...)
 #endif
 
-// Button register currently being shifted - 0 means pressed
-volatile /* register */ byte buttons;
+/* Button register currently being shifted in ISRs
+ * 0 means pressed
+ */
+volatile byte buttons;
 
 /* Button register being updated
  * 0 means pressed, MSB must be 1 for ID sequence (for the very first report)
  */
-/* volatile register */ byte buttonsLive = 0x80;
+byte buttonsLive = 0x80;
 
 // Timestamp of last time the pad was switched to CD32 mode
 unsigned long lastSwitchedTime = 0;
