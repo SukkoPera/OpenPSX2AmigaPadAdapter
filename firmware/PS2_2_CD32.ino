@@ -8,7 +8,7 @@
  * the Free Software Foundation, either version 3 of the License, or           *
  * (at your option) any later version.                                         *
  *                                                                             *
- * OpenPSX2AmigaPadAdapter is distributed in the hope that it will be useful,*
+ * OpenPSX2AmigaPadAdapter is distributed in the hope that it will be useful,  *
  * but WITHOUT ANY WARRANTY; without even the implied warranty of              *
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               *
  * GNU General Public License for more details.                                *
@@ -109,7 +109,7 @@ enum PadError {
 	PADERR_UNKNOWN
 };
 
-
+// Button bits for CD32 mode
 const word BTN_BLUE =		1U << 0U;
 const word BTN_RED =		1U << 1U;
 const word BTN_YELLOW =		1U << 2U;
@@ -117,10 +117,31 @@ const word BTN_GREEN =		1U << 3U;
 const word BTN_FRONT_R =	1U << 4U;
 const word BTN_FRONT_L =	1U << 5U;
 const word BTN_START =		1U << 6U;
-const word BTN_UP =			1U << 8U;
-const word BTN_DOWN =		1U << 9U;
-const word BTN_LEFT =		1U << 10U;
-const word BTN_RIGHT =		1U << 11U;
+
+// This is only used for blinking the led when mapping is changed
+enum JoyButtonMapping {
+	JMAP_NORMAL = 1,
+	JMAP_RACING1,
+	JMAP_RACING2,
+	JMAP_PLATFORM
+};
+
+// true means pressed
+struct JoyStatus {
+	boolean up: 1;
+	boolean down: 1;
+	boolean left: 1;
+	boolean right: 1;
+	boolean b1: 1;
+	boolean b2: 1;
+};
+
+// Type of button mapping function
+typedef void (*JoyMappingFunc) (JoyStatus& j);
+
+// Default button mapping function
+void handleJoystickNormal (JoyStatus& j);
+JoyMappingFunc joyMappingFunc = handleJoystickNormal;
 
 
 #ifdef ENABLE_SERIAL_DEBUG
@@ -137,7 +158,8 @@ const word BTN_RIGHT =		1U << 11U;
 volatile /* register */ byte buttons = 0xFF;
 
 // Button register being updated with ALL inputs (including directions)
-/* volatile register */ word buttonsLive = 0xFF;
+//~ /* volatile register */ word buttonsLive = 0xFF;
+/* volatile register */ byte buttonsLive = 0x00;
 
 // Timestamp of last time the pad was switched to CD32 mode
 unsigned long lastSwitchedTime = 0;
@@ -162,8 +184,6 @@ inline PadMode getMode () {
 		padMode = MODE_CD32;
 	} else if (PIND & (1 << PD2)) {
 		padMode = isMouse ? MODE_MOUSE : MODE_JOYSTICK;
-	} else {
-		padMode = MODE_UNKNOWN;
 	}
 		
 	return padMode;
@@ -213,58 +233,8 @@ PadError initPad () {
 	return ret;
 }
 
-word readButtons () {
-	word pad_status = 0x00;
-
-	ps2x.read_gamepad ();
-
-	if (ps2x.Button (PSB_START))
-		pad_status |= BTN_START;
-
-	//~ if(ps2x.Button(PSB_SELECT))
-		//~ Serial.println("Select is being held");
-
-	if (ps2x.Button (PSB_PAD_UP))
-		pad_status |= BTN_UP;
-
-	if (ps2x.Button (PSB_PAD_RIGHT))
-		pad_status |= BTN_RIGHT;
-
-	if(ps2x.Button (PSB_PAD_LEFT))
-		pad_status |= BTN_LEFT;
-
-	if (ps2x.Button (PSB_PAD_DOWN))
-		pad_status |= BTN_DOWN;
-
-	if (ps2x.Button (PSB_TRIANGLE))
-		pad_status |= BTN_GREEN;
-
-	if (ps2x.Button (PSB_SQUARE))
-		pad_status |= BTN_RED;
-
-	if (ps2x.Button (PSB_CROSS))
-		pad_status |= BTN_BLUE;
-
-	if (ps2x.Button (PSB_CIRCLE))
-		pad_status |= BTN_YELLOW;
-
-	if (ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2) || ps2x.Button (PSB_L3))
-		pad_status |= BTN_FRONT_L;
-
-	if (ps2x.Button (PSB_R1) || ps2x.Button (PSB_R2) || ps2x.Button (PSB_R3))
-		pad_status |= BTN_FRONT_R;
-
-	//~ if(ps2x.Button(PSB_L1) || ps2x.Button(PSB_R1)) { //print stick values if either is TRUE
-		//~ Serial.print("Stick Values:");
-		//~ Serial.print(ps2x.Analog(PSS_LY), DEC); //Left stick, Y axis. Other options: LX, RY, RX
-		//~ Serial.print(",");
-		//~ Serial.print(ps2x.Analog(PSS_LX), DEC);
-		//~ Serial.print(",");
-		//~ Serial.print(ps2x.Analog(PSS_RY), DEC);
-		//~ Serial.print(",");
-		//~ Serial.println(ps2x.Analog(PSS_RX), DEC);
-	//~ }
-
+// FIXME
+void dumpButtons () {
 #ifdef DEBUG_PAD
 	static word last_pad_status = 0;
 
@@ -297,11 +267,7 @@ word readButtons () {
 		last_pad_status = pad_status;
 	}
 #endif
-
-	return pad_status;
 }
-
-byte n;
 
 // ISR
 void onPadModeFalling () {
@@ -310,8 +276,8 @@ void onPadModeFalling () {
 	//DDRD &= ~(1 << PD3);    // Input
 
 	// Sample input values, they will be shifted out on subsequent clock inputs
-	buttons = buttonsLive & 0x7F;   // Lowest 7 bits contains buttons only, already in correct order
-	// Note that 8th bit must be 0 so that it will be reported as 1 for ID sequence
+	//~ buttons = buttonsLive & 0x7F;   // Make sure bit MSB is 0 for ID sequence
+	buttons = buttonsLive;
 
 	digitalWrite (PIN_BTNREGOUT, !(buttons & 0x01));
 /*  if (buttons & 0x01) {
@@ -321,7 +287,6 @@ void onPadModeFalling () {
 	}*/
 	buttons >>= 1;
 	buttons |= 1 << 7;  // This will report non-existing buttons 9 as pressed, for the ID sequence
-	n = 1;
 
 	lastSwitchedTime = millis ();
 
@@ -406,79 +371,111 @@ inline void buttonRelease (byte pin) {
 	pinMode (pin, INPUT); // Hi-Z
 }
 
-enum JoyButtonMapping {
-	JMAP_NORMAL,
-	JMAP_RACING1,
-	JMAP_RACING2,
-	JMAP_PLATFORM
-};
-
-JoyButtonMapping joyButtonMapping;
-
-// true means pressed
-struct JoyStatus {
-	boolean up: 1;
-	boolean down: 1;
-	boolean left: 1;
-	boolean right: 1;
-	boolean b1: 1;
-	boolean b2: 1;
-}
-
-typedef void (*JoyMappingFunc) (JoyStatus& j);
-
-JoyMappingFunc joyMappingFunc = NULL;
-
-void handleAnalogStick (JoyStatus& j) {
+void handleAnalogStickHorizontal (JoyStatus& j) {
 	int lx = ps2x.Analog (PSS_LX);   			// 0 ... 255
 	int deltaLX = lx - ANALOG_IDLE_VALUE;		// --> -127 ... +128
+	debug (F("Analog X = "));
+	debugln (deltaLX);
 	j.left = deltaLX < -ANALOG_DEAD_ZONE;
 	j.right = deltaLX > +ANALOG_DEAD_ZONE;
-	
+}
+
+void handleAnalogStickVertical (JoyStatus& j) {
 	int ly = ps2x.Analog (PSS_LY);
 	int deltaLY = ly - ANALOG_IDLE_VALUE;
+	debug (F("Analog Y = "));
+	debugln (deltaLY);
 	j.up = deltaLY < -ANALOG_DEAD_ZONE;
 	j.down = deltaLY > +ANALOG_DEAD_ZONE;
 }
 
 void handleJoystickNormal (JoyStatus& j) {
-	handleAnalogStick (j);
-	
+	// Use both analog axes
+	handleAnalogStickHorizontal (j);
+	handleAnalogStickVertical (j);
+
+	// D-Pad is fully functional as well
 	j.up |= ps2x.Button (PSB_PAD_UP);
 	j.down |= ps2x.Button (PSB_PAD_DOWN);
 	j.left |= ps2x.Button (PSB_PAD_LEFT);
 	j.right |= ps2x.Button (PSB_PAD_RIGHT);
-	
+
+	// Square/Rx are button 1
 	j.b1 = ps2x.Button (PSB_SQUARE) || ps2x.Button (PSB_R1) || ps2x.Button (PSB_R2) || ps2x.Button (PSB_R3);
+
+	// Cross/Lx are button 1
 	j.b2 = ps2x.Button (PSB_CROSS) || ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2) || ps2x.Button (PSB_L3);
 }
 
 void handleJoystickRacing1 (JoyStatus& j) {
-	j.up = ps2x.Button (PSB_SQUARE);
-	j.down = ps2x.Button (PSB_CROSS);
-	
-	j.b1 = ps2x.Button (PSB_R1) || ps2x.Button (PSB_R2) || ps2x.Button (PSB_R3);
-	j.b2 = ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2) || ps2x.Button (PSB_L3);
+	// Use analog's horizontal axis to steer, ignore vertical
+	handleAnalogStickHorizontal (j);
+
+	// D-Pad L/R can also be used
+	j.left |= ps2x.Button (PSB_PAD_LEFT);
+	j.right |= ps2x.Button (PSB_PAD_RIGHT);
+
+	// Use D-Pad U/Square to accelerate and D/Cross to brake
+	j.up = ps2x.Button (PSB_PAD_UP) || ps2x.Button (PSB_SQUARE);
+	j.down = ps2x.Button (PSB_PAD_DOWN) || ps2x.Button (PSB_CROSS);
+
+	// Triangle/Rx are button 1
+	j.b1 = ps2x.Button (PSB_TRIANGLE) || ps2x.Button (PSB_R1) || ps2x.Button (PSB_R2) || ps2x.Button (PSB_R3);
+
+	// Circle/Lx are button 2
+	j.b2 = ps2x.Button (PSB_CIRCLE) || ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2) || ps2x.Button (PSB_L3);
 }
 
 void handleJoystickRacing2 (JoyStatus& j) {
-	j.up = ps2x.Button (PSB_R1) || ps2x.Button (PSB_R2);
-	j.down = ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2);
-	
+	// Use analog's horizontal axis to steer, ignore vertical
+	handleAnalogStickHorizontal (j);
+
+	// D-Pad L/R can also be used
+	j.left |= ps2x.Button (PSB_PAD_LEFT);
+	j.right |= ps2x.Button (PSB_PAD_RIGHT);
+
+	// Use D-Pad U/R1/R2 to accelerate and D/L1/L2 to brake
+	j.up = ps2x.Button (PSB_PAD_UP) || ps2x.Button (PSB_R1) || ps2x.Button (PSB_R2);
+	j.down = ps2x.Button (PSB_PAD_DOWN) || ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2);
+
+	// Square/R3 are button 1
 	j.b1 = ps2x.Button (PSB_SQUARE) || ps2x.Button (PSB_R3);
+
+	// Cross/L3 are button 2
 	j.b2 = ps2x.Button (PSB_CROSS) || ps2x.Button (PSB_L3);
 }
 
 void handleJoystickPlatform (JoyStatus& j) {
-	j.up = ps2x.Button (PSB_CROSS);
-	
+	// Use horizontal analog axes fully, but only down on vertical
+	handleAnalogStickHorizontal (j);
+	handleAnalogStickVertical (j);
+
+	// D-Pad is fully functional
+	j.up = ps2x.Button (PSB_PAD_UP);		// Note the '=', will override analog UP
+	j.down |= ps2x.Button (PSB_PAD_DOWN);
+	j.left |= ps2x.Button (PSB_PAD_LEFT);
+	j.right |= ps2x.Button (PSB_PAD_RIGHT);
+
+	// Cross is up/jump
+	j.up |= ps2x.Button (PSB_CROSS);
+
+	// Square/Rx are button 1
 	j.b1 = ps2x.Button (PSB_SQUARE) || ps2x.Button (PSB_R1) || ps2x.Button (PSB_R2) || ps2x.Button (PSB_R3);
+
+	// Triangle/Lx are button 2
 	j.b2 = ps2x.Button (PSB_TRIANGLE) || ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2) || ps2x.Button (PSB_L3);
 }
 
+void flash_led (byte n) {
+	for (byte i = 0; i < n; ++i) {
+		digitalWrite (PIN_LED_MODE_CD32, HIGH);
+		delay (40);
+		digitalWrite (PIN_LED_MODE_CD32, LOW);
+		delay (80);
+	}
+}
+
 void handleJoystick () {
-	JoyStatus j = {false, false, false, false, false, false};
-	
 	int rx = ps2x.Analog (PSS_RX);   // 0 ... 255
 	int deltaRX = rx - ANALOG_IDLE_VALUE;
 	int deltaRXabs = abs (deltaRX);
@@ -487,45 +484,40 @@ void handleJoystick () {
 	int deltaRY = ry - ANALOG_IDLE_VALUE;
 	int deltaRYabs = abs (deltaRY);
 	if (deltaRXabs > ANALOG_DEAD_ZONE || deltaRYabs > ANALOG_DEAD_ZONE) {
-		// Right analog stick moved, go to Mouse mode
+		// Right analog stick moved, switch to Mouse mode
 		pinMode (PIN_UP, OUTPUT);
 		pinMode (PIN_DOWN, OUTPUT);
 		pinMode (PIN_LEFT, OUTPUT);
 		pinMode (PIN_RIGHT, OUTPUT);
 
 		isMouse = true;
-	} else {
-		// Handle directions		
-		//~ int lx = ps2x.Analog (PSS_LX);   			// 0 ... 255
-		//~ int deltaLX = lx - ANALOG_IDLE_VALUE;		// --> -127 ... +128
-		//~ j.left = ps2x.Button (PSB_PAD_LEFT) || deltaLX < -ANALOG_DEAD_ZONE;
-		//~ j.right = ps2x.Button (PSB_PAD_RIGHT) || deltaLX > +ANALOG_DEAD_ZONE;
+	} else if (ps2x.Button (PSB_SELECT)) {
+		debugln (F("Select is being held"));
 		
-		//~ int ly = ps2x.Analog (PSS_LY);
-		//~ int deltaLY = ly - ANALOG_IDLE_VALUE;
-		//~ j.up = ps2x.Button (PSB_PAD_UP) || deltaLY < -ANALOG_DEAD_ZONE;
-		//~ j.down = ps2x.Button (PSB_PAD_DOWN) || deltaLY > +ANALOG_DEAD_ZONE;
-
-		// Handle Buttons
-		//~ switch (joyButtonMapping) {
-		//~ case JMAP_NORMAL;
-		//~ default:
-			//~ break;
-		//~ case JMAP_RACING1:
-		//~ case JMAP_RACING2:
-		//~ case JMAP_PLATFORM:
-			//~ break;
-		//~ }
-
-
-		if (!joyMappingFunc)
+		// Select pressed, change button mapping
+		if (ps2x.Button (PSB_SQUARE)) {
 			joyMappingFunc = handleJoystickNormal;
-			
-		*joyMappingFunc (j);
-
-
-		/////////////////
+			flash_led (JMAP_NORMAL);
+		} else if (ps2x.Button (PSB_TRIANGLE)) {
+			joyMappingFunc = handleJoystickRacing1;
+			flash_led (JMAP_RACING1);
+		} else if (ps2x.Button (PSB_CIRCLE)) {
+			joyMappingFunc = handleJoystickRacing2;
+			flash_led (JMAP_RACING2);
+		} else if (ps2x.Button (PSB_CROSS)) {
+			joyMappingFunc = handleJoystickPlatform;
+			flash_led (JMAP_PLATFORM);
+		}
+	} else {
+		// Call button mapping function
+		JoyStatus j = {false, false, false, false, false, false};
 		
+		//~ if (!joyMappingFunc)
+			//~ joyMappingFunc = handleJoystickNormal;
+			
+		joyMappingFunc (j);
+
+		// Make mapped buttons affect the actual pins
 		if (j.up) {
 			buttonPress (PIN_UP);
 		} else {
@@ -574,7 +566,8 @@ void handleJoystick () {
 }
 
 void handleMouse () {
-	if (buttonsLive & (BTN_UP | BTN_DOWN | BTN_LEFT | BTN_RIGHT)) {
+	if (ps2x.Button (PSB_PAD_UP) || ps2x.Button (PSB_PAD_DOWN) ||
+	    ps2x.Button (PSB_PAD_LEFT) || ps2x.Button (PSB_PAD_RIGHT)) {
 		// Directional button pressed, go back to joystick mode
 		isMouse = false;
 	} else {
@@ -649,13 +642,13 @@ void handleMouse () {
 		// Buttons
 		noInterrupts ();
 		
-		if (buttonsLive & BTN_FRONT_L) {
+		if (ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2) || ps2x.Button (PSB_L3)) {
 			buttonPress (PIN_BTN1);
 		} else {
 			buttonRelease (PIN_BTN1);
 		}
 
-		if (buttonsLive & BTN_FRONT_R) {
+		if (ps2x.Button (PSB_R1) || ps2x.Button (PSB_R2) || ps2x.Button (PSB_R3)) {
 			buttonPress (PIN_BTN2);
 		} else {
 			buttonRelease (PIN_BTN2);
@@ -663,6 +656,64 @@ void handleMouse () {
 
 		interrupts ();
 	}
+}
+
+void handleCD32Pad () {
+	// Directions still behave as in normal joystick mode, so abuse those functions
+	JoyStatus analog;
+	handleAnalogStickHorizontal (analog);
+	handleAnalogStickVertical (analog);
+
+	// D-Pad is fully functional as well, keep it in mind
+	if (analog.up || ps2x.Button (PSB_PAD_UP)) {
+		buttonPress (PIN_UP);
+	} else {
+		buttonRelease (PIN_UP);
+	}
+
+	if (analog.down || ps2x.Button (PSB_PAD_DOWN)) {
+		buttonPress (PIN_DOWN);
+	} else {
+		buttonRelease (PIN_DOWN);
+	}
+
+	if (analog.left || ps2x.Button (PSB_PAD_LEFT)) {
+		buttonPress (PIN_LEFT);
+	} else {
+		buttonRelease (PIN_LEFT);
+	}
+
+	if (analog.right || ps2x.Button (PSB_PAD_RIGHT)) {
+		buttonPress (PIN_RIGHT);
+	} else {
+		buttonRelease (PIN_RIGHT);
+	}
+
+	/* Map buttons - Note that 8th bit must be 0 so that it will be reported as
+	 * 1 for the ID sequence
+	 */
+	buttonsLive = 0;
+
+	if (ps2x.Button (PSB_START))
+		buttonsLive |= BTN_START;
+
+	if (ps2x.Button (PSB_TRIANGLE))
+		buttonsLive |= BTN_GREEN;
+
+	if (ps2x.Button (PSB_SQUARE))
+		buttonsLive |= BTN_RED;
+
+	if (ps2x.Button (PSB_CROSS))
+		buttonsLive |= BTN_BLUE;
+
+	if (ps2x.Button (PSB_CIRCLE))
+		buttonsLive |= BTN_YELLOW;
+
+	if (ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2) || ps2x.Button (PSB_L3))
+		buttonsLive |= BTN_FRONT_L;
+
+	if (ps2x.Button (PSB_R1) || ps2x.Button (PSB_R2) || ps2x.Button (PSB_R3))
+		buttonsLive |= BTN_FRONT_R;
 }
 
 void loop () {
@@ -674,36 +725,7 @@ void loop () {
 	} else if (mode == MODE_MOUSE) {
 		handleMouse ();
 	} else if (mode == MODE_CD32) {
-		// Directions still behave as in normal joystick mode
-		int lx = ps2x.Analog (PSS_LX);   			// 0 ... 255
-		int deltaLX = lx - ANALOG_IDLE_VALUE;		// --> -127 ... +128
-
-		int ly = ps2x.Analog (PSS_LY);
-		int deltaLY = ly - ANALOG_IDLE_VALUE;
-
-		if ((buttonsLive & BTN_UP) || deltaLY < -ANALOG_DEAD_ZONE) {
-			buttonPress (PIN_UP);
-		} else {
-			buttonRelease (PIN_UP);
-		}
-
-		if ((buttonsLive & BTN_DOWN) || deltaLY > +ANALOG_DEAD_ZONE) {
-			buttonPress (PIN_DOWN);
-		} else {
-			buttonRelease (PIN_DOWN);
-		}
-
-		if ((buttonsLive & BTN_LEFT) || deltaLX < -ANALOG_DEAD_ZONE) {
-			buttonPress (PIN_LEFT);
-		} else {
-			buttonRelease (PIN_LEFT);
-		}
-
-		if ((buttonsLive & BTN_RIGHT) || deltaLX > +ANALOG_DEAD_ZONE) {
-			buttonPress (PIN_RIGHT);
-		} else {
-			buttonRelease (PIN_RIGHT);
-		}
+		handleCD32Pad ();
 	}
 
 	// Handle mode led
