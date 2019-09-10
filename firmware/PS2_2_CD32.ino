@@ -154,12 +154,13 @@ JoyMappingFunc joyMappingFunc = handleJoystickNormal;
 	#define debugln(...)
 #endif
 
-// Button register currently being shifted (buttons only!)
-volatile /* register */ byte buttons = 0xFF;
+// Button register currently being shifted - 0 means pressed
+volatile /* register */ byte buttons;
 
-// Button register being updated with ALL inputs (including directions)
-//~ /* volatile register */ word buttonsLive = 0xFF;
-/* volatile register */ byte buttonsLive = 0x00;
+/* Button register being updated
+ * 0 means pressed, MSB must be 1 for ID sequence (for the very first report)
+ */
+/* volatile register */ byte buttonsLive = 0x80;
 
 // Timestamp of last time the pad was switched to CD32 mode
 unsigned long lastSwitchedTime = 0;
@@ -276,17 +277,20 @@ void onPadModeFalling () {
 	//DDRD &= ~(1 << PD3);    // Input
 
 	// Sample input values, they will be shifted out on subsequent clock inputs
-	//~ buttons = buttonsLive & 0x7F;   // Make sure bit MSB is 0 for ID sequence
-	buttons = buttonsLive;
+	//~ buttons = buttonsLive | 0x80;   // Make sure bit MSB is 1 for ID sequence
+	buttons = buttonsLive;		/* The above is now handled elsewhere so that
+	                             * here we can run as fast as possible
+	                             */
 
-	digitalWrite (PIN_BTNREGOUT, !(buttons & 0x01));
+	digitalWrite (PIN_BTNREGOUT, buttons & 0x01);
 /*  if (buttons & 0x01) {
 		PORTB &= ~(1 << PB0);
 	} else {
 		PORTB |= (1 << PB0);
 	}*/
-	buttons >>= 1;
-	buttons |= 1 << 7;  // This will report non-existing buttons 9 as pressed, for the ID sequence
+	buttons >>= 1;	/* MSB will be zeroed during shifting, this will report
+	                 * non-existing button 9 as pressed for the ID sequence
+	                 */
 
 	lastSwitchedTime = millis ();
 
@@ -296,7 +300,7 @@ void onPadModeFalling () {
 
 // ISR
 void onClockEdge () {
-	digitalWrite (PIN_BTNREGOUT, !(buttons & 0x01));
+	digitalWrite (PIN_BTNREGOUT, buttons & 0x01);
 	/*if (buttons & 0x01) {
 		PORTB &= ~(1 << PB0);
 	} else {
@@ -308,8 +312,9 @@ void onClockEdge () {
 		buttons >>= 1;
 	}
 	*/
-	buttons >>= 1;
-	buttons |= 1 << 7;  // This will report non-existing buttons 10 as pressed, for the ID sequence
+	buttons >>= 1;	/* Again, non-existing button 10 will be reported as pressed
+	                 * for the ID sequence
+	                 */
 }
 
 void mypanic (int interval) {
@@ -689,31 +694,29 @@ void handleCD32Pad () {
 		buttonRelease (PIN_RIGHT);
 	}
 
-	/* Map buttons - Note that 8th bit must be 0 so that it will be reported as
-	 * 1 for the ID sequence
-	 */
-	buttonsLive = 0;
+	// Map buttons - Note that 8th bit must be 1 for the ID sequence
+	buttonsLive = 0xFF;
 
 	if (ps2x.Button (PSB_START))
-		buttonsLive |= BTN_START;
+		buttonsLive &= ~BTN_START;
 
 	if (ps2x.Button (PSB_TRIANGLE))
-		buttonsLive |= BTN_GREEN;
+		buttonsLive &= ~BTN_GREEN;
 
 	if (ps2x.Button (PSB_SQUARE))
-		buttonsLive |= BTN_RED;
+		buttonsLive &= ~BTN_RED;
 
 	if (ps2x.Button (PSB_CROSS))
-		buttonsLive |= BTN_BLUE;
+		buttonsLive &= ~BTN_BLUE;
 
 	if (ps2x.Button (PSB_CIRCLE))
-		buttonsLive |= BTN_YELLOW;
+		buttonsLive &= ~BTN_YELLOW;
 
 	if (ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2) || ps2x.Button (PSB_L3))
-		buttonsLive |= BTN_FRONT_L;
+		buttonsLive &= ~BTN_FRONT_L;
 
 	if (ps2x.Button (PSB_R1) || ps2x.Button (PSB_R2) || ps2x.Button (PSB_R3))
-		buttonsLive |= BTN_FRONT_R;
+		buttonsLive &= ~BTN_FRONT_R;
 }
 
 void loop () {
