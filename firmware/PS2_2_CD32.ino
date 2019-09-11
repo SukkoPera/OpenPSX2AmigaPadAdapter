@@ -423,6 +423,12 @@ void handleJoystickRacing1 (JoyStatus& j) {
 	// Use D-Pad U/Square to accelerate and D/Cross to brake
 	j.up = ps2x.Button (PSB_PAD_UP) || ps2x.Button (PSB_SQUARE);
 	j.down = ps2x.Button (PSB_PAD_DOWN) || ps2x.Button (PSB_CROSS);
+	
+	/* Games probably did not expect up + down at the same time, so when
+	 * braking, don't accelerate
+	 */
+	if (j.down)
+		j.up = false;
 
 	// Triangle/Rx are button 1
 	j.b1 = ps2x.Button (PSB_TRIANGLE) || ps2x.Button (PSB_R1) || ps2x.Button (PSB_R2) || ps2x.Button (PSB_R3);
@@ -442,6 +448,12 @@ void handleJoystickRacing2 (JoyStatus& j) {
 	// Use D-Pad U/R1/R2 to accelerate and D/L1/L2 to brake
 	j.up = ps2x.Button (PSB_PAD_UP) || ps2x.Button (PSB_R1) || ps2x.Button (PSB_R2);
 	j.down = ps2x.Button (PSB_PAD_DOWN) || ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2);
+
+	/* Games probably did not expect up + down at the same time, so when
+	 * braking, don't accelerate
+	 */
+	if (j.down)
+		j.up = false;
 
 	// Square/R3 are button 1
 	j.b1 = ps2x.Button (PSB_SQUARE) || ps2x.Button (PSB_R3);
