@@ -286,11 +286,6 @@ void onPadModeFalling () {
 	                             */
 
 	digitalWrite (PIN_BTNREGOUT, buttons & 0x01);
-/*  if (buttons & 0x01) {
-		PORTB &= ~(1 << PB0);
-	} else {
-		PORTB |= (1 << PB0);
-	}*/
 	buttons >>= 1;	/* MSB will be zeroed during shifting, this will report
 	                 * non-existing button 9 as pressed for the ID sequence
 	                 */
@@ -304,11 +299,6 @@ void onPadModeFalling () {
 // ISR
 void onClockEdge () {
 	digitalWrite (PIN_BTNREGOUT, buttons & 0x01);
-	/*if (buttons & 0x01) {
-		PORTB &= ~(1 << PB0);
-	} else {
-		PORTB |= (1 << PB0);
-	}*/
 	buttons >>= 1;	/* Again, non-existing button 10 will be reported as pressed
 	                 * for the ID sequence
 	                 */
@@ -365,7 +355,9 @@ void setup () {
 }
 
 inline void buttonPress (byte pin) {
-	//~ digitalWrite (PIN_UP, LOW);
+	/* Drive pins in open-collector style, so that we are compatible with the
+	 * C64 too
+	 */
 	pinMode (pin, OUTPUT);  // Low is implicit
 }
 
