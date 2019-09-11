@@ -127,7 +127,7 @@ enum JoyButtonMapping {
 };
 
 // true means pressed
-struct JoyStatus {
+struct TwoButtonJoystick {
 	boolean up: 1;
 	boolean down: 1;
 	boolean left: 1;
@@ -137,11 +137,11 @@ struct JoyStatus {
 };
 
 // Type of button mapping function
-typedef void (*JoyMappingFunc) (JoyStatus& j);
+typedef void (*JoyMappingFunc) (TwoButtonJoystick& j);
 
 // Default button mapping function
-void handleJoystickNormal (JoyStatus& j);
-JoyMappingFunc joyMappingFunc = handleJoystickNormal;
+void mapJoystickNormal (TwoButtonJoystick& j);
+JoyMappingFunc joyMappingFunc = mapJoystickNormal;
 
 
 #ifdef ENABLE_SERIAL_DEBUG
@@ -376,7 +376,7 @@ inline void buttonRelease (byte pin) {
 	pinMode (pin, INPUT); // Hi-Z
 }
 
-void handleAnalogStickHorizontal (JoyStatus& j) {
+void mapAnalogStickHorizontal (TwoButtonJoystick& j) {
 	int lx = ps2x.Analog (PSS_LX);   			// 0 ... 255
 	int deltaLX = lx - ANALOG_IDLE_VALUE;		// --> -127 ... +128
 	debug (F("Analog X = "));
@@ -385,7 +385,7 @@ void handleAnalogStickHorizontal (JoyStatus& j) {
 	j.right = deltaLX > +ANALOG_DEAD_ZONE;
 }
 
-void handleAnalogStickVertical (JoyStatus& j) {
+void mapAnalogStickVertical (TwoButtonJoystick& j) {
 	int ly = ps2x.Analog (PSS_LY);
 	int deltaLY = ly - ANALOG_IDLE_VALUE;
 	debug (F("Analog Y = "));
@@ -394,10 +394,10 @@ void handleAnalogStickVertical (JoyStatus& j) {
 	j.down = deltaLY > +ANALOG_DEAD_ZONE;
 }
 
-void handleJoystickNormal (JoyStatus& j) {
+void mapJoystickNormal (TwoButtonJoystick& j) {
 	// Use both analog axes
-	handleAnalogStickHorizontal (j);
-	handleAnalogStickVertical (j);
+	mapAnalogStickHorizontal (j);
+	mapAnalogStickVertical (j);
 
 	// D-Pad is fully functional as well
 	j.up |= ps2x.Button (PSB_PAD_UP);
@@ -412,9 +412,9 @@ void handleJoystickNormal (JoyStatus& j) {
 	j.b2 = ps2x.Button (PSB_CROSS) || ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2) || ps2x.Button (PSB_L3);
 }
 
-void handleJoystickRacing1 (JoyStatus& j) {
+void mapJoystickRacing1 (TwoButtonJoystick& j) {
 	// Use analog's horizontal axis to steer, ignore vertical
-	handleAnalogStickHorizontal (j);
+	mapAnalogStickHorizontal (j);
 
 	// D-Pad L/R can also be used
 	j.left |= ps2x.Button (PSB_PAD_LEFT);
@@ -437,9 +437,9 @@ void handleJoystickRacing1 (JoyStatus& j) {
 	j.b2 = ps2x.Button (PSB_CIRCLE) || ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2) || ps2x.Button (PSB_L3);
 }
 
-void handleJoystickRacing2 (JoyStatus& j) {
+void mapJoystickRacing2 (TwoButtonJoystick& j) {
 	// Use analog's horizontal axis to steer, ignore vertical
-	handleAnalogStickHorizontal (j);
+	mapAnalogStickHorizontal (j);
 
 	// D-Pad L/R can also be used
 	j.left |= ps2x.Button (PSB_PAD_LEFT);
@@ -462,10 +462,10 @@ void handleJoystickRacing2 (JoyStatus& j) {
 	j.b2 = ps2x.Button (PSB_CROSS) || ps2x.Button (PSB_L3);
 }
 
-void handleJoystickPlatform (JoyStatus& j) {
-	// Use horizontal analog axes fully, but only down on vertical
-	handleAnalogStickHorizontal (j);
-	handleAnalogStickVertical (j);
+void mapJoystickPlatform (TwoButtonJoystick& j) {
+	// Use horizontal analog axis fully, but only down on vertical
+	mapAnalogStickHorizontal (j);
+	mapAnalogStickVertical (j);
 
 	// D-Pad is fully functional
 	j.up = ps2x.Button (PSB_PAD_UP);		// Note the '=', will override analog UP
@@ -492,7 +492,7 @@ void flashLed (byte n) {
 	}
 }
 
-void handleJoystick () {
+void mapJoystick () {
 	int rx = ps2x.Analog (PSS_RX);   // 0 ... 255
 	int deltaRX = rx - ANALOG_IDLE_VALUE;
 	int deltaRXabs = abs (deltaRX);
@@ -513,24 +513,24 @@ void handleJoystick () {
 		
 		// Select pressed, change button mapping
 		if (ps2x.Button (PSB_SQUARE)) {
-			joyMappingFunc = handleJoystickNormal;
+			joyMappingFunc = mapJoystickNormal;
 			flashLed (JMAP_NORMAL);
 		} else if (ps2x.Button (PSB_TRIANGLE)) {
-			joyMappingFunc = handleJoystickRacing1;
+			joyMappingFunc = mapJoystickRacing1;
 			flashLed (JMAP_RACING1);
 		} else if (ps2x.Button (PSB_CIRCLE)) {
-			joyMappingFunc = handleJoystickRacing2;
+			joyMappingFunc = mapJoystickRacing2;
 			flashLed (JMAP_RACING2);
 		} else if (ps2x.Button (PSB_CROSS)) {
-			joyMappingFunc = handleJoystickPlatform;
+			joyMappingFunc = mapJoystickPlatform;
 			flashLed (JMAP_PLATFORM);
 		}
 	} else {
 		// Call button mapping function
-		JoyStatus j = {false, false, false, false, false, false};
+		TwoButtonJoystick j = {false, false, false, false, false, false};
 		
 		//~ if (!joyMappingFunc)
-			//~ joyMappingFunc = handleJoystickNormal;
+			//~ joyMappingFunc = mapJoystickNormal;
 			
 		joyMappingFunc (j);
 
@@ -677,9 +677,9 @@ void handleMouse () {
 
 void handleCD32Pad () {
 	// Directions still behave as in normal joystick mode, so abuse those functions
-	JoyStatus analog;
-	handleAnalogStickHorizontal (analog);
-	handleAnalogStickVertical (analog);
+	TwoButtonJoystick analog;
+	mapAnalogStickHorizontal (analog);
+	mapAnalogStickVertical (analog);
 
 	// D-Pad is fully functional as well, keep it in mind
 	if (analog.up || ps2x.Button (PSB_PAD_UP)) {
@@ -741,7 +741,7 @@ void loop () {
 	// Handle joystick report
 	switch (mode) {
 	case MODE_JOYSTICK:
-		handleJoystick ();
+		mapJoystick ();
 		break;
 	case MODE_MOUSE:
 		handleMouse ();
