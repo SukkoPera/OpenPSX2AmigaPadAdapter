@@ -6,7 +6,7 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 1 1
 Title "OpenPSX2AmigaPadAdapter"
-Date "2019-07-03"
+Date "2019-09-11"
 Rev "1git"
 Comp "SukkoPera"
 Comment1 ""
@@ -39,21 +39,21 @@ Text Label 8700 2550 0    60   ~ 0
 ami_poty
 Text Label 8700 2650 0    60   ~ 0
 ami_potx
-Text Notes 3200 2900 0    60   ~ 0
+Text Notes 3200 2950 0    60   ~ 0
 0
-Text Notes 3200 3000 0    60   ~ 0
+Text Notes 3200 3050 0    60   ~ 0
 1
-Text Notes 3200 3100 0    60   ~ 0
+Text Notes 3200 3150 0    60   ~ 0
 2
-Text Notes 3200 3200 0    60   ~ 0
+Text Notes 3200 3250 0    60   ~ 0
 3
-Text Notes 3200 3300 0    60   ~ 0
+Text Notes 3200 3350 0    60   ~ 0
 4
-Text Notes 3200 3400 0    60   ~ 0
+Text Notes 3200 3450 0    60   ~ 0
 5
-Text Notes 3200 3500 0    60   ~ 0
+Text Notes 3200 3550 0    60   ~ 0
 6
-Text Notes 3200 3600 0    60   ~ 0
+Text Notes 3200 3650 0    60   ~ 0
 7
 NoConn ~ 9500 5100
 Text Label 8550 4400 0    60   ~ 0
@@ -413,7 +413,7 @@ Text Label 5300 6900 0    60   ~ 0
 miso
 Text Label 5300 7000 0    60   ~ 0
 sck
-Text Label 4300 2750 0    60   ~ 0
+Text Label 4500 2750 2    60   ~ 0
 dtr
 Wire Wire Line
 	5700 7100 5300 7100
@@ -441,12 +441,12 @@ $EndComp
 $Comp
 L power:+5V #PWR021
 U 1 1 5D197B2B
-P 4255 2465
-F 0 "#PWR021" H 4255 2315 50  0001 C CNN
-F 1 "+5V" H 4255 2605 50  0000 C CNN
-F 2 "" H 4255 2465 50  0001 C CNN
-F 3 "" H 4255 2465 50  0001 C CNN
-	1    4255 2465
+P 4355 2465
+F 0 "#PWR021" H 4355 2315 50  0001 C CNN
+F 1 "+5V" H 4355 2605 50  0000 C CNN
+F 2 "" H 4355 2465 50  0001 C CNN
+F 3 "" H 4355 2465 50  0001 C CNN
+	1    4355 2465
 	-1   0    0    -1  
 $EndComp
 Text Label 3250 2750 0    60   ~ 0
@@ -617,16 +617,16 @@ Wire Wire Line
 $Comp
 L Device:R R1
 U 1 1 5D1B4196
-P 4025 2530
-F 0 "R1" V 3818 2530 50  0000 C CNN
-F 1 "10k" V 3909 2530 50  0000 C CNN
-F 2 "Resistor_SMD:R_0805_2012Metric_Pad1.15x1.40mm_HandSolder" V 3955 2530 50  0001 C CNN
-F 3 "~" H 4025 2530 50  0001 C CNN
-	1    4025 2530
+P 4125 2530
+F 0 "R1" V 3918 2530 50  0000 C CNN
+F 1 "10k" V 4009 2530 50  0000 C CNN
+F 2 "Resistor_SMD:R_0805_2012Metric_Pad1.15x1.40mm_HandSolder" V 4055 2530 50  0001 C CNN
+F 3 "~" H 4125 2530 50  0001 C CNN
+	1    4125 2530
 	0    1    1    0   
 $EndComp
 Wire Wire Line
-	4190 2750 4500 2750
+	4290 2750 4500 2750
 $Comp
 L Device:R R2
 U 1 1 5D1DED72
@@ -778,7 +778,7 @@ L Connector:DB9_Female_MountingHoles J2
 U 1 1 5D284CA1
 P 9650 2250
 F 0 "J2" H 9830 2252 50  0000 L CNN
-F 1 "TO_AMI" H 9830 2161 50  0000 L CNN
+F 1 "DB9_F" H 9830 2161 50  0000 L CNN
 F 2 "OpenPSX2AmigaPadAdapter:DB_9F" H 9650 2250 50  0001 C CNN
 F 3 " ~" H 9650 2250 50  0001 C CNN
 	1    9650 2250
@@ -829,27 +829,27 @@ F 3 "http://www.ti.com/lit/ds/symlink/lm1117.pdf" H 2610 5905 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	3875 2530 3780 2530
+	3975 2530 3880 2530
 Wire Wire Line
-	3780 2530 3780 2750
-Connection ~ 3780 2750
+	3880 2530 3880 2750
+Connection ~ 3880 2750
 Wire Wire Line
-	3780 2750 3890 2750
+	3880 2750 3990 2750
 Wire Wire Line
-	3200 2750 3780 2750
+	3200 2750 3880 2750
 Wire Wire Line
-	4255 2465 4255 2530
+	4355 2465 4355 2530
 Wire Wire Line
-	4255 2530 4175 2530
+	4355 2530 4275 2530
 $Comp
 L Device:C C8
 U 1 1 5D1C8DC2
-P 4040 2750
-F 0 "C8" V 4100 2860 50  0000 C CNN
-F 1 "100n" V 4105 2595 50  0000 C CNN
-F 2 "Capacitor_SMD:C_0805_2012Metric_Pad1.15x1.40mm_HandSolder" H 4078 2600 50  0001 C CNN
-F 3 "~" H 4040 2750 50  0001 C CNN
-	1    4040 2750
+P 4140 2750
+F 0 "C8" V 4090 2850 50  0000 C CNN
+F 1 "100n" V 4195 2900 50  0000 C CNN
+F 2 "Capacitor_SMD:C_0805_2012Metric_Pad1.15x1.40mm_HandSolder" H 4178 2600 50  0001 C CNN
+F 3 "~" H 4140 2750 50  0001 C CNN
+	1    4140 2750
 	0    1    1    0   
 $EndComp
 NoConn ~ 3200 2650
@@ -1063,7 +1063,7 @@ $EndComp
 Wire Wire Line
 	3800 1950 3800 2150
 Wire Wire Line
-	4700 1850 4950 1850
+	4795 1850 4950 1850
 Wire Wire Line
 	4950 1850 4950 2150
 Text Label 3850 1650 0    60   ~ 0
@@ -1085,12 +1085,12 @@ FOR ICSP
 $Comp
 L Device:C C6
 U 1 1 5D19A701
-P 4550 1850
-F 0 "C6" V 4298 1850 50  0000 C CNN
-F 1 "22p" V 4389 1850 50  0000 C CNN
-F 2 "Capacitor_SMD:C_0805_2012Metric_Pad1.15x1.40mm_HandSolder" H 4588 1700 50  0001 C CNN
-F 3 "~" H 4550 1850 50  0001 C CNN
-	1    4550 1850
+P 4645 1850
+F 0 "C6" V 4393 1850 50  0000 C CNN
+F 1 "22p" V 4484 1850 50  0000 C CNN
+F 2 "Capacitor_SMD:C_0805_2012Metric_Pad1.15x1.40mm_HandSolder" H 4683 1700 50  0001 C CNN
+F 3 "~" H 4645 1850 50  0001 C CNN
+	1    4645 1850
 	0    1    1    0   
 $EndComp
 $Comp
@@ -1105,7 +1105,7 @@ F 3 "~" H 4080 2000 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 Wire Wire Line
-	4080 1850 4400 1850
+	4080 1850 4495 1850
 Connection ~ 4080 1850
 Wire Wire Line
 	3200 1850 4080 1850
@@ -1144,24 +1144,24 @@ ps_cmd
 Text Label 3350 1450 0    60   ~ 0
 ps_attn
 Wire Wire Line
-	4700 2150 4950 2150
+	4795 2150 4950 2150
 Wire Wire Line
 	4950 2150 4950 2350
 $Comp
 L Device:C C7
 U 1 1 5D1A882F
-P 4550 2150
-F 0 "C7" V 4710 2150 50  0000 C CNN
-F 1 "22p" V 4801 2150 50  0000 C CNN
-F 2 "Capacitor_SMD:C_0805_2012Metric_Pad1.15x1.40mm_HandSolder" H 4588 2000 50  0001 C CNN
-F 3 "~" H 4550 2150 50  0001 C CNN
-	1    4550 2150
+P 4645 2150
+F 0 "C7" V 4805 2150 50  0000 C CNN
+F 1 "22p" V 4896 2150 50  0000 C CNN
+F 2 "Capacitor_SMD:C_0805_2012Metric_Pad1.15x1.40mm_HandSolder" H 4683 2000 50  0001 C CNN
+F 3 "~" H 4645 2150 50  0001 C CNN
+	1    4645 2150
 	0    1    1    0   
 $EndComp
 Wire Wire Line
 	3800 2150 4080 2150
 Wire Wire Line
-	4080 2150 4400 2150
+	4080 2150 4495 2150
 Connection ~ 4080 2150
 Connection ~ 4950 2150
 $Comp
@@ -1222,7 +1222,7 @@ U 1 1 5D314735
 P 9250 1540
 F 0 "D1" V 9204 1619 50  0000 L CNN
 F 1 "1n5817" V 9295 1619 50  0000 L CNN
-F 2 "Diode_SMD:D_SMA_Handsoldering" H 9250 1540 50  0001 C CNN
+F 2 "Diode_SMD:D_SMA" H 9250 1540 50  0001 C CNN
 F 3 "~" H 9250 1540 50  0001 C CNN
 	1    9250 1540
 	0    1    1    0   
@@ -1239,4 +1239,34 @@ F 3 "~" H 10625 6480 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 NoConn ~ 10625 6280
+$Comp
+L Switch:SW_Push SW1
+U 1 1 5D7A8F65
+P 4840 2935
+F 0 "SW1" H 4840 3220 50  0000 C CNN
+F 1 "RESET" H 4840 3129 50  0000 C CNN
+F 2 "Button_Switch_SMD:SW_SPST_EVPBF" H 4840 3135 50  0001 C CNN
+F 3 "~" H 4840 3135 50  0001 C CNN
+	1    4840 2935
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	3880 2750 3880 2935
+Wire Wire Line
+	3880 2935 4640 2935
+$Comp
+L power:GND #PWR028
+U 1 1 5D7B406A
+P 5155 3000
+F 0 "#PWR028" H 5155 2750 50  0001 C CNN
+F 1 "GND" H 5155 2850 50  0000 C CNN
+F 2 "" H 5155 3000 50  0001 C CNN
+F 3 "" H 5155 3000 50  0001 C CNN
+	1    5155 3000
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	5040 2935 5155 2935
+Wire Wire Line
+	5155 2935 5155 3000
 $EndSCHEMATC
