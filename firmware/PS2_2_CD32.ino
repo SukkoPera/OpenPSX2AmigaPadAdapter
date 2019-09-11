@@ -205,30 +205,31 @@ PadError initPad () {
 		// Controller is ready
 		switch (ps2x.readType ()) {
 		case 0:
-			Serial.println (F("Unknown Controller type found"));
+			debugln (F("Unknown Controller type found"));
 			// Well, it might work
 			ret = PADERR_NONE;
 			break;
 		case 1:
-			Serial.println (F("DualShock Controller found"));
+			debugln (F("DualShock Controller found"));
 			ret = PADERR_NONE;
 			break;
 		case 2:
-			Serial.println (F("GuitarHero Controller found"));
-			ret = PADERR_WRONGTYPE;
+			debugln (F("GuitarHero Controller found"));
+			//~ ret = PADERR_WRONGTYPE;
+			ret = PADERR_NONE;
 			break;
 		case 3:
-			Serial.println (F("Wireless Sony DualShock Controller found"));
+			debugln (F("Wireless Sony DualShock Controller found"));
 			ret = PADERR_NONE;
 			break;
 		}
 		break;
 	case 1:
-		Serial.println (F("No controller found, check wiring"));
+		debugln (F("No controller found, check wiring"));
 		ret = PADERR_NOTFOUND;
 		break;
 	case 2:
-		Serial.println (F("Controller found but not accepting commands"));
+		debugln (F("Controller found but not accepting commands"));
 		ret = PADERR_UNKNOWN;
 		break;
 	}
@@ -738,24 +739,25 @@ void loop () {
 	switch (mode) {
 	case MODE_JOYSTICK:
 		mapJoystick ();
+		digitalWrite (PIN_LED_MODE_CD32, LOW);
 		break;
 	case MODE_MOUSE:
 		handleMouse ();
+		digitalWrite (PIN_LED_MODE_CD32, (millis () / 500) % 2 == 0);
 		break;
 	case MODE_CD32:
 		handleCD32Pad ();
+		digitalWrite (PIN_LED_MODE_CD32, HIGH);
 		break;
 	default:
-		mypanic (2000);
+		// Do nothing
+		digitalWrite (PIN_LED_MODE_CD32, (millis () / 250) % 2 == 0);
+		break;
 	}
 
 	// Handle mode led
 	if (mode == MODE_JOYSTICK || (mode == MODE_MOUSE && (millis () / 500) % 2 == 0)) {
-		digitalWrite (PIN_LED_MODE_CD32, LOW);
-
 		// Mmmmmh... Not its place but well...
 		detachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK));
-	} else {
-		digitalWrite (PIN_LED_MODE_CD32, HIGH);
 	}
 }
