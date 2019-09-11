@@ -471,7 +471,7 @@ void handleJoystickPlatform (JoyStatus& j) {
 	j.b2 = ps2x.Button (PSB_TRIANGLE) || ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2) || ps2x.Button (PSB_L3);
 }
 
-void flash_led (byte n) {
+void flashLed (byte n) {
 	for (byte i = 0; i < n; ++i) {
 		digitalWrite (PIN_LED_MODE_CD32, HIGH);
 		delay (40);
@@ -502,16 +502,16 @@ void handleJoystick () {
 		// Select pressed, change button mapping
 		if (ps2x.Button (PSB_SQUARE)) {
 			joyMappingFunc = handleJoystickNormal;
-			flash_led (JMAP_NORMAL);
+			flashLed (JMAP_NORMAL);
 		} else if (ps2x.Button (PSB_TRIANGLE)) {
 			joyMappingFunc = handleJoystickRacing1;
-			flash_led (JMAP_RACING1);
+			flashLed (JMAP_RACING1);
 		} else if (ps2x.Button (PSB_CIRCLE)) {
 			joyMappingFunc = handleJoystickRacing2;
-			flash_led (JMAP_RACING2);
+			flashLed (JMAP_RACING2);
 		} else if (ps2x.Button (PSB_CROSS)) {
 			joyMappingFunc = handleJoystickPlatform;
-			flash_led (JMAP_PLATFORM);
+			flashLed (JMAP_PLATFORM);
 		}
 	} else {
 		// Call button mapping function
