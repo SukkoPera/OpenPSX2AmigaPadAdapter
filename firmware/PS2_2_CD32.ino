@@ -481,7 +481,7 @@ void flashLed (byte n) {
 	}
 }
 
-void mapJoystick () {
+void handleJoystick () {
 	int rx = ps2x.Analog (PSS_RX);   // 0 ... 255
 	int deltaRX = rx - ANALOG_IDLE_VALUE;
 	int deltaRXabs = abs (deltaRX);
@@ -730,7 +730,7 @@ void loop () {
 	// Handle joystick report
 	switch (mode) {
 	case MODE_JOYSTICK:
-		mapJoystick ();
+		handleJoystick ();
 		digitalWrite (PIN_LED_MODE_CD32, LOW);
 		break;
 	case MODE_MOUSE:
