@@ -434,9 +434,9 @@ void mapJoystickRacing2 (TwoButtonJoystick& j) {
 	j.left |= ps2x.Button (PSB_PAD_LEFT);
 	j.right |= ps2x.Button (PSB_PAD_RIGHT);
 
-	// Use D-Pad U/R1/R2 to accelerate and D/L1/L2 to brake
+	// Use D-Pad U/R1/R2 to accelerate and D/Cross/L1/L2 to brake
 	j.up = ps2x.Button (PSB_PAD_UP) || ps2x.Button (PSB_R1) || ps2x.Button (PSB_R2);
-	j.down = ps2x.Button (PSB_PAD_DOWN) || ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2);
+	j.down = ps2x.Button (PSB_PAD_DOWN) || ps2x.Button (PSB_CROSS) || ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2);
 
 	/* Games probably did not expect up + down at the same time, so when
 	 * braking, don't accelerate
@@ -447,8 +447,8 @@ void mapJoystickRacing2 (TwoButtonJoystick& j) {
 	// Square/R3 are button 1
 	j.b1 = ps2x.Button (PSB_SQUARE) || ps2x.Button (PSB_R3);
 
-	// Cross/L3 are button 2
-	j.b2 = ps2x.Button (PSB_CROSS) || ps2x.Button (PSB_L3);
+	// Triangle/L3 are button 2
+	j.b2 = ps2x.Button (PSB_TRIANGLE) || ps2x.Button (PSB_L3);
 }
 
 void mapJoystickPlatform (TwoButtonJoystick& j) {
@@ -491,11 +491,6 @@ void handleJoystick () {
 	int deltaRYabs = abs (deltaRY);
 	if (deltaRXabs > ANALOG_DEAD_ZONE || deltaRYabs > ANALOG_DEAD_ZONE) {
 		// Right analog stick moved, switch to Mouse mode
-		pinMode (PIN_UP, OUTPUT);
-		pinMode (PIN_DOWN, OUTPUT);
-		pinMode (PIN_LEFT, OUTPUT);
-		pinMode (PIN_RIGHT, OUTPUT);
-
 		isMouse = true;
 	} else if (ps2x.Button (PSB_SELECT)) {
 		debugln (F("Select is being held"));
@@ -515,12 +510,20 @@ void handleJoystick () {
 			flashLed (JMAP_PLATFORM);
 		}
 	} else {
+		// Make sure pins have the right direction
+		digitalWrite (PIN_UP, LOW);
+		pinMode (PIN_UP, INPUT);
+		digitalWrite (PIN_DOWN, LOW);
+		pinMode (PIN_DOWN, INPUT);
+		digitalWrite (PIN_LEFT, LOW);
+		pinMode (PIN_LEFT, INPUT);
+		digitalWrite (PIN_RIGHT, LOW);
+		pinMode (PIN_RIGHT, INPUT);
+		
 		// Call button mapping function
 		TwoButtonJoystick j = {false, false, false, false, false, false};
-		
 		//~ if (!joyMappingFunc)
-			//~ joyMappingFunc = mapJoystickNormal;
-			
+			//~ joyMappingFunc = mapJoystickNormal;			
 		joyMappingFunc (j);
 
 		// Make mapped buttons affect the actual pins
@@ -578,6 +581,12 @@ void handleMouse () {
 		isMouse = false;
 	} else {
 		static unsigned long tx = 0, ty = 0;
+
+		// Make sure pins have the right direction
+		pinMode (PIN_UP, OUTPUT);
+		pinMode (PIN_DOWN, OUTPUT);
+		pinMode (PIN_LEFT, OUTPUT);
+		pinMode (PIN_RIGHT, OUTPUT);
 		
 		// Right analog stick works as a mouse - Horizontal axis
 		int x = ps2x.Analog (PSS_RX);   // 0 ... 255
@@ -747,8 +756,7 @@ void loop () {
 		break;
 	}
 
-	// Handle mode led
-	if (mode == MODE_JOYSTICK || (mode == MODE_MOUSE && (millis () / 500) % 2 == 0)) {
+	if (mode == MODE_JOYSTICK || mode == MODE_MOUSE) {
 		// Mmmmmh... Not its place but well...
 		detachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK));
 	}
