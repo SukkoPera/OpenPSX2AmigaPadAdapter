@@ -96,11 +96,13 @@ const byte PIN_LED_MODE_CD32 = A0;
  ******************************************************************************/
 
 enum PadMode {
-	MODE_UNKNOWN = 0,
 	MODE_JOYSTICK,
 	MODE_MOUSE,
 	MODE_CD32
 };
+
+// Start out as a simple joystick
+volatile PadMode mode = MODE_JOYSTICK;
 
 enum PadError {
 	PADERR_NONE = 0,		// AKA No error
@@ -169,33 +171,6 @@ byte buttonsLive = 0x80;
 
 // Timestamp of last time the pad was switched to CD32 mode
 unsigned long lastSwitchedTime = 0;
-
-// True if mouse mode
-boolean isMouse = false;
-
-
-inline PadMode getMode () {
-	PadMode padMode = MODE_UNKNOWN;
-/*
-//  byte sl = digitalRead (PIN_PADMODE);
-	//if (sl == HIGH) {
-	if (PIND & (1 << PD2)) {
-		padMode = MODE_AMIGA;
-	} else {
-		padMode = MODE_CD32;
-	}
-*/
-
-	if (lastSwitchedTime > 0 && millis () - lastSwitchedTime <= 200) {
-		padMode = MODE_CD32;
-	} else if (PIND & (1 << PD2)) {
-		padMode = isMouse ? MODE_MOUSE : MODE_JOYSTICK;
-	}
-		
-	return padMode;
-}
-
-//~ PadMode padmode = MODE_UNKNOWN;
 
 PadError initPad () {
 	PadError ret = PADERR_NOTFOUND;
@@ -300,11 +275,6 @@ void onPadModeChange () {
 		 * short while
 		 */
 		lastSwitchedTime = millis ();
-		
-		/* We're not going to care for clock pulses until pad mode goes back
-		 * high
-		 */
-		detachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK));
 	}
 }
 
@@ -369,18 +339,23 @@ void setup () {
 }
 
 void toMouse () {
+	debugln (F("To mouse mode"));
+	
 	// Direction pins must be outputs
 	pinMode (PIN_UP, OUTPUT);
 	pinMode (PIN_DOWN, OUTPUT);
 	pinMode (PIN_LEFT, OUTPUT);
 	pinMode (PIN_RIGHT, OUTPUT);
-	
-	//~ detachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK));
+
+	// We're not going to care for clock pulses anymore
+	detachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK));
 	
 	mode = MODE_MOUSE;
 }
 
 void toJoystick () {
+	debugln (F("To joystick mode"));
+	
 	// All pins to Hi-Z without pull-up
 	digitalWrite (PIN_UP, LOW);
 	pinMode (PIN_UP, INPUT);
@@ -391,12 +366,14 @@ void toJoystick () {
 	digitalWrite (PIN_RIGHT, LOW);
 	pinMode (PIN_RIGHT, INPUT);
 	
-	//~ detachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK));
+	detachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK));
 
 	mode = MODE_JOYSTICK;
 }
 
 void toCD32 () {
+	debugln (F("To CD32 mode"));
+		
 	// Pin 9 becomes our data output
 	pinMode (PIN_BTNREGOUT, OUTPUT);
 	
@@ -404,10 +381,10 @@ void toCD32 () {
 	pinMode (PIN_BTNREGCLK, INPUT);
 	attachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK), onClockEdge, RISING);
 	
-	if (mode == MODE_JOYSTICK)
-		wasMouse = false;
-	else
+	if (mode == MODE_MOUSE)
 		wasMouse = true;
+	else
+		wasMouse = false;
 		
 	mode = MODE_CD32;
 }
@@ -792,8 +769,6 @@ void handleCD32Pad () {
 void loop () {
 	ps2x.read_gamepad ();
 
-	PadMode mode = getMode ();
-
 	// Handle joystick report
 	switch (mode) {
 	case MODE_JOYSTICK:
@@ -826,5 +801,7 @@ void loop () {
 		} else {
 			toJoystick ();
 		}
+
+		lastSwitchedTime = 0;
 	}
 }
