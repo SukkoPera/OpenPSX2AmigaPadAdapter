@@ -728,31 +728,38 @@ void handleCD32Pad () {
 		buttonRelease (PIN_RIGHT);
 	}
 
-	/* Map buttons - Note that 0 means pressed and that MSB must be 1 for the ID
-	 * sequence
+	/* Map buttons, working on a temporary variable to avoid the sampling
+	 * interrupt to happen while we are filling in button statuses and catch a
+	 * value that has not yet been fully populated.
+	 *
+	 * Note that 0 means pressed and that MSB must be 1 for the ID
+	 * sequence.
 	 */
-	buttonsLive = 0xFF;
+	byte buttonsTmp = 0xFF;
 
 	if (ps2x.Button (PSB_START))
-		buttonsLive &= ~BTN_START;
+		buttonsTmp &= ~BTN_START;
 
 	if (ps2x.Button (PSB_TRIANGLE))
-		buttonsLive &= ~BTN_GREEN;
+		buttonsTmp &= ~BTN_GREEN;
 
 	if (ps2x.Button (PSB_SQUARE))
-		buttonsLive &= ~BTN_RED;
+		buttonsTmp &= ~BTN_RED;
 
 	if (ps2x.Button (PSB_CROSS))
-		buttonsLive &= ~BTN_BLUE;
+		buttonsTmp &= ~BTN_BLUE;
 
 	if (ps2x.Button (PSB_CIRCLE))
-		buttonsLive &= ~BTN_YELLOW;
+		buttonsTmp &= ~BTN_YELLOW;
 
 	if (ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2) || ps2x.Button (PSB_L3))
-		buttonsLive &= ~BTN_FRONT_L;
+		buttonsTmp &= ~BTN_FRONT_L;
 
 	if (ps2x.Button (PSB_R1) || ps2x.Button (PSB_R2) || ps2x.Button (PSB_R3))
-		buttonsLive &= ~BTN_FRONT_R;
+		buttonsTmp &= ~BTN_FRONT_R;
+
+	// Atomic operation, interrupt either happens before or after this
+	buttonsLive = buttonsTmp;
 }
 
 void loop () {
