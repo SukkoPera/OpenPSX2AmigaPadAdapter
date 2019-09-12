@@ -143,6 +143,9 @@ typedef void (*JoyMappingFunc) (TwoButtonJoystick& j);
 void mapJoystickNormal (TwoButtonJoystick& j);
 JoyMappingFunc joyMappingFunc = mapJoystickNormal;
 
+// True if mouse mode was enabled before switching to CD32 mode
+boolean wasMouse = false;
+
 
 #ifdef ENABLE_SERIAL_DEBUG
 	#define dstart(spd) Serial.begin (spd)
@@ -274,26 +277,35 @@ void dumpButtons () {
 }
 
 // ISR
-void onPadModeFalling () {
-	// Switching to CD32 mode, pin 6 becomes an input for clock
-	pinMode (PIN_BTNREGOUT, OUTPUT);
-	//DDRD &= ~(1 << PD3);    // Input
+void onPadModeChange () {
+	if (digitalRead (PIN_PADMODE) == LOW) {
+		if (mode != MODE_CD32) {
+			// Switch to CD32 mode
+			toCD32 ();
+		}
+		
+		// Sample input values, they will be shifted out on subsequent clock inputs
+		//~ buttons = buttonsLive | 0x80;   // Make sure bit MSB is 1 for ID sequence
+		buttons = buttonsLive;		/* The above is now handled elsewhere so that
+									 * here we can run as fast as possible
+									 */
 
-	// Sample input values, they will be shifted out on subsequent clock inputs
-	//~ buttons = buttonsLive | 0x80;   // Make sure bit MSB is 1 for ID sequence
-	buttons = buttonsLive;		/* The above is now handled elsewhere so that
-	                             * here we can run as fast as possible
-	                             */
-
-	digitalWrite (PIN_BTNREGOUT, buttons & 0x01);
-	buttons >>= 1;	/* MSB will be zeroed during shifting, this will report
-	                 * non-existing button 9 as pressed for the ID sequence
-	                 */
-
-	lastSwitchedTime = millis ();
-
-	pinMode (PIN_BTNREGCLK, INPUT);
-	attachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK), onClockEdge, RISING);
+		// Output first bit immediately
+		digitalWrite (PIN_BTNREGOUT, buttons & 0x01);
+		buttons >>= 1;	/* MSB will be zeroed during shifting, this will report
+						 * non-existing button 9 as pressed for the ID sequence
+						 */
+	} else {
+		/* Mark time pin went high so that we can see if it goes back high in a
+		 * short while
+		 */
+		lastSwitchedTime = millis ();
+		
+		/* We're not going to care for clock pulses until pad mode goes back
+		 * high
+		 */
+		detachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK));
+	}
 }
 
 // ISR
@@ -318,9 +330,10 @@ void setup () {
 	debugln (F("Starting up..."));
 
 	pinMode (PIN_PADMODE, INPUT_PULLUP);
-	pinMode (PIN_BTNREGOUT, OUTPUT);
-	pinMode (PIN_BTNREGCLK, INPUT);
+	//~ pinMode (PIN_BTNREGOUT, OUTPUT);
+	//~ pinMode (PIN_BTNREGCLK, INPUT);
 
+	// Prepare leds
 	pinMode (PIN_LED_PAD_OK, OUTPUT);
 	pinMode (PIN_LED_MODE_CD32, OUTPUT);
 
@@ -351,7 +364,52 @@ void setup () {
 
 	digitalWrite (PIN_LED_PAD_OK, HIGH);
 
-	attachInterrupt (digitalPinToInterrupt (PIN_PADMODE), onPadModeFalling, FALLING);
+	// Call ISR on changes of the CD32 pad mode pin
+	attachInterrupt (digitalPinToInterrupt (PIN_PADMODE), onPadModeChange, CHANGE);
+}
+
+void toMouse () {
+	// Direction pins must be outputs
+	pinMode (PIN_UP, OUTPUT);
+	pinMode (PIN_DOWN, OUTPUT);
+	pinMode (PIN_LEFT, OUTPUT);
+	pinMode (PIN_RIGHT, OUTPUT);
+	
+	//~ detachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK));
+	
+	mode = MODE_MOUSE;
+}
+
+void toJoystick () {
+	// All pins to Hi-Z without pull-up
+	digitalWrite (PIN_UP, LOW);
+	pinMode (PIN_UP, INPUT);
+	digitalWrite (PIN_DOWN, LOW);
+	pinMode (PIN_DOWN, INPUT);
+	digitalWrite (PIN_LEFT, LOW);
+	pinMode (PIN_LEFT, INPUT);
+	digitalWrite (PIN_RIGHT, LOW);
+	pinMode (PIN_RIGHT, INPUT);
+	
+	//~ detachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK));
+
+	mode = MODE_JOYSTICK;
+}
+
+void toCD32 () {
+	// Pin 9 becomes our data output
+	pinMode (PIN_BTNREGOUT, OUTPUT);
+	
+	// Pin 6 becomes an input for clock
+	pinMode (PIN_BTNREGCLK, INPUT);
+	attachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK), onClockEdge, RISING);
+	
+	if (mode == MODE_JOYSTICK)
+		wasMouse = false;
+	else
+		wasMouse = true;
+		
+	mode = MODE_CD32;
 }
 
 inline void buttonPress (byte pin) {
@@ -491,7 +549,7 @@ void handleJoystick () {
 	int deltaRYabs = abs (deltaRY);
 	if (deltaRXabs > ANALOG_DEAD_ZONE || deltaRYabs > ANALOG_DEAD_ZONE) {
 		// Right analog stick moved, switch to Mouse mode
-		isMouse = true;
+		toMouse ();
 	} else if (ps2x.Button (PSB_SELECT)) {
 		debugln (F("Select is being held"));
 		
@@ -577,8 +635,8 @@ void handleJoystick () {
 void handleMouse () {
 	if (ps2x.Button (PSB_PAD_UP) || ps2x.Button (PSB_PAD_DOWN) ||
 	    ps2x.Button (PSB_PAD_LEFT) || ps2x.Button (PSB_PAD_RIGHT)) {
-		// Directional button pressed, go back to joystick mode
-		isMouse = false;
+		// D-Pad pressed, go back to joystick mode
+		toJoystick ();
 	} else {
 		static unsigned long tx = 0, ty = 0;
 
@@ -756,8 +814,17 @@ void loop () {
 		break;
 	}
 
-	if (mode == MODE_JOYSTICK || mode == MODE_MOUSE) {
-		// Mmmmmh... Not its place but well...
-		detachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK));
+	//~ if (mode == MODE_JOYSTICK || mode == MODE_MOUSE) {
+		//~ // Mmmmmh... Not its place but well...
+		//~ detachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK));
+	//~ }
+	
+	if (lastSwitchedTime > 0 && millis () - lastSwitchedTime > 200) {
+		// Pad Mode pin has been high for a while, disable CD32 mode
+		if (wasMouse) {
+			toMouse ();
+		} else {
+			toJoystick ();
+		}
 	}
 }
