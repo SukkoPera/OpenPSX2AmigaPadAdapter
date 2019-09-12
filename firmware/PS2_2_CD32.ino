@@ -550,16 +550,6 @@ void handleJoystick () {
 			flashLed (JMAP_PLATFORM);
 		}
 	} else {
-		// Make sure pins have the right direction
-		digitalWrite (PIN_UP, LOW);
-		pinMode (PIN_UP, INPUT);
-		digitalWrite (PIN_DOWN, LOW);
-		pinMode (PIN_DOWN, INPUT);
-		digitalWrite (PIN_LEFT, LOW);
-		pinMode (PIN_LEFT, INPUT);
-		digitalWrite (PIN_RIGHT, LOW);
-		pinMode (PIN_RIGHT, INPUT);
-		
 		// Call button mapping function
 		TwoButtonJoystick j = {false, false, false, false, false, false};
 		//~ if (!joyMappingFunc)
@@ -621,12 +611,6 @@ void handleMouse () {
 		toJoystick ();
 	} else {
 		static unsigned long tx = 0, ty = 0;
-
-		// Make sure pins have the right direction
-		pinMode (PIN_UP, OUTPUT);
-		pinMode (PIN_DOWN, OUTPUT);
-		pinMode (PIN_LEFT, OUTPUT);
-		pinMode (PIN_RIGHT, OUTPUT);
 		
 		// Right analog stick works as a mouse - Horizontal axis
 		int x = ps2x.Analog (PSS_RX);   // 0 ... 255
