@@ -80,6 +80,10 @@ const byte PIN_LED_PAD_OK = A1;
 // Pin for led that lights up whenever the adapter is in CD32 mode
 const byte PIN_LED_MODE_CD32 = A0;
 
+/* Timeout for CD32 mode: normal joystick mode will be entered if PIN_PADMODE is
+ * not toggled for this amount of milliseconds.
+ */
+const byte TIMEOUT_CD32_MODE = 200;
 
 /*******************************************************************************
  * DEBUGGING SUPPORT
@@ -128,7 +132,9 @@ enum JoyButtonMapping {
 	JMAP_PLATFORM
 };
 
-// true means pressed
+/* Structure representing a standard 2-button joystick, used for gathering
+ * button presses according to different button mappings. True means pressed.
+ */
 struct TwoButtonJoystick {
 	boolean up: 1;
 	boolean down: 1;
@@ -138,7 +144,7 @@ struct TwoButtonJoystick {
 	boolean b2: 1;
 };
 
-// Type of button mapping function
+// Button mapping function
 typedef void (*JoyMappingFunc) (TwoButtonJoystick& j);
 
 // Default button mapping function
@@ -147,17 +153,6 @@ JoyMappingFunc joyMappingFunc = mapJoystickNormal;
 
 // True if mouse mode was enabled before switching to CD32 mode
 boolean wasMouse = false;
-
-
-#ifdef ENABLE_SERIAL_DEBUG
-	#define dstart(spd) Serial.begin (spd)
-	#define debug(...) Serial.print (__VA_ARGS__)
-	#define debugln(...) Serial.println (__VA_ARGS__)
-#else
-	#define dstart(...)
-	#define debug(...)
-	#define debugln(...)
-#endif
 
 /* Button register currently being shifted in ISRs
  * 0 means pressed
@@ -169,8 +164,18 @@ volatile byte buttons;
  */
 byte buttonsLive = 0x80;
 
-// Timestamp of last time the pad was switched to CD32 mode
+// Timestamp of last time the pad was switched out of CD32 mode
 unsigned long lastSwitchedTime = 0;
+
+#ifdef ENABLE_SERIAL_DEBUG
+	#define dstart(spd) Serial.begin (spd)
+	#define debug(...) Serial.print (__VA_ARGS__)
+	#define debugln(...) Serial.println (__VA_ARGS__)
+#else
+	#define dstart(...)
+	#define debug(...)
+	#define debugln(...)
+#endif
 
 PadError initPad () {
 	PadError ret = PADERR_NOTFOUND;
@@ -789,12 +794,7 @@ void loop () {
 		break;
 	}
 
-	//~ if (mode == MODE_JOYSTICK || mode == MODE_MOUSE) {
-		//~ // Mmmmmh... Not its place but well...
-		//~ detachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK));
-	//~ }
-	
-	if (lastSwitchedTime > 0 && millis () - lastSwitchedTime > 200) {
+	if (lastSwitchedTime > 0 && millis () - lastSwitchedTime > TIMEOUT_CD32_MODE) {
 		// Pad Mode pin has been high for a while, disable CD32 mode
 		if (wasMouse) {
 			toMouse ();
