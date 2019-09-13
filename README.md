@@ -1,9 +1,16 @@
 # OpenPSX2AmigaPadAdapter
-OpenPSX2AmigaPadAdapter is an Open Hardware adapter that allows using a Sony PlayStation controller on Commodore Amiga computers, including the CD32.
+OpenPSX2AmigaPadAdapter is an Open Hardware adapter that allows using a Sony PlayStation controller on Commodore computers, including the Commodore 64, Amiga and CD<sup>32</sup>.
 
 ## Summary
+The Commodore Amiga CD<sup>32</sup> came with cumbersome and fragile controllers, most of which did not survive the challenge of time. While many third-party replacements have surfaced in the meantime, most of them are not as solid and comfortable as the ubiquitous Sony PlayStation controllers. These have more than enough buttons, are cheap and most people are familiar with them, as the same basic design has been around for nearly 25 years, so they would be a very good replacement, if they just didn't speak a different connector and communication protocol.
 
-###
+OpenPSX2AmigaPadAdapter is a simple board that adapts the connector and translates the protocol, allowing the use of many PlayStation controllers on Commodore computers. It can either behave as a simple 1/2-button Atari-style joystick or as a full-fledged 7-button CD<sup>32</sup> gamepad. It can also appear as an Amiga mouse, which is handy when it is connected to port 1 of an Amiga computer.
+
+### Operating Modes
+When the adapter is powered on, it defaults to Atari-style Two-Button Mode. This has been throughly tested on an Amiga 500, but it should work wherever an Atari-style joystick is supported, including the Commodore VIC-20, Commodore 16 (through an [adapter](https://github.com/SukkoPera/OpenC16JoyAdapter)), Commodore 64, Sega Master System (but NOT MegaDrive/Genesis), etc. Although these platforms have NOT been tested yet, so use at your own risk.
+
+If the right analog stick is moved, the adapter switches to Amiga Mouse Mode.
+
 When in Two-Button Joystick mode, the adapter supports different button mappings, better suited to different game genres. The mappings can be switched by pressing <kbd>Select</kbd> in combination with other buttons.
 
 #### Normal Mode: <kbd>Select</kbd> + <kbd>&square;</kbd>
