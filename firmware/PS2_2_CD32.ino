@@ -85,6 +85,7 @@ const byte PIN_LED_MODE_CD32 = A0;
  */
 const byte TIMEOUT_CD32_MODE = 200;
 
+
 /*******************************************************************************
  * DEBUGGING SUPPORT
  ******************************************************************************/
@@ -95,9 +96,13 @@ const byte TIMEOUT_CD32_MODE = 200;
 // Print the controller status on serial. Useful for debugging.
 //~ #define DEBUG_PAD
 
+
 /*******************************************************************************
  * END OF SETTINGS
  ******************************************************************************/
+
+// True if a controller was found
+boolean haveController = false;
 
 enum PadMode {
 	MODE_JOYSTICK,
@@ -314,30 +319,6 @@ void setup () {
 
 	// Give wireless PS2 module some time to startup, before configuring it
 	delay (300);
-
-	PadError err = initPad ();
-	if (err != PADERR_NONE) {
-		int interval = 1000;
-		switch (err) {
-		case PADERR_NOTFOUND:
-			debugln (F("No controller found"));
-			interval = 200;
-			break;
-		case PADERR_WRONGTYPE:
-			debugln (F("Unsupported controller"));
-			interval = 333;
-			break;
-		case PADERR_UNKNOWN:
-		default:
-			debugln (F("Cannot initialize controller"));
-			interval = 500;
-			break;
-		}
-
-		mypanic (interval);
-	}
-
-	digitalWrite (PIN_LED_PAD_OK, HIGH);
 
 	// Call ISR on changes of the CD32 pad mode pin
 	attachInterrupt (digitalPinToInterrupt (PIN_PADMODE), onPadModeChange, CHANGE);
@@ -763,26 +744,55 @@ void handleCD32Pad () {
 }
 
 void loop () {
-	ps2x.read_gamepad ();
+	if (haveController) {
+		if (ps2x.read_gamepad ()) {
+			// Handle joystick report
+			switch (mode) {
+			case MODE_JOYSTICK:
+				handleJoystick ();
+				digitalWrite (PIN_LED_MODE_CD32, LOW);
+				break;
+			case MODE_MOUSE:
+				handleMouse ();
+				digitalWrite (PIN_LED_MODE_CD32, (millis () / 500) % 2 == 0);
+				break;
+			case MODE_CD32:
+				handleCD32Pad ();
+				digitalWrite (PIN_LED_MODE_CD32, HIGH);
+				break;
+			default:
+				// Do nothing
+				digitalWrite (PIN_LED_MODE_CD32, (millis () / 250) % 2 == 0);
+				break;
+			}
+		} else {
+			haveController = false;
+			buttonsLive = 0x7F;		// No ID sequence, all buttons released
+			digitalWrite (PIN_LED_PAD_OK, LOW);
+		}
+	} else {
+		PadError err = initPad ();
+		if (err == PADERR_NONE) {
+			// Got controller!
+			haveController = true;
+			digitalWrite (PIN_LED_PAD_OK, HIGH);
+		} else {
+			switch (err) {
+			case PADERR_NOTFOUND:
+				debugln (F("No controller found"));
+				break;
+			case PADERR_WRONGTYPE:
+				debugln (F("Unsupported controller"));
+				break;
+			case PADERR_UNKNOWN:
+			default:
+				debugln (F("Cannot initialize controller"));
+				break;
+			}
 
-	// Handle joystick report
-	switch (mode) {
-	case MODE_JOYSTICK:
-		handleJoystick ();
-		digitalWrite (PIN_LED_MODE_CD32, LOW);
-		break;
-	case MODE_MOUSE:
-		handleMouse ();
-		digitalWrite (PIN_LED_MODE_CD32, (millis () / 500) % 2 == 0);
-		break;
-	case MODE_CD32:
-		handleCD32Pad ();
-		digitalWrite (PIN_LED_MODE_CD32, HIGH);
-		break;
-	default:
-		// Do nothing
-		digitalWrite (PIN_LED_MODE_CD32, (millis () / 250) % 2 == 0);
-		break;
+			digitalWrite (PIN_LED_PAD_OK, !digitalRead (PIN_LED_PAD_OK));
+			delay (250);
+		}
 	}
 
 	if (lastSwitchedTime > 0 && millis () - lastSwitchedTime > TIMEOUT_CD32_MODE) {
