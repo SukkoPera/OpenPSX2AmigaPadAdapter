@@ -6,13 +6,13 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 1 1
 Title "OpenPSX2AmigaPadAdapter"
-Date "2019-09-11"
+Date "2019-09-14"
 Rev "1git"
 Comp "SukkoPera"
-Comment1 ""
+Comment1 "Licensed under CERN OHL v.1.2"
 Comment2 ""
 Comment3 ""
-Comment4 "Work in progress!"
+Comment4 ""
 $EndDescr
 $Comp
 L power:GND #PWR02
