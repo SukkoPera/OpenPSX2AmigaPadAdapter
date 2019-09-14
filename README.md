@@ -39,15 +39,15 @@ Accidentally, this control scheme was found out to be very comfortable with game
 
 LD1 will blink three times when this mapping is activated.
 
-#### Platform Mode: <kbd>Select</kbd> + <kbd>&cross;</kbd>
-Platform Mapping is very similar to Standard Mapping, it just makes jumping way easier and more natural to all the Mario players out there, by replicating <kbd>&uarr;</kbd> on <kbd>&cross;</kbd>. Consequently, <kbd>B2</kbd> has been moved to <kbd>&triangle;</kbd>.
+#### Platform Mapping: <kbd>Select</kbd> + <kbd>&cross;</kbd>
+Platform Mapping is very similar to Standard Mapping, it just makes jumping way easier on a joypad and more natural to all the Mario players out there, by replicating <kbd>&uarr;</kbd> on <kbd>&cross;</kbd>. Consequently, <kbd>B2</kbd> has been moved to <kbd>&triangle;</kbd>.
 
 LD1 will blink four times when this mapping is activated.
 
 ### Mouse Mode
 If the right analog stick is moved, the adapter switches to Amiga Mouse Mode. This is indicated by LD1 blinking.
 
-This mode is handy if you have the adapter connected to port 1 of an Amiga computer and you need to use a mouse for short while (maybe to do some settings in a cracktro). Instead of unplugging the adapter, plug in a mouse, and then the adapter again, you can take advantage of this feature. It can also be useful as an emergency mouse. Movement is somewhat proportional to how far you move the stick.
+This mode is handy if you have the adapter connected to port 1 of an Amiga computer and you need to use a mouse for short while (maybe to do some settings in a cracktro). Instead of unplugging the adapter, plugging in a mouse, and then the adapter again, you can take advantage of this feature. It can also be useful as an emergency mouse. Movement is somewhat proportional to how far the stick is moved.
 
 Press any direction on the D-Pad to go back to Joystick Mode.
 
@@ -67,7 +67,11 @@ Buttons are mapped as follows:
 Both the D-Pad and Left Analog work as direction buttons.
 
 ## Compatibility
-OpenPSX2AmigaPadAdapter has currently been tested
+OpenPSX2AmigaPadAdapter has currently been tested with the following Sony controllers:
+- PlayStation Dual Shock Analog Controller (SCPH-1200)
+- PlayStation 2 Dual Shock 2 Analog Controller (SCPH-10010)
+
+Most controllers should work, please report (by [opening an issue](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/issues/new)) if you find out working or non-working models.
 
 ## License
 The OpenPSX2AmigaPadAdapter documentation, including the design itself, is copyright &copy; SukkoPera 2019.
