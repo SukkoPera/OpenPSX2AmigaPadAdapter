@@ -193,8 +193,10 @@ PadError initPad () {
 		// Controller is ready
 		switch (ps2x.readType ()) {
 		case 0:
+			/* The Dual Shock controller gets recognized as this sometimes, or
+			 * anyway, whatever controller it is, it might work
+			 */
 			debugln (F("Unknown Controller type found"));
-			// Well, it might work
 			ret = PADERR_NONE;
 			break;
 		case 1:
@@ -202,8 +204,11 @@ PadError initPad () {
 			ret = PADERR_NONE;
 			break;
 		case 2:
-			debugln (F("GuitarHero Controller found"));
-			//~ ret = PADERR_WRONGTYPE;
+			/* We used to refuse this, as it does not look suitable, but then we
+			 * found out that the Analog Controller (SCPH-1200) gets detected as
+			 * this... :/
+			 */
+			debugln (F("Analog/GuitarHero Controller found"));
 			ret = PADERR_NONE;
 			break;
 		case 3:
@@ -213,11 +218,9 @@ PadError initPad () {
 		}
 		break;
 	case 1:
-		debugln (F("No controller found, check wiring"));
 		ret = PADERR_NOTFOUND;
 		break;
 	case 2:
-		debugln (F("Controller found but not accepting commands"));
 		ret = PADERR_UNKNOWN;
 		break;
 	}
@@ -389,19 +392,33 @@ inline void buttonRelease (byte pin) {
 void mapAnalogStickHorizontal (TwoButtonJoystick& j) {
 	int lx = ps2x.Analog (PSS_LX);   			// 0 ... 255
 	int deltaLX = lx - ANALOG_IDLE_VALUE;		// --> -127 ... +128
-	debug (F("Analog X = "));
-	debugln (deltaLX);
 	j.left = deltaLX < -ANALOG_DEAD_ZONE;
 	j.right = deltaLX > +ANALOG_DEAD_ZONE;
+
+#ifdef ENABLE_SERIAL_DEBUG
+	static int oldx = -1000;
+	if (deltaLX != oldx) {
+		debug (F("L Analog X = "));
+		debugln (deltaLX);
+		oldx = deltaLX;
+	}
+#endif
 }
 
 void mapAnalogStickVertical (TwoButtonJoystick& j) {
 	int ly = ps2x.Analog (PSS_LY);
 	int deltaLY = ly - ANALOG_IDLE_VALUE;
-	debug (F("Analog Y = "));
-	debugln (deltaLY);
 	j.up = deltaLY < -ANALOG_DEAD_ZONE;
 	j.down = deltaLY > +ANALOG_DEAD_ZONE;
+
+#ifdef ENABLE_SERIAL_DEBUG
+	static int oldy = -1000;
+	if (deltaLY != oldy) {
+		debug (F("L Analog Y = "));
+		debugln (deltaLY);
+		oldy = deltaLY;
+	}
+#endif
 }
 
 void mapJoystickNormal (TwoButtonJoystick& j) {
@@ -512,6 +529,23 @@ void handleJoystick () {
 	int deltaRYabs = abs (deltaRY);
 	if (deltaRXabs > ANALOG_DEAD_ZONE || deltaRYabs > ANALOG_DEAD_ZONE) {
 		// Right analog stick moved, switch to Mouse mode
+#ifdef ENABLE_SERIAL_DEBUG
+	static int oldx = -1000;
+	if (deltaRX != oldx) {
+		debug (F("R Analog X = "));
+		debugln (deltaRX);
+		oldx = deltaRX;
+	}
+
+	static int oldy = -1000;
+	if (deltaRY != oldy) {
+		debug (F("R Analog Y = "));
+		debugln (deltaRY);
+		oldy = deltaRY;
+	}
+#endif
+
+		
 		toMouse ();
 	} else if (ps2x.Button (PSB_SELECT)) {
 		debugln (F("Select is being held"));
@@ -599,9 +633,9 @@ void handleMouse () {
 		int deltaXabs = abs (deltaX);
 		if (deltaXabs > ANALOG_DEAD_ZONE) {
 			unsigned int period = map (deltaXabs, ANALOG_DEAD_ZONE, ANALOG_IDLE_VALUE, MOUSE_SLOW_DELTA, MOUSE_FAST_DELTA);
-			debug (F("x = "));
-			debug (x);
-			debug (F(" --> period = "));
+			//~ debug (F("x = "));
+			//~ debug (x);
+			//~ debug (F(" --> period = "));
 			debugln (period);
 
 			byte leadingPin;
@@ -632,9 +666,9 @@ void handleMouse () {
 		int deltaYabs = abs (deltaY);
 		if (deltaYabs > ANALOG_DEAD_ZONE) {
 			unsigned int period = map (deltaYabs, ANALOG_DEAD_ZONE, ANALOG_IDLE_VALUE, MOUSE_SLOW_DELTA, MOUSE_FAST_DELTA);
-			debug (F("y = "));
-			debug (y);
-			debug (F(" --> period = "));
+			//~ debug (F("y = "));
+			//~ debug (y);
+			//~ debug (F(" --> period = "));
 			debugln (period);
 
 			byte leadingPin;
@@ -768,6 +802,7 @@ void loop () {
 		} else {
 			haveController = false;
 			buttonsLive = 0x7F;		// No ID sequence, all buttons released
+			toJoystick ();			// Sometimes a spurious switch to mouse mode happens
 			digitalWrite (PIN_LED_PAD_OK, LOW);
 		}
 	} else {
