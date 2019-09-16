@@ -6,7 +6,7 @@
  * OpenPSX2AmigaPadAdapter is free software: you can redistribute it and/or    *
  * modify it under the terms of the GNU General Public License as published by *
  * the Free Software Foundation, either version 3 of the License, or           *
- * (at your option) any later version.                                         *
+ * (at your option) any later version.         Q                                *
  *                                                                             *
  * OpenPSX2AmigaPadAdapter is distributed in the hope that it will be useful,  *
  * but WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -107,7 +107,8 @@ boolean haveController = false;
 enum PadMode {
 	MODE_JOYSTICK,
 	MODE_MOUSE,
-	MODE_CD32
+	MODE_CD32,
+	MODE_PROGRAMMING		// Map buttons for joystick mode
 };
 
 // Start out as a simple joystick
@@ -171,6 +172,22 @@ byte buttonsLive = 0x80;
 
 // Timestamp of last time the pad was switched out of CD32 mode
 unsigned long lastSwitchedTime = 0;
+
+enum ProgState {
+	PS_WAIT_BUTTON_PRESS,
+	PS_WAIT_BUTTON_RELEASE,
+	PS_WAIT_COMBO_PRESS,
+	PS_WAIT_COMBO_RELEASE,
+};
+
+typedef unsigned int Buttons;
+
+const Buttons NO_BUTTON = 0x00;
+
+struct ButtonMapping {
+	Buttons button;
+	TwoButtonJoystick combo;
+};
 
 #ifdef ENABLE_SERIAL_DEBUG
 	#define dstart(spd) Serial.begin (spd)
@@ -299,13 +316,13 @@ void onClockEdge () {
 	                 */
 }
 
-void mypanic (int interval) {
-	while (42) {
-		digitalWrite (PIN_LED_PAD_OK, HIGH);
-		delay (interval);
-		digitalWrite (PIN_LED_PAD_OK, LOW);
-		delay (interval);
-	}
+//~ void mypanic (int interval) {
+	//~ while (42) {
+		//~ digitalWrite (PIN_LED_PAD_OK, HIGH);
+		//~ delay (interval);
+		//~ digitalWrite (PIN_LED_PAD_OK, LOW);
+		//~ delay (interval);
+	//~ }
 }
 
 void setup () {
@@ -376,6 +393,12 @@ void toCD32 () {
 		wasMouse = false;
 		
 	mode = MODE_CD32;
+}
+
+void toProgramming () {
+	progstate = PS_WAIT_BUTTON_PRESS;
+	
+	mode = MODE_PROGRAMMING;
 }
 
 inline void buttonPress (byte pin) {
@@ -520,6 +543,8 @@ void flashLed (byte n) {
 }
 
 void handleJoystick () {
+	static unsigned long selectPressTime = 0;
+	
 	int rx = ps2x.Analog (PSS_RX);   // 0 ... 255
 	int deltaRX = rx - ANALOG_IDLE_VALUE;
 	int deltaRXabs = abs (deltaRX);
@@ -550,6 +575,10 @@ void handleJoystick () {
 	} else if (ps2x.Button (PSB_SELECT)) {
 		debugln (F("Select is being held"));
 		
+		if (selectPressTime == 0) {
+			selectPressTime = millis ();
+		}
+		
 		// Select pressed, change button mapping
 		if (ps2x.Button (PSB_SQUARE)) {
 			joyMappingFunc = mapJoystickNormal;
@@ -563,8 +592,13 @@ void handleJoystick () {
 		} else if (ps2x.Button (PSB_CROSS)) {
 			joyMappingFunc = mapJoystickPlatform;
 			flashLed (JMAP_PLATFORM);
+		} else if (millis () - selectPressTime >= 2000) {
+			toProgramming ();
 		}
 	} else {
+		// Select was release
+		selectPressTime = 0;
+		
 		// Call button mapping function
 		TwoButtonJoystick j = {false, false, false, false, false, false};
 		//~ if (!joyMappingFunc)
@@ -777,6 +811,102 @@ void handleCD32Pad () {
 	buttonsLive = buttonsTmp;
 }
 
+
+/******************************************************************************/
+
+
+/* Combo debounce time: The combo will be considered valid only after it has
+ * been stable for this amount of milliseconds
+ */
+static const unsigned long SHORT_HOLD_TIME = 80;
+
+/* Combo debounce time: The combo will be considered valid only after it has
+ * been stable for this amount of milliseconds
+ */
+static const unsigned long LONG_HOLD_TIME = 80;
+
+// Reads and debounces
+unsigned int debounceButtons (unsigned long holdTime) {
+	static unsigned int oldButtons = 0;
+	static unsigned long pressedOn = 0;
+
+	unsigned int ret = NO_BUTTON;
+
+	unsigned int buttons = ps2x.ButtonDataByte ();
+	if (buttons == oldButtons) {
+		if (millis () - pressedOn >= HOLD_TIME) {
+			// Same combo held long enough
+			ret = buttons;
+		} else {
+			// Combo held not long enough (yet)
+		}
+	} else {
+		// Buttons bouncing
+		oldButtons = buttons;
+		pressedOn = millis ();
+	}
+
+	return ret;
+}
+
+/* Function to get no of set bits in binary 
+ * representation of passed binary no.
+ * 
+ * All hail to Brian Kernighan.
+ */
+unsigned int countSetBits (int n) { 
+	unsigned int count = 0; 
+
+	while (n) { 
+		n &= n - 1;
+		++count; 
+	} 
+
+	return count; 
+}
+
+void handleProgramming () {
+	static Buttons programmedButton = NO_BUTTON;
+	
+	Buttons buttons = debounceButtons ();
+	switch (progstate) {
+	case PS_WAIT_BUTTON_PRESS:
+		if (countSetBits (buttons) == 1) {
+			// Exactly one key pressed, go on
+			programmedButton = buttons;
+			debug (F("Programming button "));
+			debugln (buttons, HEX);
+			progstate = PS_WAIT_BUTTON_RELEASE;
+		}
+		break;
+	case PS_WAIT_BUTTON_RELEASE:
+		if (buttons == NO_BUTTON) {
+			progstate = PS_WAIT_COMBO_PRESS;
+		}
+		break;
+	case PS_WAIT_COMBO_PRESS:
+		if (buttons != NO_BUTTON) {
+			ButtonMapping mapping;
+			mapping.button = programmedButton;
+			mapJoystickNormal (buttons, mapping.combo);
+			
+			debug (F("Programmed to "));
+			debugln (*reinterpret_cast<byte *> (&mapping.combo), HEX);
+			
+			// Next
+			progstate = PS_WAIT_COMBO_RELEASE;
+		}
+		break;
+	case PS_WAIT_COMBO_RELEASE:
+		if (buttons == NO_BUTTON) {
+			progstate = PS_WAIT_BUTTON_PRESS;
+		}
+		break;
+	}
+}
+
+/******************************************************************************/
+
 void loop () {
 	if (haveController) {
 		if (ps2x.read_gamepad ()) {
@@ -793,6 +923,9 @@ void loop () {
 			case MODE_CD32:
 				handleCD32Pad ();
 				digitalWrite (PIN_LED_MODE_CD32, HIGH);
+				break;
+			case MODE_PROGRAMMING:
+				handleProgramming (); 
 				break;
 			default:
 				// Do nothing
@@ -841,3 +974,121 @@ void loop () {
 		lastSwitchedTime = 0;
 	}
 }
+
+
+
+
+
+#if 0
+
+
+
+
+
+
+
+
+
+
+
+// Reads and repeats
+#if 0
+unsigned int readButtons2 () {
+	static unsigned int oldButtons = 0;
+	static unsigned long nextRepeat = 0;
+
+	unsigned int ret = NO_BUTTON;
+
+	unsigned int buttons = readButtons ();
+	if (buttons != oldButtons) {
+		// First press of new combo, return it and wait for repeat delay
+		oldButtons = buttons;
+		ret = buttons;
+		nextRepeat = millis () + REPEAT_DELAY;
+	} else if (keys != 0 && millis () >= nextRepeat) {
+		// Combo kept pressed, return it and wait for repeat interval
+		ret = buttons;
+		nextRepeat = millis () + REPEAT_INTERVAL;
+	}
+
+	return ret;
+}
+#endif
+
+
+
+
+
+// X/O/^/[]/Lx/Rx/Start
+const byte MAX_MAPPINGS = 11;
+struct JoystickMapping {
+	Buttons assignedButton;
+	ButtonMapping mappings[MAX_MAPPINGS];
+};
+
+CustomButtonMapping *currentMapping = NULL;
+
+#if 0
+									>> 2		>> 9		>> 13	
+#define PSB_L3          0x0002		0
+#define PSB_R3          0x0004		1
+#define PSB_START       0x0008		2
+#define PSB_L2          0x0100					0
+#define PSB_R2          0x0200					1
+#define PSB_L1          0x0400					2
+#define PSB_R1          0x0800					4
+#define PSB_TRIANGLE    0x1000								0
+#define PSB_CIRCLE      0x2000								1
+#define PSB_CROSS       0x4000								2
+#define PSB_SQUARE      0x8000								4
+#endif
+
+byte button2position (Buttons b) {
+	if (b < 0x100) {
+		pos = b >> 2;			// 0, 1, 2
+	} else if (b < 0x1000) {
+		pos = (b >> 9) + 3;		// 0, 1, 2, 4 + 3 = 3, 4, 5, 7
+	} else {
+		pos = (b >> 13) + 8;	// 0, 1, 2, 4 + 8 = 8, 9, 10, 12
+	}
+	
+	return pos;
+}
+
+void lookupButtonMapping (Buttons b, TwoButtonJoystick& j) {
+	if (currentMapping != NULL) {
+		for (byte i = 0; currentMapping -> mappings[i].button != 0 && i < MAX_MAPPINGS; ++i) {
+			if (b == currentMapping -> mappings[i].button) {
+				j = currentMapping -> mappings[i].combo;
+				break;
+			}
+		}
+	}
+}
+		
+	
+
+
+
+
+
+void mapJoystickNormal (Buttons psxButtons, TwoButtonJoystick& j) {
+	// Use both analog axes
+	mapAnalogStickHorizontal (j);
+	mapAnalogStickVertical (j);
+
+	// D-Pad is fully functional as well
+	j.up |= ps2x.Button (psxButtons, PSB_PAD_UP);
+	j.down |= ps2x.Button (psxButtons, PSB_PAD_DOWN);
+	j.left |= ps2x.Button (psxButtons, PSB_PAD_LEFT);
+	j.right |= ps2x.Button (psxButtons, PSB_PAD_RIGHT);
+
+	// Square/Rx are button 1
+	j.b1 = ps2x.Button (psxButtons, PSB_SQUARE) || ps2x.Button (psxButtons, PSB_R1) || ps2x.Button (psxButtons, PSB_R2) || ps2x.Button (psxButtons, PSB_R3);
+
+	// Cross/Lx are button 1
+	j.b2 = ps2x.Button (psxButtons, PSB_CROSS) || ps2x.Button (psxButtons, PSB_L1) || ps2x.Button (psxButtons, PSB_L2) || ps2x.Button (psxButtons, PSB_L3);
+}
+
+
+#endif
