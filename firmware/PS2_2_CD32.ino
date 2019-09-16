@@ -91,7 +91,7 @@ const byte TIMEOUT_CD32_MODE = 200;
  ******************************************************************************/
 
 // Send debug messages to serial port
-#define ENABLE_SERIAL_DEBUG
+//~ #define ENABLE_SERIAL_DEBUG
 
 // Print the controller status on serial. Useful for debugging.
 //~ #define DEBUG_PAD
@@ -936,18 +936,24 @@ boolean psxButton2Amiga (Buttons psxButtons, TwoButtonJoystick& j) {
 }
 
 void dumpJoy (TwoButtonJoystick& j) {
-	if (j.up)
+	if (j.up) {
 		debug (F("Up "));
-	if (j.down)
+	}
+	if (j.down) {
 		debug (F("Down "));
-	if (j.left)
+	}
+	if (j.left) {
 		debug (F("Left "));
-	if (j.right)
+	}
+	if (j.right) {
 		debug (F("Right "));
-	if (j.b1)
+	}
+	if (j.b1) {
 		debug (F("B1 "));
-	if (j.b2)
+	}
+	if (j.b2) {
 		debug (F("B2"));
+	}
 	debugln (F(""));
 }
 
