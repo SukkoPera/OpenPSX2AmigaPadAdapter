@@ -94,7 +94,7 @@ const byte TIMEOUT_CD32_MODE = 200;
 #define ENABLE_SERIAL_DEBUG
 
 // Print the controller status on serial. Useful for debugging.
-#define DEBUG_PAD
+//~ #define DEBUG_PAD
 
 
 /*******************************************************************************
@@ -135,7 +135,8 @@ enum JoyButtonMapping {
 	JMAP_NORMAL = 1,
 	JMAP_RACING1,
 	JMAP_RACING2,
-	JMAP_PLATFORM
+	JMAP_PLATFORM,
+	JMAP_CUSTOM1
 };
 
 /* Structure representing a standard 2-button joystick, used for gathering
@@ -174,10 +175,12 @@ byte buttonsLive = 0x80;
 unsigned long lastSwitchedTime = 0;
 
 enum ProgState {
+	PS_WAIT_SELECT_RELEASE,
 	PS_WAIT_BUTTON_PRESS,
 	PS_WAIT_BUTTON_RELEASE,
 	PS_WAIT_COMBO_PRESS,
 	PS_WAIT_COMBO_RELEASE,
+	PS_WAIT_SELECT_RELEASE_FOR_EXIT
 };
 
 ProgState progstate;
@@ -437,7 +440,7 @@ void toCD32 () {
 void toProgramming () {
 	debugln (F("Entering programming mode"));
 	
-	progstate = PS_WAIT_BUTTON_PRESS;
+	progstate = PS_WAIT_SELECT_RELEASE;
 	
 	mode = MODE_PROGRAMMING;
 }
@@ -574,6 +577,17 @@ void mapJoystickPlatform (TwoButtonJoystick& j) {
 	j.b2 = ps2x.Button (PSB_TRIANGLE) || ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2) || ps2x.Button (PSB_L3);
 }
 
+void mergeButtons (TwoButtonJoystick& dest, const TwoButtonJoystick& src) {
+	dest.up |= src.up;
+	dest.down |= src.down;
+	dest.left |= src.left;
+	dest.right |= src.right;
+	dest.b1 |= src.b1;
+	dest.b2 |= src.b2;
+}
+
+void mapJoystickCustom1 (TwoButtonJoystick& j);
+
 void flashLed (byte n) {
 	for (byte i = 0; i < n; ++i) {
 		digitalWrite (PIN_LED_MODE_CD32, HIGH);
@@ -631,6 +645,9 @@ void handleJoystick () {
 		} else if (ps2x.Button (PSB_CROSS)) {
 			joyMappingFunc = mapJoystickPlatform;
 			flashLed (JMAP_PLATFORM);
+		} else if (ps2x.Button (PSB_START)) {
+			joyMappingFunc = mapJoystickCustom1;
+			flashLed (JMAP_CUSTOM1);
 		} else if (millis () - selectPressTime >= 1000) {
 			toProgramming ();
 		}
@@ -862,7 +879,7 @@ static const unsigned long SHORT_HOLD_TIME = 30;
 /* Combo debounce time: The combo will be considered valid only after it has
  * been stable for this amount of milliseconds
  */
-static const unsigned long LONG_HOLD_TIME = 100;
+static const unsigned long LONG_HOLD_TIME = 150;
 
 // Reads and debounces
 unsigned int debounceButtons (unsigned long holdTime) {
@@ -971,11 +988,6 @@ byte button2position (Buttons b) {
 	return pos;
 }
 
-//~ struct ButtonMapping {
-	//~ Buttons button;
-	//~ TwoButtonJoystick combo;
-//~ };
-
 /** Only 11 buttons can be mapped (X/O/^/[]/Lx/Rx/Start), but the way we store
  * these needs 2 extra slots.
  *
@@ -994,17 +1006,27 @@ void handleProgramming () {
 	Buttons buttons = NO_BUTTON;
 	
 	switch (progstate) {
+	case PS_WAIT_SELECT_RELEASE:
+		if (!ps2x.Button (PSB_SELECT)) {
+			progstate = PS_WAIT_BUTTON_PRESS;
+		}
+		break;
 	case PS_WAIT_BUTTON_PRESS:
-		buttons = debounceButtons (SHORT_HOLD_TIME);
-		if (countSetBits (buttons) == 1 && isButtonMappable (buttons)) {
-			// Exactly one key pressed, go on
-			programmedButton = buttons;
-			debug (F("Programming button "));
-			debugln (buttons, HEX);
-			debugln (psxButtonToIndex (buttons));
-			dumpButtons (buttons);
-			flashLed (1);
-			progstate = PS_WAIT_BUTTON_RELEASE;
+		if (ps2x.Button (PSB_SELECT)) {
+			// Exit programming mode
+			progstate = PS_WAIT_SELECT_RELEASE_FOR_EXIT;
+		} else {
+			buttons = debounceButtons (SHORT_HOLD_TIME);
+			if (countSetBits (buttons) == 1 && isButtonMappable (buttons)) {
+				// Exactly one key pressed, go on
+				programmedButton = buttons;
+				debug (F("Programming button "));
+				debugln (buttons, HEX);
+				//~ debugln (psxButtonToIndex (buttons));
+				dumpButtons (buttons);
+				flashLed (1);
+				progstate = PS_WAIT_BUTTON_RELEASE;
+			}
 		}
 		break;
 	case PS_WAIT_BUTTON_RELEASE:
@@ -1038,8 +1060,35 @@ void handleProgramming () {
 			progstate = PS_WAIT_BUTTON_PRESS;
 		}
 		break;
+	case PS_WAIT_SELECT_RELEASE_FOR_EXIT:
+		if (!ps2x.Button (PSB_SELECT)) {
+			toJoystick ();
+		}
+		break;
 	}
 }
+
+void mapJoystickCustom1 (TwoButtonJoystick& j) {
+	// Use horizontal analog axis fully, but only down on vertical
+	mapAnalogStickHorizontal (j);
+	mapAnalogStickVertical (j);
+
+	// D-Pad is fully functional
+	j.up |= ps2x.Button (PSB_PAD_UP);
+	j.down |= ps2x.Button (PSB_PAD_DOWN);
+	j.left |= ps2x.Button (PSB_PAD_LEFT);
+	j.right |= ps2x.Button (PSB_PAD_RIGHT);
+
+	JoystickMapping *curMapping = &customMappings[0];
+	for (byte i = 0; i < PSX_BUTTONS_NO; ++i) {
+		Buttons button = 1 << i;
+		if (isButtonMappable (button) && ps2x.Button (button)) {
+			byte pos = button2position (button);
+			mergeButtons (j, curMapping -> combos[pos]);
+		}
+	}
+}
+
 
 /******************************************************************************/
 
