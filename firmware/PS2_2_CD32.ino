@@ -94,7 +94,7 @@ const byte TIMEOUT_CD32_MODE = 200;
 #define ENABLE_SERIAL_DEBUG
 
 // Print the controller status on serial. Useful for debugging.
-//~ #define DEBUG_PAD
+#define DEBUG_PAD
 
 
 /*******************************************************************************
@@ -186,12 +186,11 @@ typedef unsigned int Buttons;
 
 const Buttons NO_BUTTON = 0x00;
 
-struct ButtonMapping {
-	Buttons button;
-	TwoButtonJoystick combo;
-};
-
 #ifdef ENABLE_SERIAL_DEBUG
+	#include <avr/pgmspace.h>
+	typedef const byte* PGM_BYTES_P;
+	#define PSTR_TO_F(s) reinterpret_cast<const __FlashStringHelper *> (s)
+
 	#define dstart(spd) Serial.begin (spd)
 	#define debug(...) Serial.print (__VA_ARGS__)
 	#define debugln(...) Serial.println (__VA_ARGS__)
@@ -247,47 +246,83 @@ PadError initPad () {
 	return ret;
 }
 
+const char buttonSelectName[] PROGMEM = "Select";
+const char buttonL3Name[] PROGMEM = "L3";
+const char buttonR3Name[] PROGMEM = "R3";
+const char buttonStartName[] PROGMEM = "Start";
+const char buttonUpName[] PROGMEM = "Up";
+const char buttonRightName[] PROGMEM = "Right";
+const char buttonDownName[] PROGMEM = "Down";
+const char buttonLeftName[] PROGMEM = "Left";
+const char buttonL2Name[] PROGMEM = "L2";
+const char buttonR2Name[] PROGMEM = "R2";
+const char buttonL1Name[] PROGMEM = "L1";
+const char buttonR1Name[] PROGMEM = "R1";
+const char buttonTriangleName[] PROGMEM = "Triangle";
+const char buttonCircleName[] PROGMEM = "Circle";
+const char buttonCrossName[] PROGMEM = "Cross";
+const char buttonSquareName[] PROGMEM = "Square";
+
+const byte PSX_BUTTONS_NO = 16;
+
+const char* const psxButtonNames[PSX_BUTTONS_NO] PROGMEM = {
+	buttonSelectName,
+	buttonL3Name,
+	buttonR3Name,
+	buttonStartName,
+	buttonUpName,
+	buttonRightName,
+	buttonDownName,
+	buttonLeftName,
+	buttonL2Name,
+	buttonR2Name,
+	buttonL1Name,
+	buttonR1Name,
+	buttonTriangleName,
+	buttonCircleName,
+	buttonCrossName,
+	buttonSquareName
+};
+
+byte psxButtonToIndex (Buttons psxButtons) {
+	byte i;
+
+	for (i = 0; i < PSX_BUTTONS_NO; ++i) {
+		if (psxButtons & 0x01) {
+			break;
+		}
+
+		psxButtons >>= 1;
+	}
+
+	return i;
+}
+
+
 void dumpButtons (Buttons psxButtons) {
 #ifdef DEBUG_PAD
 	static Buttons lastB = 0;
 
 	if (psxButtons != lastB) {
+		lastB = psxButtons;			// Save it before we alter it
+		
 		debug (F("Pressed: "));
-		if (ps2x.Button (psxButtons, PSB_PAD_UP))
-			debug (F("Up "));
-		if (ps2x.Button (psxButtons, PSB_PAD_DOWN))
-			debug (F("Down "));
-		if (ps2x.Button (psxButtons, PSB_PAD_LEFT))
-			debug (F("Left "));
-		if (ps2x.Button (psxButtons, PSB_PAD_RIGHT))
-			debug (F("Right "));
-		if (ps2x.Button (psxButtons, PSB_SQUARE))
-			debug (F("Square "));
-		if (ps2x.Button (psxButtons, PSB_TRIANGLE))
-			debug (F("Triangle "));
-		if (ps2x.Button (psxButtons, PSB_CIRCLE))
-			debug (F("Circle "));
-		if (ps2x.Button (psxButtons, PSB_CROSS))
-			debug (F("Cross "));
-		if (ps2x.Button (psxButtons, PSB_L1))
-			debug (F("L1 "));
-		if (ps2x.Button (psxButtons, PSB_L2))
-			debug (F("L2 "));
-		if (ps2x.Button (psxButtons, PSB_L3))
-			debug (F("L3 "));
-		if (ps2x.Button (psxButtons, PSB_R1))
-			debug (F("R1 "));
-		if (ps2x.Button (psxButtons, PSB_R2))
-			debug (F("R2 "));
-		if (ps2x.Button (psxButtons, PSB_R3))
-			debug (F("R3 "));
-		if (ps2x.Button (psxButtons, PSB_SELECT))
-			debug (F("Select "));
-		if (ps2x.Button (psxButtons, PSB_START))
-			debug (F("Start "));
-		debugln ();
 
-		lastB = psxButtons;
+		for (byte i = 0; i < PSX_BUTTONS_NO; ++i) {
+			byte b = psxButtonToIndex (psxButtons);
+			if (b < PSX_BUTTONS_NO) {
+				PGM_BYTES_P bName = reinterpret_cast<PGM_BYTES_P> (pgm_read_ptr (&(psxButtonNames[b])));
+				debug (PSTR_TO_F (bName));
+			}
+
+			psxButtons &= ~(1 << b);
+
+			if (psxButtons != 0) {
+				debug (F(", "));
+			}
+		}
+
+		debugln ();
 	}
 #else
 	(void) psxButtons;
@@ -328,15 +363,6 @@ void onClockEdge () {
 	                 * for the ID sequence
 	                 */
 }
-
-//~ void mypanic (int interval) {
-	//~ while (42) {
-		//~ digitalWrite (PIN_LED_PAD_OK, HIGH);
-		//~ delay (interval);
-		//~ digitalWrite (PIN_LED_PAD_OK, LOW);
-		//~ delay (interval);
-	//~ }
-//~ }
 
 void setup () {
 	dstart (115200);
@@ -945,6 +971,24 @@ byte button2position (Buttons b) {
 	return pos;
 }
 
+//~ struct ButtonMapping {
+	//~ Buttons button;
+	//~ TwoButtonJoystick combo;
+//~ };
+
+/** Only 11 buttons can be mapped (X/O/^/[]/Lx/Rx/Start), but the way we store
+ * these needs 2 extra slots.
+ *
+ * \sa button2position()
+ */
+const byte MAX_MAPPINGS = 13;
+struct JoystickMapping {
+	TwoButtonJoystick combos[MAX_MAPPINGS];
+};
+
+JoystickMapping customMappings[PSX_BUTTONS_NO];
+
+
 void handleProgramming () {
 	static Buttons programmedButton = NO_BUTTON;
 	Buttons buttons = NO_BUTTON;
@@ -957,7 +1001,9 @@ void handleProgramming () {
 			programmedButton = buttons;
 			debug (F("Programming button "));
 			debugln (buttons, HEX);
+			debugln (psxButtonToIndex (buttons));
 			dumpButtons (buttons);
+			flashLed (1);
 			progstate = PS_WAIT_BUTTON_RELEASE;
 		}
 		break;
@@ -971,17 +1017,18 @@ void handleProgramming () {
 		buttons = debounceButtons (LONG_HOLD_TIME);
 		TwoButtonJoystick j;
 		if (buttons != NO_BUTTON && psxButton2Amiga (buttons, j)) {
-			ButtonMapping mapping;
-			mapping.button = programmedButton;
-			mapping.combo = j;
-			
 			debug (F("Programmed to "));
-			//~ debugln (*reinterpret_cast<byte *> (&mapping.combo), HEX);
-			dumpJoy (mapping.combo);
+			dumpJoy (j);
 			debug (F("Position is "));
-			debugln (button2position (mapping.button));
+			debugln (button2position (programmedButton));
+
+
+			JoystickMapping *curMapping = &customMappings[0];
+			byte pos = button2position (programmedButton);
+			curMapping -> combos[pos] = j;
 			
-			// Next
+			programmedButton = NO_BUTTON;
+			flashLed (3);
 			progstate = PS_WAIT_COMBO_RELEASE;
 		}
 		break;
@@ -999,6 +1046,8 @@ void handleProgramming () {
 void loop () {
 	if (haveController) {
 		if (ps2x.read_gamepad ()) {
+			dumpButtons (ps2x.ButtonDataByte ());
+			
 			// Handle joystick report
 			switch (mode) {
 			case MODE_JOYSTICK:
@@ -1069,20 +1118,6 @@ void loop () {
 
 
 #if 0
-
-
-// X/O/^/[]/Lx/Rx/Start
-const byte MAX_MAPPINGS = 11;
-struct JoystickMapping {
-	Buttons assignedButton;
-	ButtonMapping mappings[MAX_MAPPINGS];
-};
-
-CustomButtonMapping *currentMapping = NULL;
-
-#if 0
-
-#endif
 
 
 
