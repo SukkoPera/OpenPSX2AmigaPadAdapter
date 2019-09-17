@@ -1030,7 +1030,7 @@ void handleProgramming () {
 				debugln (buttons, HEX);
 				//~ debugln (psxButtonToIndex (buttons));
 				dumpButtons (buttons);
-				flashLed (1);
+				flashLed (3);
 				progstate = PS_WAIT_BUTTON_RELEASE;
 			}
 		}
@@ -1056,7 +1056,7 @@ void handleProgramming () {
 			curMapping -> combos[pos] = j;
 			
 			programmedButton = NO_BUTTON;
-			flashLed (3);
+			flashLed (5);
 			progstate = PS_WAIT_COMBO_RELEASE;
 		}
 		break;
@@ -1118,11 +1118,12 @@ void loop () {
 				digitalWrite (PIN_LED_MODE_CD32, HIGH);
 				break;
 			case MODE_PROGRAMMING:
-				handleProgramming (); 
+				handleProgramming ();
+				digitalWrite (PIN_LED_MODE_CD32, (millis () / 250) % 2 == 0);
 				break;
 			default:
 				// Do nothing
-				digitalWrite (PIN_LED_MODE_CD32, (millis () / 250) % 2 == 0);
+				digitalWrite (PIN_LED_MODE_CD32, (millis () / 100) % 2 == 0);
 				break;
 			}
 		} else {
