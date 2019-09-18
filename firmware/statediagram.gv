@@ -1,0 +1,81 @@
+digraph {
+	#ratio = 0.75;
+
+	newrank=true;
+	#splines=line
+	edge [splines = "curved"];
+	node [fontname = "Arial"];
+	edge [fontname = "Arial"];
+	#subgraph [fontname = "Arial"];
+	clusterrank = "local";
+	
+	# Initialization
+	{
+		node [shape = "plaintext"];
+
+		INIT;
+	}
+
+	INIT -> MODE_JOYSTICK;
+
+	# Main Mode Transitions
+	subgraph "cluster_main" {
+		label = "Main Modes";
+		style = "filled";
+
+		{
+			rank="same";
+			node [style = "filled"];
+
+			MODE_MOUSE;
+			MODE_JOYSTICK;
+			MODE_CD32;
+		}
+
+		MODE_JOYSTICK -> MODE_MOUSE [label = "Right Analog Stick Moved"];
+		MODE_MOUSE -> MODE_JOYSTICK [label = "D-Pad Button Pressed"];
+		MODE_JOYSTICK -> MODE_CD32 [label = "Pin 5 Set HIGH"];
+		MODE_MOUSE -> MODE_CD32 [label = "Pin 5 Set HIGH"];
+		MODE_CD32 -> MODE_JOYSTICK [label = "Pin 5 Set LOW*"];
+	}
+	
+	subgraph "cluster_progswitch" {
+		label = "Select Mapping/Switch to Programming Mode";
+
+		# States for entering Programming Mode
+		SELECT_HELD;
+		SELECT_AND_BTN_HELD;
+		ENABLE_MAPPING;
+
+		SELECT_HELD -> SELECT_AND_BTN_HELD [label = "X/O/^/[] Pressed"]
+		SELECT_AND_BTN_HELD -> ENABLE_MAPPING [label = "X/O/^/[] Released"]
+		SELECT_AND_BTN_HELD -> ENABLE_MAPPING [label = "SELECT Released"]
+	}
+
+	MODE_JOYSTICK -> SELECT_HELD [label = "SELECT Pressed"]
+	SELECT_HELD -> MODE_JOYSTICK [label = "SELECT Released"]
+	ENABLE_MAPPING -> MODE_JOYSTICK [label = "Mapping enabled"]
+	SELECT_AND_BTN_HELD -> PS_WAIT_SELECT_RELEASE [label = "<PROGTIME> Elapsed"]
+
+	subgraph "cluster_progmode" {
+		label = "Programming Mode";
+
+		# Programming Mode States
+		PS_WAIT_SELECT_RELEASE;
+		PS_WAIT_BUTTON_PRESS;
+		PS_WAIT_BUTTON_RELEASE;
+		PS_WAIT_COMBO_PRESS;
+		PS_WAIT_COMBO_RELEASE;
+		PS_WAIT_SELECT_RELEASE_FOR_EXIT;
+
+		PS_WAIT_SELECT_RELEASE -> PS_WAIT_BUTTON_PRESS [label = "SELECT Released"]
+		PS_WAIT_BUTTON_PRESS -> PS_WAIT_SELECT_RELEASE_FOR_EXIT [label = "SELECT Pressed"]
+		PS_WAIT_BUTTON_PRESS -> PS_WAIT_BUTTON_RELEASE [label = "Single Mappable Button Pressed"]
+		PS_WAIT_BUTTON_PRESS -> PS_WAIT_BUTTON_PRESS [label = "Several Buttons or Unmappable Button Pressed"]
+		PS_WAIT_BUTTON_RELEASE -> PS_WAIT_COMBO_PRESS [label = "Button Released"]
+		PS_WAIT_COMBO_PRESS -> PS_WAIT_COMBO_RELEASE [label = "Combo pressed"]
+		PS_WAIT_COMBO_RELEASE -> PS_WAIT_BUTTON_PRESS [label = "Combo released"]
+	}
+
+	PS_WAIT_SELECT_RELEASE_FOR_EXIT -> MODE_JOYSTICK [label = "SELECT Released"]
+}
