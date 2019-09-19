@@ -255,6 +255,7 @@ const Buttons NO_BUTTON = 0x00;
 
 #ifdef ENABLE_SERIAL_DEBUG
 	#include <avr/pgmspace.h>
+	typedef const __FlashStringHelper * FlashStr;
 	typedef const byte* PGM_BYTES_P;
 	#define PSTR_TO_F(s) reinterpret_cast<const __FlashStringHelper *> (s)
 
@@ -363,6 +364,18 @@ byte psxButtonToIndex (Buttons psxButtons) {
 	return i;
 }
 
+
+FlashStr getButtonName (Buttons psxButton) {
+	FlashStr ret = F("");
+	
+	byte b = psxButtonToIndex (psxButton);
+	if (b < PSX_BUTTONS_NO) {
+		PGM_BYTES_P bName = reinterpret_cast<PGM_BYTES_P> (pgm_read_ptr (&(psxButtonNames[b])));
+		ret = PSTR_TO_F (bName);
+	}
+
+	return ret;
+}
 
 void dumpButtons (Buttons psxButtons) {
 #ifdef DEBUG_PAD
@@ -1104,18 +1117,13 @@ void stateMachine () {
 			} else {
 				// Handle normal joystick movements
 				handleJoystick ();
-
-				// Make sure mode led is off
-				digitalWrite (PIN_LED_MODE_CD32, LOW);
 			}
 			break;
 		case ST_MOUSE:
 			handleMouse ();
-			digitalWrite (PIN_LED_MODE_CD32, (millis () / 500) % 2 == 0);
 			break;
 		case ST_CD32:
 			handleCD32Pad ();
-			digitalWrite (PIN_LED_MODE_CD32, HIGH);
 			break;
 				
 		/**********************************************************************
@@ -1150,7 +1158,8 @@ void stateMachine () {
 				selectComboPressTime = millis ();
 			} else if (millis () - selectComboPressTime >= 1000) {
 				// Combo kept pressed, enter programming mode
-				debugln (F("Entering programming mode"));
+				debug (F("Entering programming mode for "));
+				debugln (getButtonName (selectComboButton));
 				selectComboPressTime = 0;
 				state = ST_WAIT_SELECT_RELEASE;
 			} else if (!ps2x.Button (PSB_SELECT) || !ps2x.Button (selectComboButton)) {
@@ -1213,9 +1222,7 @@ void stateMachine () {
 					// Exactly one key pressed, go on
 					programmedButton = buttons;
 					debug (F("Programming button "));
-					debugln (buttons, HEX);
-					//~ debugln (psxButtonToIndex (buttons));
-					dumpButtons (buttons);
+					debugln (getButtonName (buttons));
 					flashLed (3);
 					state = ST_WAIT_BUTTON_RELEASE;
 				}
@@ -1259,35 +1266,50 @@ void stateMachine () {
 	}
 }
 
+/** \brief Update mode led
+ *
+ * We have a separate function for this as several states share the same led state
+ */
+void updateModeLed () {
+	switch (state) {
+		case ST_JOYSTICK:
+		case ST_SELECT_HELD:
+		case ST_SELECT_AND_BTN_HELD:
+		case ST_ENABLE_MAPPING:
+			// Led off
+			digitalWrite (PIN_LED_MODE_CD32, LOW);
+			break;
+		case ST_MOUSE:
+			// Blink slowly
+			digitalWrite (PIN_LED_MODE_CD32, (millis () / 500) % 2 == 0);
+			break;
+		case ST_CD32:
+			// Led lit up steadily
+			digitalWrite (PIN_LED_MODE_CD32, HIGH);
+			break;
+		case ST_WAIT_SELECT_RELEASE:
+		case ST_WAIT_BUTTON_PRESS:
+		case ST_WAIT_BUTTON_RELEASE:
+		case ST_WAIT_COMBO_PRESS:
+		case ST_WAIT_COMBO_RELEASE:
+		case ST_WAIT_SELECT_RELEASE_FOR_EXIT:
+			// Programming mode, blink fast
+			digitalWrite (PIN_LED_MODE_CD32, (millis () / 250) % 2 == 0);
+			break;
+		default:
+			// WTF?! Blink fast... er!
+			digitalWrite (PIN_LED_MODE_CD32, (millis () / 100) % 2 == 0);
+			break;
+	}
+}
+
 void loop () {
 	if (haveController) {
 		if (ps2x.read_gamepad ()) {
 			dumpButtons (ps2x.ButtonDataByte ());
 			
 			stateMachine ();
-			// Handle joystick report
-			//~ switch (mode) {
-			//~ case MODE_JOYSTICK:
-				//~ handleJoystick ();
-				//~ digitalWrite (PIN_LED_MODE_CD32, LOW);
-				//~ break;
-			//~ case MODE_MOUSE:
-				//~ handleMouse ();
-				//~ digitalWrite (PIN_LED_MODE_CD32, (millis () / 500) % 2 == 0);
-				//~ break;
-			//~ case MODE_CD32:
-				//~ handleCD32Pad ();
-				//~ digitalWrite (PIN_LED_MODE_CD32, HIGH);
-				//~ break;
-			//~ case MODE_PROGRAMMING:
-				//~ handleProgramming ();
-				//~ digitalWrite (PIN_LED_MODE_CD32, (millis () / 250) % 2 == 0);
-				//~ break;
-			//~ default:
-				//~ // Do nothing
-				//~ digitalWrite (PIN_LED_MODE_CD32, (millis () / 100) % 2 == 0);
-				//~ break;
-			//~ }
+			updateModeLed ();
 		} else {
 			haveController = false;
 			buttonsLive = 0x7F;		// No ID sequence, all buttons released
@@ -1330,9 +1352,6 @@ void loop () {
 		lastSwitchedTime = 0;
 	}
 }
-
-
-
 
 
 #if 0
