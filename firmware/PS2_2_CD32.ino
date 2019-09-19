@@ -636,6 +636,38 @@ void mapJoystickPlatform (TwoButtonJoystick& j) {
 	j.b2 = ps2x.Button (PSB_TRIANGLE) || ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2) || ps2x.Button (PSB_L3);
 }
 
+/** \brief Map PSX controller buttons to two-button joystick according to Custom
+ *         mapping 1
+ */
+void mapJoystickCustom1 (TwoButtonJoystick& j) {
+	// Use horizontal analog axis fully, but only down on vertical
+	mapAnalogStickHorizontal (j);
+	mapAnalogStickVertical (j);
+
+	// D-Pad is fully functional
+	j.up |= ps2x.Button (PSB_PAD_UP);
+	j.down |= ps2x.Button (PSB_PAD_DOWN);
+	j.left |= ps2x.Button (PSB_PAD_LEFT);
+	j.right |= ps2x.Button (PSB_PAD_RIGHT);
+
+	JoystickMapping *curMapping = &customMappings[0];
+	for (byte i = 0; i < PSX_BUTTONS_NO; ++i) {
+		Buttons button = 1 << i;
+		if (isButtonMappable (button) && ps2x.Button (button)) {
+			byte pos = button2position (button);
+			mergeButtons (j, curMapping -> combos[pos]);
+		}
+	}
+}
+
+/** \brief Merge two #TwoButtonJoystick's
+ * 
+ * Every button that is pressed in either \a src or \a dest will end up pressed
+ * in \a dest.
+ * 
+ * \param[inout] dest Destination
+ * \param[in] src Source
+ */
 void mergeButtons (TwoButtonJoystick& dest, const TwoButtonJoystick& src) {
 	dest.up |= src.up;
 	dest.down |= src.down;
@@ -901,9 +933,6 @@ void handleCD32Pad () {
 	buttonsLive = buttonsTmp;
 }
 
-
-/******************************************************************************/
-
 /** \brief Debounce button/combo presses
  * 
  * Makes sure that the same button/combo has been pressed steadily for some
@@ -1049,28 +1078,6 @@ byte button2position (Buttons b) {
 	
 	return pos;
 }
-
-void mapJoystickCustom1 (TwoButtonJoystick& j) {
-	// Use horizontal analog axis fully, but only down on vertical
-	mapAnalogStickHorizontal (j);
-	mapAnalogStickVertical (j);
-
-	// D-Pad is fully functional
-	j.up |= ps2x.Button (PSB_PAD_UP);
-	j.down |= ps2x.Button (PSB_PAD_DOWN);
-	j.left |= ps2x.Button (PSB_PAD_LEFT);
-	j.right |= ps2x.Button (PSB_PAD_RIGHT);
-
-	JoystickMapping *curMapping = &customMappings[0];
-	for (byte i = 0; i < PSX_BUTTONS_NO; ++i) {
-		Buttons button = 1 << i;
-		if (isButtonMappable (button) && ps2x.Button (button)) {
-			byte pos = button2position (button);
-			mergeButtons (j, curMapping -> combos[pos]);
-		}
-	}
-}
-
 
 void stateMachine () {
 	static Button selectComboButton = NO_BUTTON;
@@ -1241,8 +1248,6 @@ void stateMachine () {
 			break;
 	}
 }
-
-/******************************************************************************/
 
 void loop () {
 	if (haveController) {
