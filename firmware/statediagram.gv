@@ -1,12 +1,13 @@
 digraph {
 	#ratio = 0.75;
 
-	newrank=true;
+	compound = true;
+	newrank = true;
 	#splines=line
 	edge [splines = "curved"];
-	node [fontname = "Arial"];
-	edge [fontname = "Arial"];
-	#subgraph [fontname = "Arial"];
+	node [fontname = "Courier"];
+	edge [fontname = "Courier"];
+	#subgraph [fontname = "Courier"];
 	clusterrank = "local";
 	
 	# Initialization
@@ -15,12 +16,17 @@ digraph {
 
 		INIT;
 	}
+	
+	NO_CONTROLLER;
 
-	INIT -> MODE_JOYSTICK;
+	INIT -> NO_CONTROLLER;
+	NO_CONTROLLER -> MODE_JOYSTICK [label = "Supported controller plugged-in"]
 
 	# Main Mode Transitions
 	subgraph "cluster_main" {
 		label = "Main Modes";
+		fontname = "Courier-bold";
+		fontsize = "20pt";
 		style = "filled";
 
 		{
@@ -38,10 +44,15 @@ digraph {
 		MODE_MOUSE -> MODE_CD32 [label = "Pin 5 Set HIGH"];
 		MODE_CD32 -> MODE_JOYSTICK [label = "Pin 5 Set LOW*"];
 	}
+
+	# This actually represents a transitions valid for all nodes in the cluster
+	MODE_JOYSTICK -> NO_CONTROLLER [label = "Controller read error", ltail = cluster_main];
 	
 	subgraph "cluster_progswitch" {
 		label = "Select Mapping/Switch to Programming Mode";
-
+		fontname = "Courier-bold";
+		fontsize = "20pt";
+		
 		# States for entering Programming Mode
 		SELECT_HELD;
 		SELECT_AND_BTN_HELD;
@@ -57,9 +68,14 @@ digraph {
 	ENABLE_MAPPING -> MODE_JOYSTICK [label = "Mapping enabled"]
 	SELECT_AND_BTN_HELD -> PS_WAIT_SELECT_RELEASE [label = "<PROGTIME> Elapsed"]
 
+	# Again, valid for all nodes in the cluster
+	SELECT_HELD -> NO_CONTROLLER [label = "Controller read error", ltail = cluster_progswitch];
+
 	subgraph "cluster_progmode" {
 		label = "Programming Mode";
-
+		fontname = "Courier-bold";
+		fontsize = "20pt";
+		
 		# Programming Mode States
 		PS_WAIT_SELECT_RELEASE;
 		PS_WAIT_BUTTON_PRESS;
@@ -78,4 +94,7 @@ digraph {
 	}
 
 	PS_WAIT_SELECT_RELEASE_FOR_EXIT -> MODE_JOYSTICK [label = "SELECT Released"]
+
+	# Guess what??? Valid for all nodes in the cluster
+	PS_WAIT_SELECT_RELEASE -> NO_CONTROLLER [label = "Controller read error", ltail = cluster_progmode];
 }
