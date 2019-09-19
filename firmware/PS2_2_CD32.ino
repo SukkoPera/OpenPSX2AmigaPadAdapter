@@ -78,7 +78,7 @@ const byte MOUSE_FAST_DELTA = 6;
 const byte PIN_LED_PAD_OK = A1;
 
 // Pin for led that lights up whenever the adapter is in CD32 mode
-const byte PIN_LED_MODE_CD32 = A0;
+const byte PIN_LED_MODE = A0;
 
 /* Timeout for CD32 mode: normal joystick mode will be entered if PIN_PADMODE is
  * not toggled for this amount of milliseconds.
@@ -461,7 +461,7 @@ void setup () {
 
 	// Prepare leds
 	pinMode (PIN_LED_PAD_OK, OUTPUT);
-	pinMode (PIN_LED_MODE_CD32, OUTPUT);
+	pinMode (PIN_LED_MODE, OUTPUT);
 
 	// Give wireless PS2 module some time to startup, before configuring it
 	delay (300);
@@ -700,9 +700,9 @@ void mapJoystickCustom1 (TwoButtonJoystick& j);
 
 void flashLed (byte n) {
 	for (byte i = 0; i < n; ++i) {
-		digitalWrite (PIN_LED_MODE_CD32, HIGH);
+		digitalWrite (PIN_LED_MODE, HIGH);
 		delay (40);
-		digitalWrite (PIN_LED_MODE_CD32, LOW);
+		digitalWrite (PIN_LED_MODE, LOW);
 		delay (80);
 	}
 }
@@ -1277,15 +1277,15 @@ void updateModeLed () {
 		case ST_SELECT_AND_BTN_HELD:
 		case ST_ENABLE_MAPPING:
 			// Led off
-			digitalWrite (PIN_LED_MODE_CD32, LOW);
+			digitalWrite (PIN_LED_MODE, LOW);
 			break;
 		case ST_MOUSE:
 			// Blink slowly
-			digitalWrite (PIN_LED_MODE_CD32, (millis () / 500) % 2 == 0);
+			digitalWrite (PIN_LED_MODE, (millis () / 500) % 2 == 0);
 			break;
 		case ST_CD32:
 			// Led lit up steadily
-			digitalWrite (PIN_LED_MODE_CD32, HIGH);
+			digitalWrite (PIN_LED_MODE, HIGH);
 			break;
 		case ST_WAIT_SELECT_RELEASE:
 		case ST_WAIT_BUTTON_PRESS:
@@ -1294,11 +1294,11 @@ void updateModeLed () {
 		case ST_WAIT_COMBO_RELEASE:
 		case ST_WAIT_SELECT_RELEASE_FOR_EXIT:
 			// Programming mode, blink fast
-			digitalWrite (PIN_LED_MODE_CD32, (millis () / 250) % 2 == 0);
+			digitalWrite (PIN_LED_MODE, (millis () / 250) % 2 == 0);
 			break;
 		default:
 			// WTF?! Blink fast... er!
-			digitalWrite (PIN_LED_MODE_CD32, (millis () / 100) % 2 == 0);
+			digitalWrite (PIN_LED_MODE, (millis () / 100) % 2 == 0);
 			break;
 	}
 }
