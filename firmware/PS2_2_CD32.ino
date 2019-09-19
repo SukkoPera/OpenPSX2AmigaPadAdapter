@@ -85,6 +85,24 @@ const byte PIN_LED_MODE_CD32 = A0;
  */
 const byte TIMEOUT_CD32_MODE = 200;
 
+/** \brief Single-button debounce time
+ * 
+ * A combo will be considered valid only after it has been stable for this
+ * amount of milliseconds.
+ * 
+ * \sa debounceButtons()
+ */
+static const unsigned long DEBOUNCE_TIME_BUTTON = 30;
+
+/** \brief Combo debounce time
+ * 
+ * A combo will be considered valid only after it has been stable for this
+ * amount of milliseconds
+ * 
+ * \sa debounceButtons()
+ */
+static const unsigned long DEBOUNCE_TIME_COMBO = 150;
+
 
 /*******************************************************************************
  * DEBUGGING SUPPORT
@@ -115,12 +133,13 @@ enum State {
 	ST_SELECT_AND_BTN_HELD,
 	ST_ENABLE_MAPPING,
 	
-	PS_WAIT_SELECT_RELEASE,
-	PS_WAIT_BUTTON_PRESS,
-	PS_WAIT_BUTTON_RELEASE,
-	PS_WAIT_COMBO_PRESS,
-	PS_WAIT_COMBO_RELEASE,
-	PS_WAIT_SELECT_RELEASE_FOR_EXIT
+	// States for programming mode
+	ST_WAIT_SELECT_RELEASE,
+	ST_WAIT_BUTTON_PRESS,
+	ST_WAIT_BUTTON_RELEASE,
+	ST_WAIT_COMBO_PRESS,
+	ST_WAIT_COMBO_RELEASE,
+	ST_WAIT_SELECT_RELEASE_FOR_EXIT
 };
 
 State state;
@@ -153,8 +172,12 @@ enum JoyButtonMapping {
 	JMAP_CUSTOM1
 };
 
-/* Structure representing a standard 2-button joystick, used for gathering
- * button presses according to different button mappings. True means pressed.
+/** \brief Structure representing a standard 2-button Atari-style joystick
+ * 
+ * This used for gathering button presses according to different button
+ * mappings.
+ * 
+ * True means pressed.
  */
 struct TwoButtonJoystick {
 	boolean up: 1;
@@ -165,14 +188,42 @@ struct TwoButtonJoystick {
 	boolean b2: 1;
 };
 
-// Button mapping function
+/** \brief Button mapping function
+ * 
+ * This represents a function that should inspect the buttons currently being
+ * pressed on the PSX controller and somehow map them to a #TwoButtonJoystick.
+ */
 typedef void (*JoyMappingFunc) (TwoButtonJoystick& j);
 
-// Default button mapping function
+// Default button mapping function prototype for initialization of the following
 void mapJoystickNormal (TwoButtonJoystick& j);
+
+//! \brief Button mapping function currently in effect
 JoyMappingFunc joyMappingFunc = mapJoystickNormal;
 
-// True if mouse mode was enabled before switching to CD32 mode
+/** Only 11 buttons can be mapped (X/O/^/[]/Lx/Rx/Start), but the way we store
+ * these needs 2 extra slots.
+ *
+ * \sa button2position()
+ */
+const byte MAX_MAPPINGS = 13;
+
+/** \brief Map a PSX button to a two-button-joystick combo
+ * 
+ * There's an entry for every mappable button. Use #button2position() to convert
+ * the button to the index to use in the array.
+ * 
+ * \sa isButtonMappable()
+ */
+struct JoystickMapping {
+	TwoButtonJoystick combos[MAX_MAPPINGS];
+};
+
+/** \fixme
+ */
+JoystickMapping customMappings[PSX_BUTTONS_NO];
+
+//! True if mouse mode was enabled before switching to CD32 mode
 boolean wasMouse = false;
 
 /* Button register currently being shifted in ISRs
@@ -185,11 +236,13 @@ volatile byte buttons;
  */
 byte buttonsLive = 0x80;
 
-// Timestamp of last time the pad was switched out of CD32 mode
+//! Timestamp of last time the pad was switched out of CD32 mode
 unsigned long lastSwitchedTime = 0;
 
+//! \brief Type that is used to report button presses
 typedef unsigned int Buttons;
 
+//! Value of #Buttons when it reports no buttons pressed
 const Buttons NO_BUTTON = 0x00;
 
 #ifdef ENABLE_SERIAL_DEBUG
@@ -690,169 +743,6 @@ void handleJoystick () {
 	interrupts ();
 }
 
-void stateMachine () {
-	static Button selectComboButton = NO_BUTTON;
-	static Button programmedButton = NO_BUTTON;
-	Buttons buttons = NO_BUTTON;
-	
-	switch (state) {
-		case ST_JOYSTICK:
-			if (rightAnalogMoved) {
-				// Right analog stick moved, switch to Mouse mode
-				toMouse ();
-			} else if (ps2x.Button (PSB_SELECT)) {
-				state = SELECT_HELD;
-			} else {
-				// Handle normal joystick movements
-				handleJoystick ();
-
-				// Make sure mode led is off
-				digitalWrite (PIN_LED_MODE_CD32, LOW);
-			}
-			break;
-		case ST_MOUSE:
-			handleMouse ();
-			digitalWrite (PIN_LED_MODE_CD32, (millis () / 500) % 2 == 0);
-			break;
-		case ST_CD32:
-			handleCD32Pad ();
-			digitalWrite (PIN_LED_MODE_CD32, HIGH);
-			break;
-		case ST_SELECT_HELD:
-			if (!ps2x.Button (PSB_SELECT)) {
-				// Select was released
-				state = ST_JOYSTICK;
-			} else if (ps2x.Button (PSB_SQUARE)) {
-				selectComboButton = PSB_SQUARE;
-				state = ST_SELECT_AND_BTN_HELD;
-			} else if (ps2x.Button (PSB_TRIANGLE)) {
-				selectComboButton = PSB_TRIANGLE;
-				state = ST_SELECT_AND_BTN_HELD;
-			} else if (ps2x.Button (PSB_CIRCLE)) {
-				selectComboButton = PSB_CIRCLE;
-				state = ST_SELECT_AND_BTN_HELD;
-			} else if (ps2x.Button (PSB_CROSS)) {
-				selectComboButton = PSB_CROSS;
-				state = ST_SELECT_AND_BTN_HELD;
-			} else if (ps2x.Button (PSB_START)) {
-				selectComboButton = PSB_START;
-				state = ST_SELECT_AND_BTN_HELD;
-			}
-			break;
-		case ST_SELECT_AND_BTN_HELD: {
-			static unsigned long selectComboPressTime = 0;
-			
-			if (selectComboPressTime == 0) {
-				// State was just entered
-				selectComboPressTime = millis ();
-			} else if (millis () - selectComboPressTime >= 1000) {
-				// Combo kept pressed, enter programming mode
-				debugln (F("Entering programming mode"));
-				selectComboPressTime = 0;
-				state = PS_WAIT_SELECT_RELEASE;
-			} else if (!ps2x.Button (PSB_SELECT) || !ps2x.Button (selectComboButton)) {
-				// Combo released, switch to desired mapping
-				selectComboPressTime = 0;
-				state = ST_ENABLE_MAPPING;
-			}
-			break;
-		} case ST_ENABLE_MAPPING:
-			// Change button mapping
-			switch (selectComboButton) {
-				case PSB_SQUARE:
-					joyMappingFunc = mapJoystickNormal;
-					flashLed (JMAP_NORMAL);
-					break;
-				case PSB_TRIANGLE:
-					joyMappingFunc = mapJoystickRacing1;
-					flashLed (JMAP_RACING1);
-					break;
-				case PSB_CIRCLE:
-					joyMappingFunc = mapJoystickRacing2;
-					flashLed (JMAP_RACING2);
-					break;
-				case PSB_CROSS:
-					joyMappingFunc = mapJoystickPlatform;
-					flashLed (JMAP_PLATFORM);
-					break;
-				case PSB_START:
-					joyMappingFunc = mapJoystickCustom1;
-					flashLed (JMAP_CUSTOM1);
-					break;
-				default:
-					// Shouldn't be reached
-					break;
-			}
-			selectComboPressTime = 0;
-			state = ST_JOYSTICK;		// Exit immediately
-			break;
-		
-		
-		/**********************************************************************
-		 * PROGRAMMING STATES
-		 **********************************************************************/
-		selectComboButton
-		case PS_WAIT_SELECT_RELEASE:
-			if (!ps2x.Button (PSB_SELECT)) {
-				state = PS_WAIT_BUTTON_PRESS;
-			}
-			break;
-		case PS_WAIT_BUTTON_PRESS:
-			if (ps2x.Button (PSB_SELECT)) {
-				// Exit programming mode
-				state = PS_WAIT_SELECT_RELEASE_FOR_EXIT;
-			} else {
-				buttons = debounceButtons (SHORT_HOLD_TIME);
-				if (isButtonMappable (buttons)) {
-					// Exactly one key pressed, go on
-					programmedButton = buttons;
-					debug (F("Programming button "));
-					debugln (buttons, HEX);
-					//~ debugln (psxButtonToIndex (buttons));
-					dumpButtons (buttons);
-					flashLed (3);
-					state = PS_WAIT_BUTTON_RELEASE;
-				}
-			}
-			break;
-		case PS_WAIT_BUTTON_RELEASE:
-			buttons = debounceButtons (SHORT_HOLD_TIME);
-			if (buttons == NO_BUTTON) {
-				state = PS_WAIT_COMBO_PRESS;
-			}
-			break;
-		case PS_WAIT_COMBO_PRESS:
-			buttons = debounceButtons (LONG_HOLD_TIME);
-			TwoButtonJoystick j;
-			if (buttons != NO_BUTTON && psxButton2Amiga (buttons, j)) {
-				debug (F("Programmed to "));
-				dumpJoy (j);
-
-				JoystickMapping *curMapping = &customMappings[0];
-				byte pos = button2position (programmedButton);
-				debug (F("Position is "));
-				debugln (pos);
-				curMapping -> combos[pos] = j;
-				
-				programmedButton = NO_BUTTON;
-				flashLed (5);
-				state = PS_WAIT_COMBO_RELEASE;
-			}
-			break;
-		case PS_WAIT_COMBO_RELEASE:
-			buttons = debounceButtons (SHORT_HOLD_TIME);
-			if (buttons == NO_BUTTON) {
-				state = PS_WAIT_BUTTON_PRESS;
-			}
-			break;
-		case PS_WAIT_SELECT_RELEASE_FOR_EXIT:
-			if (!ps2x.Button (PSB_SELECT)) {
-				state = ST_JOYSTICK;
-			}
-			break;
-	}
-}
-
 void handleMouse () {
 	if (ps2x.Button (PSB_PAD_UP) || ps2x.Button (PSB_PAD_DOWN) ||
 	    ps2x.Button (PSB_PAD_LEFT) || ps2x.Button (PSB_PAD_RIGHT)) {
@@ -1014,25 +904,23 @@ void handleCD32Pad () {
 
 /******************************************************************************/
 
-
-/* Combo debounce time: The combo will be considered valid only after it has
- * been stable for this amount of milliseconds
+/** \brief Debounce button/combo presses
+ * 
+ * Makes sure that the same button/combo has been pressed steadily for some
+ * time.
+ * 
+ * \sa DEBOUNCE_TIME_BUTTON
+ * \sa DEBOUNCE_TIME_COMBO
+ * 
+ * \param[in] holdTime Time the button/combo must be stable for
  */
-static const unsigned long SHORT_HOLD_TIME = 30;
-
-/* Combo debounce time: The combo will be considered valid only after it has
- * been stable for this amount of milliseconds
- */
-static const unsigned long LONG_HOLD_TIME = 150;
-
-// Reads and debounces
-unsigned int debounceButtons (unsigned long holdTime) {
-	static unsigned int oldButtons = NO_BUTTON;
+Buttons debounceButtons (unsigned long holdTime) {
+	static Buttons oldButtons = NO_BUTTON;
 	static unsigned long pressedOn = 0;
 
 	unsigned int ret = NO_BUTTON;
 
-	unsigned int buttons = ps2x.ButtonDataByte ();
+	Buttons buttons = (Buttons) ps2x.ButtonDataByte ();
 	if (buttons == oldButtons) {
 		if (millis () - pressedOn >= holdTime) {
 			// Same combo held long enough
@@ -1049,23 +937,15 @@ unsigned int debounceButtons (unsigned long holdTime) {
 	return ret;
 }
 
-/* Function to get no of set bits in binary 
- * representation of passed binary no.
+/** \brief Translate a button combo to what would be sent to the DB-9 port
  * 
- * All hail to Brian Kernighan.
+ * This is used during programming mode to enter the combo that should be sent
+ * whenever a mapped button is pressed.
+ * 
+ * \param[in] psxButtons PSX controller button combo
+ * \param[out] j Two-button joystick configuration corresponding to input
+ * \return True if the output contains at least one pressed button
  */
-unsigned int countSetBits (int n) { 
-	unsigned int count = 0; 
-
-	while (n) { 
-		n &= n - 1;
-		++count; 
-	} 
-
-	return count; 
-}
-
-// Translate a button combo to what would be sent to the DB-9 port
 boolean psxButton2Amiga (Buttons psxButtons, TwoButtonJoystick& j) {
 	memset (&j, 0x00, sizeof (j));
 	
@@ -1101,6 +981,26 @@ void dumpJoy (TwoButtonJoystick& j) {
 	debugln (F(""));
 }
 
+/** \brief Get number of set bits in binary representation of passed number
+ * 
+ * All hail to Brian Kernighan.
+ */
+unsigned int countSetBits (int n) { 
+	unsigned int count = 0; 
+
+	while (n) { 
+		n &= n - 1;
+		++count; 
+	} 
+
+	return count; 
+}
+
+/** \brief Check whether a button report contains a mappable button
+ * 
+ * That means it contains a single button which is not \a SELECT neither one
+ * from the D-Pad.
+ */
 boolean isButtonMappable (Buttons b) {
 	return countSetBits (buttons) == 1 &&
 	       !ps2x.Button (b, PSB_SELECT) &&
@@ -1110,7 +1010,16 @@ boolean isButtonMappable (Buttons b) {
 	       !ps2x.Button (b, PSB_PAD_RIGHT);
 }
 
-/* 									    >> 2		>> 9		>> 13
+/** \brief Convert a mappable button to a small integer
+ * 
+ * A mappable button is converted to an integer in the [0-#MAX_MAPPINGS - 1)
+ * range as detailed in the table below.
+ * 
+ * This is used to quickly look up a button in an array and is used both to map
+ * a button press to a programmed combo and to map a button to its mapping entry
+ * set.
+ * 
+ * 									    >> 2		>> 9		>> 13
  * #define PSB_L3          0x0002		0
  * #define PSB_R3          0x0004		1
  * #define PSB_START       0x0008		2
@@ -1124,6 +1033,8 @@ boolean isButtonMappable (Buttons b) {
  * #define PSB_SQUARE      0x8000								4
  *
  * Positions 6 and 11 are unused, but this should be fast
+ * 
+ * \sa mapJoystickCustom1()
  */ 
 byte button2position (Buttons b) {
 	byte pos = 0xFF;
@@ -1138,20 +1049,6 @@ byte button2position (Buttons b) {
 	
 	return pos;
 }
-
-/** Only 11 buttons can be mapped (X/O/^/[]/Lx/Rx/Start), but the way we store
- * these needs 2 extra slots.
- *
- * \sa button2position()
- */
-const byte MAX_MAPPINGS = 13;
-struct JoystickMapping {
-	TwoButtonJoystick combos[MAX_MAPPINGS];
-};
-
-JoystickMapping customMappings[PSX_BUTTONS_NO];
-
-
 
 void mapJoystickCustom1 (TwoButtonJoystick& j) {
 	// Use horizontal analog axis fully, but only down on vertical
@@ -1175,6 +1072,176 @@ void mapJoystickCustom1 (TwoButtonJoystick& j) {
 }
 
 
+void stateMachine () {
+	static Button selectComboButton = NO_BUTTON;
+	static Button programmedButton = NO_BUTTON;
+	Buttons buttons = NO_BUTTON;
+	
+	switch (state) {
+				
+		/**********************************************************************
+		 * MAIN MODE STATES
+		 **********************************************************************/
+		case ST_JOYSTICK:
+			if (rightAnalogMoved) {
+				// Right analog stick moved, switch to Mouse mode
+				toMouse ();
+			} else if (ps2x.Button (PSB_SELECT)) {
+				state = SELECT_HELD;
+			} else {
+				// Handle normal joystick movements
+				handleJoystick ();
+
+				// Make sure mode led is off
+				digitalWrite (PIN_LED_MODE_CD32, LOW);
+			}
+			break;
+		case ST_MOUSE:
+			handleMouse ();
+			digitalWrite (PIN_LED_MODE_CD32, (millis () / 500) % 2 == 0);
+			break;
+		case ST_CD32:
+			handleCD32Pad ();
+			digitalWrite (PIN_LED_MODE_CD32, HIGH);
+			break;
+				
+		/**********************************************************************
+		 * SELECT MAPPING/SWITCH TO PROGRAMMING MODE STATES
+		 **********************************************************************/
+		case ST_SELECT_HELD:
+			if (!ps2x.Button (PSB_SELECT)) {
+				// Select was released
+				state = ST_JOYSTICK;
+			} else if (ps2x.Button (PSB_SQUARE)) {
+				selectComboButton = PSB_SQUARE;
+				state = ST_SELECT_AND_BTN_HELD;
+			} else if (ps2x.Button (PSB_TRIANGLE)) {
+				selectComboButton = PSB_TRIANGLE;
+				state = ST_SELECT_AND_BTN_HELD;
+			} else if (ps2x.Button (PSB_CIRCLE)) {
+				selectComboButton = PSB_CIRCLE;
+				state = ST_SELECT_AND_BTN_HELD;
+			} else if (ps2x.Button (PSB_CROSS)) {
+				selectComboButton = PSB_CROSS;
+				state = ST_SELECT_AND_BTN_HELD;
+			} else if (ps2x.Button (PSB_START)) {
+				selectComboButton = PSB_START;
+				state = ST_SELECT_AND_BTN_HELD;
+			}
+			break;
+		case ST_SELECT_AND_BTN_HELD: {
+			static unsigned long selectComboPressTime = 0;
+			
+			if (selectComboPressTime == 0) {
+				// State was just entered
+				selectComboPressTime = millis ();
+			} else if (millis () - selectComboPressTime >= 1000) {
+				// Combo kept pressed, enter programming mode
+				debugln (F("Entering programming mode"));
+				selectComboPressTime = 0;
+				state = ST_WAIT_SELECT_RELEASE;
+			} else if (!ps2x.Button (PSB_SELECT) || !ps2x.Button (selectComboButton)) {
+				// Combo released, switch to desired mapping
+				selectComboPressTime = 0;
+				state = ST_ENABLE_MAPPING;
+			}
+			break;
+		} case ST_ENABLE_MAPPING:
+			// Change button mapping
+			switch (selectComboButton) {
+				case PSB_SQUARE:
+					joyMappingFunc = mapJoystickNormal;
+					flashLed (JMAP_NORMAL);
+					break;
+				case PSB_TRIANGLE:
+					joyMappingFunc = mapJoystickRacing1;
+					flashLed (JMAP_RACING1);
+					break;
+				case PSB_CIRCLE:
+					joyMappingFunc = mapJoystickRacing2;
+					flashLed (JMAP_RACING2);
+					break;
+				case PSB_CROSS:
+					joyMappingFunc = mapJoystickPlatform;
+					flashLed (JMAP_PLATFORM);
+					break;
+				case PSB_START:
+					joyMappingFunc = mapJoystickCustom1;
+					flashLed (JMAP_CUSTOM1);
+					break;
+				default:
+					// Shouldn't be reached
+					break;
+			}
+			selectComboPressTime = 0;
+			state = ST_JOYSTICK;		// Exit immediately
+			break;
+		
+		/**********************************************************************
+		 * PROGRAMMING STATES
+		 **********************************************************************/
+		selectComboButton
+		case ST_WAIT_SELECT_RELEASE:
+			if (!ps2x.Button (PSB_SELECT)) {
+				state = ST_WAIT_BUTTON_PRESS;
+			}
+			break;
+		case ST_WAIT_BUTTON_PRESS:
+			if (ps2x.Button (PSB_SELECT)) {
+				// Exit programming mode
+				state = ST_WAIT_SELECT_RELEASE_FOR_EXIT;
+			} else {
+				buttons = debounceButtons (DEBOUNCE_TIME_BUTTON);
+				if (isButtonMappable (buttons)) {
+					// Exactly one key pressed, go on
+					programmedButton = buttons;
+					debug (F("Programming button "));
+					debugln (buttons, HEX);
+					//~ debugln (psxButtonToIndex (buttons));
+					dumpButtons (buttons);
+					flashLed (3);
+					state = ST_WAIT_BUTTON_RELEASE;
+				}
+			}
+			break;
+		case ST_WAIT_BUTTON_RELEASE:
+			buttons = debounceButtons (DEBOUNCE_TIME_BUTTON);
+			if (buttons == NO_BUTTON) {
+				state = ST_WAIT_COMBO_PRESS;
+			}
+			break;
+		case ST_WAIT_COMBO_PRESS:
+			buttons = debounceButtons (DEBOUNCE_TIME_COMBO);
+			TwoButtonJoystick j;
+			if (buttons != NO_BUTTON && psxButton2Amiga (buttons, j)) {
+				debug (F("Programmed to "));
+				dumpJoy (j);
+
+				JoystickMapping *curMapping = &customMappings[0];
+				byte pos = button2position (programmedButton);
+				debug (F("Position is "));
+				debugln (pos);
+				curMapping -> combos[pos] = j;
+				
+				programmedButton = NO_BUTTON;
+				flashLed (5);
+				state = ST_WAIT_COMBO_RELEASE;
+			}
+			break;
+		case ST_WAIT_COMBO_RELEASE:
+			buttons = debounceButtons (DEBOUNCE_TIME_BUTTON);
+			if (buttons == NO_BUTTON) {
+				state = ST_WAIT_BUTTON_PRESS;
+			}
+			break;
+		case ST_WAIT_SELECT_RELEASE_FOR_EXIT:
+			if (!ps2x.Button (PSB_SELECT)) {
+				state = ST_JOYSTICK;
+			}
+			break;
+	}
+}
+
 /******************************************************************************/
 
 void loop () {
@@ -1182,29 +1249,30 @@ void loop () {
 		if (ps2x.read_gamepad ()) {
 			dumpButtons (ps2x.ButtonDataByte ());
 			
+			stateMachine ();
 			// Handle joystick report
-			switch (mode) {
-			case MODE_JOYSTICK:
-				handleJoystick ();
-				digitalWrite (PIN_LED_MODE_CD32, LOW);
-				break;
-			case MODE_MOUSE:
-				handleMouse ();
-				digitalWrite (PIN_LED_MODE_CD32, (millis () / 500) % 2 == 0);
-				break;
-			case MODE_CD32:
-				handleCD32Pad ();
-				digitalWrite (PIN_LED_MODE_CD32, HIGH);
-				break;
-			case MODE_PROGRAMMING:
-				handleProgramming ();
-				digitalWrite (PIN_LED_MODE_CD32, (millis () / 250) % 2 == 0);
-				break;
-			default:
-				// Do nothing
-				digitalWrite (PIN_LED_MODE_CD32, (millis () / 100) % 2 == 0);
-				break;
-			}
+			//~ switch (mode) {
+			//~ case MODE_JOYSTICK:
+				//~ handleJoystick ();
+				//~ digitalWrite (PIN_LED_MODE_CD32, LOW);
+				//~ break;
+			//~ case MODE_MOUSE:
+				//~ handleMouse ();
+				//~ digitalWrite (PIN_LED_MODE_CD32, (millis () / 500) % 2 == 0);
+				//~ break;
+			//~ case MODE_CD32:
+				//~ handleCD32Pad ();
+				//~ digitalWrite (PIN_LED_MODE_CD32, HIGH);
+				//~ break;
+			//~ case MODE_PROGRAMMING:
+				//~ handleProgramming ();
+				//~ digitalWrite (PIN_LED_MODE_CD32, (millis () / 250) % 2 == 0);
+				//~ break;
+			//~ default:
+				//~ // Do nothing
+				//~ digitalWrite (PIN_LED_MODE_CD32, (millis () / 100) % 2 == 0);
+				//~ break;
+			//~ }
 		} else {
 			haveController = false;
 			buttonsLive = 0x7F;		// No ID sequence, all buttons released
@@ -1247,3 +1315,26 @@ void loop () {
 		lastSwitchedTime = 0;
 	}
 }
+
+
+
+
+
+#if 0
+
+
+
+void lookupButtonMapping (Buttons b, TwoButtonJoystick& j) {
+	if (currentMapping != NULL) {
+		for (byte i = 0; currentMapping -> mappings[i].button != 0 && i < MAX_MAPPINGS; ++i) {
+			if (b == currentMapping -> mappings[i].button) {
+				j = currentMapping -> mappings[i].combo;
+				break;
+			}
+		}
+	}
+}
+		
+
+
+#endif
