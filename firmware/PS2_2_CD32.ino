@@ -367,6 +367,15 @@ void onClockEdge () {
 	                 */
 }
 
+inline void enableCD32Trigger () {
+	// Call ISR on changes of the CD32 pad mode pin
+	attachInterrupt (digitalPinToInterrupt (PIN_PADMODE), onPadModeChange, CHANGE);
+}
+
+inline void disbleCD32Trigger () {
+	detachInterrupt (digitalPinToInterrupt (PIN_PADMODE));
+}
+
 void setup () {
 	dstart (115200);
 	debugln (F("Starting up..."));
@@ -382,8 +391,7 @@ void setup () {
 	// Give wireless PS2 module some time to startup, before configuring it
 	delay (300);
 
-	// Call ISR on changes of the CD32 pad mode pin
-	attachInterrupt (digitalPinToInterrupt (PIN_PADMODE), onPadModeChange, CHANGE);
+	enableCD32Trigger ();
 }
 
 void toMouse () {
