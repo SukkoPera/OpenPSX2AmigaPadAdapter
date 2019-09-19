@@ -109,20 +109,19 @@ static const unsigned long DEBOUNCE_TIME_COMBO = 150;
  ******************************************************************************/
 
 // Send debug messages to serial port
-#define ENABLE_SERIAL_DEBUG
+//~ #define ENABLE_SERIAL_DEBUG
 
 // Print the controller status on serial. Useful for debugging.
-#define DEBUG_PAD
+//~ #define DEBUG_PAD
 
 
 /*******************************************************************************
  * END OF SETTINGS
  ******************************************************************************/
 
-// True if a controller was found
-boolean haveController = false;
-
 enum State {
+	ST_NO_CONTROLLER,
+	
 	// Main functioning modes
 	ST_JOYSTICK,
 	ST_MOUSE,
@@ -143,14 +142,7 @@ enum State {
 };
 
 // Start out as a simple joystick
-volatile State state = ST_JOYSTICK;
-
-enum PadError {
-	PADERR_NONE = 0,		// AKA No error
-	PADERR_NOTFOUND,
-	PADERR_WRONGTYPE,
-	PADERR_UNKNOWN
-};
+volatile State state = ST_NO_CONTROLLER;
 
 // Button bits for CD32 mode
 const word BTN_BLUE =		1U << 0U;
@@ -268,12 +260,11 @@ const Buttons NO_BUTTON = 0x00;
 	#define debugln(...)
 #endif
 
-PadError initPad () {
-	PadError ret = PADERR_NOTFOUND;
+boolean initPad () {
+	boolean ret = false;
 
 	// clock, command, attention, data, Pressures?, Rumble?
 	int error = ps2x.config_gamepad (PS2_CLK, PS2_CMD, PS2_SEL, PS2_DAT, false, false);
-
 	switch (error) {
 	case 0:
 		// Controller is ready
@@ -282,12 +273,12 @@ PadError initPad () {
 			/* The Dual Shock controller gets recognized as this sometimes, or
 			 * anyway, whatever controller it is, it might work
 			 */
-			debugln (F("Unknown Controller type found"));
-			ret = PADERR_NONE;
+			debugln (F("Unknown Controller type found, using anyway"));
+			ret = true;
 			break;
 		case 1:
 			debugln (F("DualShock Controller found"));
-			ret = PADERR_NONE;
+			ret = true;
 			break;
 		case 2:
 			/* We used to refuse this, as it does not look suitable, but then we
@@ -295,19 +286,20 @@ PadError initPad () {
 			 * this... :/
 			 */
 			debugln (F("Analog/GuitarHero Controller found"));
-			ret = PADERR_NONE;
+			ret = true;
 			break;
 		case 3:
 			debugln (F("Wireless Sony DualShock Controller found"));
-			ret = PADERR_NONE;
+			ret = true;
 			break;
 		}
 		break;
 	case 1:
-		ret = PADERR_NOTFOUND;
+		debugln (F("No controller found"));
 		break;
 	case 2:
-		ret = PADERR_UNKNOWN;
+	default:
+		debugln (F("Cannot initialize controller"));
 		break;
 	}
 
@@ -364,7 +356,7 @@ byte psxButtonToIndex (Buttons psxButtons) {
 	return i;
 }
 
-
+#ifdef ENABLE_SERIAL_DEBUG
 FlashStr getButtonName (Buttons psxButton) {
 	FlashStr ret = F("");
 	
@@ -376,6 +368,7 @@ FlashStr getButtonName (Buttons psxButton) {
 
 	return ret;
 }
+#endif
 
 void dumpButtons (Buttons psxButtons) {
 #ifdef DEBUG_PAD
@@ -468,8 +461,8 @@ void setup () {
 
 	enableCD32Trigger ();
 	
-	// Start in Atari-style joystick mode
-	state = ST_JOYSTICK;
+	// Start polling for controller
+	state = ST_NO_CONTROLLER;
 }
 
 void toMouse () {
@@ -795,96 +788,90 @@ void handleJoystick () {
 }
 
 void handleMouse () {
-	if (ps2x.Button (PSB_PAD_UP) || ps2x.Button (PSB_PAD_DOWN) ||
-	    ps2x.Button (PSB_PAD_LEFT) || ps2x.Button (PSB_PAD_RIGHT)) {
-		// D-Pad pressed, go back to joystick mode
-		toJoystick ();
-	} else {
-		static unsigned long tx = 0, ty = 0;
-		
-		// Right analog stick works as a mouse - Horizontal axis
-		int x = ps2x.Analog (PSS_RX);   // 0 ... 255
-		int deltaX = x - ANALOG_IDLE_VALUE;
-		int deltaXabs = abs (deltaX);
-		if (deltaXabs > ANALOG_DEAD_ZONE) {
-			unsigned int period = map (deltaXabs, ANALOG_DEAD_ZONE, ANALOG_IDLE_VALUE, MOUSE_SLOW_DELTA, MOUSE_FAST_DELTA);
-			//~ debug (F("x = "));
-			//~ debug (x);
-			//~ debug (F(" --> period = "));
-			debugln (period);
+	static unsigned long tx = 0, ty = 0;
+	
+	// Right analog stick works as a mouse - Horizontal axis
+	int x = ps2x.Analog (PSS_RX);   // 0 ... 255
+	int deltaX = x - ANALOG_IDLE_VALUE;
+	int deltaXabs = abs (deltaX);
+	if (deltaXabs > ANALOG_DEAD_ZONE) {
+		unsigned int period = map (deltaXabs, ANALOG_DEAD_ZONE, ANALOG_IDLE_VALUE, MOUSE_SLOW_DELTA, MOUSE_FAST_DELTA);
+		//~ debug (F("x = "));
+		//~ debug (x);
+		//~ debug (F(" --> period = "));
+		//~ debugln (period);
 
-			byte leadingPin;
-			byte trailingPin;
-			if (deltaX > 0) {
-				// Right
-				leadingPin = PIN_RIGHT;
-				trailingPin = PIN_DOWN;
-			} else {
-				// Left
-				leadingPin = PIN_DOWN;
-				trailingPin = PIN_RIGHT;
-			}
-
-			if (millis () - tx >= period) {
-				digitalWrite (leadingPin, !digitalRead (leadingPin));
-				tx = millis ();
-			}
-			
-			if (millis () - tx >= period / 2) {
-				digitalWrite (trailingPin, !digitalRead (leadingPin));
-			}
-		}
-
-		// Vertical axis
-		int y = ps2x.Analog (PSS_RY);
-		int deltaY = y - ANALOG_IDLE_VALUE;
-		int deltaYabs = abs (deltaY);
-		if (deltaYabs > ANALOG_DEAD_ZONE) {
-			unsigned int period = map (deltaYabs, ANALOG_DEAD_ZONE, ANALOG_IDLE_VALUE, MOUSE_SLOW_DELTA, MOUSE_FAST_DELTA);
-			//~ debug (F("y = "));
-			//~ debug (y);
-			//~ debug (F(" --> period = "));
-			debugln (period);
-
-			byte leadingPin;
-			byte trailingPin;
-			if (deltaY > 0) {
-				// Down
-				leadingPin = PIN_LEFT;
-				trailingPin = PIN_UP;
-			} else {
-				// Up
-				leadingPin = PIN_UP;
-				trailingPin = PIN_LEFT;
-			}
-
-			if (millis () - ty >= period) {
-				digitalWrite (leadingPin, !digitalRead (leadingPin));
-				ty = millis ();
-			}
-			
-			if (millis () - ty >= period / 2) {
-				digitalWrite (trailingPin, !digitalRead (leadingPin));
-			}
-		}
-
-		// Buttons
-		noInterrupts ();
-		
-		if (ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2) || ps2x.Button (PSB_L3)) {
-			buttonPress (PIN_BTN1);
+		byte leadingPin;
+		byte trailingPin;
+		if (deltaX > 0) {
+			// Right
+			leadingPin = PIN_RIGHT;
+			trailingPin = PIN_DOWN;
 		} else {
-			buttonRelease (PIN_BTN1);
+			// Left
+			leadingPin = PIN_DOWN;
+			trailingPin = PIN_RIGHT;
 		}
 
-		if (ps2x.Button (PSB_R1) || ps2x.Button (PSB_R2) || ps2x.Button (PSB_R3)) {
-			buttonPress (PIN_BTN2);
-		} else {
-			buttonRelease (PIN_BTN2);
+		if (millis () - tx >= period) {
+			digitalWrite (leadingPin, !digitalRead (leadingPin));
+			tx = millis ();
 		}
-
-		interrupts ();
+		
+		if (millis () - tx >= period / 2) {
+			digitalWrite (trailingPin, !digitalRead (leadingPin));
+		}
 	}
+
+	// Vertical axis
+	int y = ps2x.Analog (PSS_RY);
+	int deltaY = y - ANALOG_IDLE_VALUE;
+	int deltaYabs = abs (deltaY);
+	if (deltaYabs > ANALOG_DEAD_ZONE) {
+		unsigned int period = map (deltaYabs, ANALOG_DEAD_ZONE, ANALOG_IDLE_VALUE, MOUSE_SLOW_DELTA, MOUSE_FAST_DELTA);
+		//~ debug (F("y = "));
+		//~ debug (y);
+		//~ debug (F(" --> period = "));
+		//~ debugln (period);
+
+		byte leadingPin;
+		byte trailingPin;
+		if (deltaY > 0) {
+			// Down
+			leadingPin = PIN_LEFT;
+			trailingPin = PIN_UP;
+		} else {
+			// Up
+			leadingPin = PIN_UP;
+			trailingPin = PIN_LEFT;
+		}
+
+		if (millis () - ty >= period) {
+			digitalWrite (leadingPin, !digitalRead (leadingPin));
+			ty = millis ();
+		}
+		
+		if (millis () - ty >= period / 2) {
+			digitalWrite (trailingPin, !digitalRead (leadingPin));
+		}
+	}
+
+	// Buttons
+	noInterrupts ();
+	
+	if (ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2) || ps2x.Button (PSB_L3)) {
+		buttonPress (PIN_BTN1);
+	} else {
+		buttonRelease (PIN_BTN1);
+	}
+
+	if (ps2x.Button (PSB_R1) || ps2x.Button (PSB_R2) || ps2x.Button (PSB_R3)) {
+		buttonPress (PIN_BTN2);
+	} else {
+		buttonRelease (PIN_BTN2);
+	}
+
+	interrupts ();
 }
 
 void handleCD32Pad () {
@@ -1102,8 +1089,32 @@ void stateMachine () {
 	static Buttons selectComboButton = NO_BUTTON;
 	static Buttons programmedButton = NO_BUTTON;
 	Buttons buttons = NO_BUTTON;
-	
+
+	/* This is done first since ALL states except NO_CONTROLLER need to poll the
+	 * controller first and switch to NO_CONTROLLER if polling failed
+	 */
+	if (state != ST_NO_CONTROLLER) {
+		// We have a controller and we can poll it
+		if (ps2x.read_gamepad ()) {
+			dumpButtons (ps2x.ButtonDataByte ());
+		} else {
+			// Polling failed
+			debugln (F("Controller lost"));
+			state = ST_NO_CONTROLLER;
+			buttonsLive = 0x7F;		// No ID sequence, all buttons released
+		}
+	}
+
 	switch (state) {
+		case ST_NO_CONTROLLER:
+			/* There's no need to pnly poll every so often, the function is slow
+			 * and will basically time itself fine
+			 */
+			if (initPad ()) {
+				// Got a controller, default to joystick mode
+				toJoystick ();
+			}
+			break;
 				
 		/**********************************************************************
 		 * MAIN MODE STATES
@@ -1120,7 +1131,13 @@ void stateMachine () {
 			}
 			break;
 		case ST_MOUSE:
-			handleMouse ();
+			if (ps2x.Button (PSB_PAD_UP) || ps2x.Button (PSB_PAD_DOWN) ||
+				ps2x.Button (PSB_PAD_LEFT) || ps2x.Button (PSB_PAD_RIGHT)) {
+				// D-Pad pressed, go back to joystick mode
+				toJoystick ();
+			} else {
+				handleMouse ();
+			}
 			break;
 		case ST_CD32:
 			handleCD32Pad ();
@@ -1270,8 +1287,21 @@ void stateMachine () {
  *
  * We have a separate function for this as several states share the same led state
  */
-void updateModeLed () {
+void updateLeds () {
+	// Pad OK led
+	if (state == ST_NO_CONTROLLER) {
+		// Blink
+		digitalWrite (PIN_LED_PAD_OK, (millis () / 500) % 2 == 0);
+	} else {
+		// Steadily lit
+		digitalWrite (PIN_LED_PAD_OK, HIGH);
+	}
+
+	// Mode led
 	switch (state) {
+		case ST_NO_CONTROLLER:
+			digitalWrite (PIN_LED_MODE, LOW);
+			break;		
 		case ST_JOYSTICK:
 		case ST_SELECT_HELD:
 		case ST_SELECT_AND_BTN_HELD:
@@ -1304,42 +1334,8 @@ void updateModeLed () {
 }
 
 void loop () {
-	if (haveController) {
-		if (ps2x.read_gamepad ()) {
-			dumpButtons (ps2x.ButtonDataByte ());
-			
-			stateMachine ();
-			updateModeLed ();
-		} else {
-			haveController = false;
-			buttonsLive = 0x7F;		// No ID sequence, all buttons released
-			toJoystick ();			// Sometimes a spurious switch to mouse mode happens
-			digitalWrite (PIN_LED_PAD_OK, LOW);
-		}
-	} else {
-		PadError err = initPad ();
-		if (err == PADERR_NONE) {
-			// Got controller!
-			haveController = true;
-			digitalWrite (PIN_LED_PAD_OK, HIGH);
-		} else {
-			switch (err) {
-			case PADERR_NOTFOUND:
-				debugln (F("No controller found"));
-				break;
-			case PADERR_WRONGTYPE:
-				debugln (F("Unsupported controller"));
-				break;
-			case PADERR_UNKNOWN:
-			default:
-				debugln (F("Cannot initialize controller"));
-				break;
-			}
-
-			digitalWrite (PIN_LED_PAD_OK, !digitalRead (PIN_LED_PAD_OK));
-			delay (250);
-		}
-	}
+	stateMachine ();
+	updateLeds ();
 
 	if (lastSwitchedTime > 0 && millis () - lastSwitchedTime > TIMEOUT_CD32_MODE) {
 		// Pad Mode pin has been high for a while, disable CD32 mode
