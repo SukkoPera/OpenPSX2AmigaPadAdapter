@@ -106,3 +106,4 @@ If you need help or have questions, you can join [the official Telegram group](h
 
 ### Thanks
 - Gerd Kautzmann for information about the [CD32 controller protocol](http://gerdkautzmann.de/cd32gamepad/cd32gamepad.html)
+- CuriousInventor for informtation about the [PlayStation controller protocol](http://store.curiousinventor.com/guides/PS2)
