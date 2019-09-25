@@ -76,30 +76,51 @@ const byte PIN_BTNREGOUT = PIN_BTN2;
  */
 const byte PIN_BTNREGCLK = PIN_BTN1;
 
-// Analog sticks idle value
+/** \brief Analog sticks idle value
+ * 
+ * Value reported when the analog stick is in the (ideal) center position.
+ */
 const byte ANALOG_IDLE_VALUE = 127;
 
-// Dead zone for analog sticks
+/** \brief Dead zone for analog sticks
+ *  
+ * If the analog stick moves less than this value from the center position, it
+ * is considered still.
+ * 
+ * \sa ANALOG_IDLE_VALUE
+ */
 const byte ANALOG_DEAD_ZONE = 65;
 
-// Delay of the quadrature square waves when mouse is moving at the slowest speed
+/** \brief Delay of the quadrature square waves when mouse is moving at the
+ * \a slowest speed
+ */
 const byte MOUSE_SLOW_DELTA	= 60;
 
-/* Delay of the quadrature square waves when mouse is moving at the fastest speed.
- * Note that a 16 MHz Arduino Uno produces irregular signals if this is too small
- * and mouse movements will be affected. The smallest value producing decently-
- * shaped waves is 6.
+/** \brief Delay of the quadrature square waves when mouse is moving at the
+ * \a fastest speed.
+ * 
+ * Note that a 16 MHz Arduino Uno produces irregular signals if this is too
+ * small and mouse movements will be affected. The smallest value producing
+ * decently-shaped waves seems to be 6.
  */
 const byte MOUSE_FAST_DELTA = 6;
 
-// Pin for led that lights up whenever the proper controller is detected
+/** \brief LED2 pin
+ * 
+ * Pin for led that lights up whenever the proper controller is detected.
+ */
 const byte PIN_LED_PAD_OK = A1;
 
-// Pin for led that lights up whenever the adapter is in CD32 mode
+/** \brief LED1 pin
+ * 
+ * Pin for led that lights up whenever the adapter is in CD32 mode.
+ */
 const byte PIN_LED_MODE = A0;
 
-/* Timeout for CD32 mode: normal joystick mode will be entered if PIN_PADMODE is
- * not toggled for this amount of milliseconds.
+/** \brief CD32 mode timeout
+ * 
+ * Normal joystick mode will be entered if PIN_PADMODE is not toggled for this
+ * amount of milliseconds.
  */
 const byte TIMEOUT_CD32_MODE = 200;
 
@@ -137,39 +158,43 @@ static const unsigned long DEBOUNCE_TIME_COMBO = 150;
  * END OF SETTINGS
  ******************************************************************************/
 
+/** \brief State machine states
+ * 
+ * Possible states for the internal state machine that drives the whole thing.
+ */
 enum State {
-	ST_NO_CONTROLLER,
+	ST_NO_CONTROLLER,			//!< No controller connected
 	
 	// Main functioning modes
-	ST_JOYSTICK,
-	ST_MOUSE,
-	ST_CD32,
+	ST_JOYSTICK,				//!< Two-button joystick mode
+	ST_MOUSE,					//!< Mouse mode
+	ST_CD32,					//!< CD32-controller mode
 	
 	// States to select mapping or go into programming mode
-	ST_SELECT_HELD,
-	ST_SELECT_AND_BTN_HELD,
-	ST_ENABLE_MAPPING,
+	ST_SELECT_HELD,				//!< Select being held
+	ST_SELECT_AND_BTN_HELD,		//!< Select + mapping button being held
+	ST_ENABLE_MAPPING,			//!< Select + mapping button released, enable mapping
 	
 	// States for programming mode
-	ST_WAIT_SELECT_RELEASE,
-	ST_WAIT_BUTTON_PRESS,
-	ST_WAIT_BUTTON_RELEASE,
-	ST_WAIT_COMBO_PRESS,
-	ST_WAIT_COMBO_RELEASE,
-	ST_WAIT_SELECT_RELEASE_FOR_EXIT
+	ST_WAIT_SELECT_RELEASE,		//!< Select released, entering programming mode
+	ST_WAIT_BUTTON_PRESS,		//!< Programmable button pressed
+	ST_WAIT_BUTTON_RELEASE,		//!< Programmable button released
+	ST_WAIT_COMBO_PRESS,		//!< Combo pressed
+	ST_WAIT_COMBO_RELEASE,		//!< Combo released
+	ST_WAIT_SELECT_RELEASE_FOR_EXIT	//!< Wait for releact to be released to go back to joystick mode
 };
 
 // Start out as a simple joystick
 volatile State state = ST_NO_CONTROLLER;
 
 // Button bits for CD32 mode
-const word BTN_BLUE =		1U << 0U;	//!< CD32 Controller Blue Button
-const word BTN_RED =		1U << 1U;
-const word BTN_YELLOW =		1U << 2U;
-const word BTN_GREEN =		1U << 3U;
-const word BTN_FRONT_R =	1U << 4U;
-const word BTN_FRONT_L =	1U << 5U;
-const word BTN_START =		1U << 6U;
+const word BTN_BLUE =		1U << 0U;	//!< CD32 Controller \a Blue Button
+const word BTN_RED =		1U << 1U;	//!< CD32 Controller \a Red Button
+const word BTN_YELLOW =		1U << 2U;	//!< CD32 Controller \a Yellow Button
+const word BTN_GREEN =		1U << 3U;	//!< CD32 Controller \a Green Button
+const word BTN_FRONT_R =	1U << 4U;	//!< CD32 Controller \a FrontR Button
+const word BTN_FRONT_L =	1U << 5U;	//!< CD32 Controller \a FrontL Button
+const word BTN_START =		1U << 6U;	//!< CD32 Controller \a Start/Pause Button
 
 // This is only used for blinking the led when mapping is changed
 enum JoyButtonMapping {
