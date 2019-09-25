@@ -184,17 +184,22 @@ enum State {
 	ST_WAIT_SELECT_RELEASE_FOR_EXIT	//!< Wait for releact to be released to go back to joystick mode
 };
 
-// Start out as a simple joystick
+/** \brief Current state of the internal state machine
+ * 
+ * We start out as a simple joystick.
+ */
 volatile State state = ST_NO_CONTROLLER;
 
-// Button bits for CD32 mode
-const word BTN_BLUE =		1U << 0U;	//!< CD32 Controller \a Blue Button
-const word BTN_RED =		1U << 1U;	//!< CD32 Controller \a Red Button
-const word BTN_YELLOW =		1U << 2U;	//!< CD32 Controller \a Yellow Button
-const word BTN_GREEN =		1U << 3U;	//!< CD32 Controller \a Green Button
-const word BTN_FRONT_R =	1U << 4U;	//!< CD32 Controller \a FrontR Button
-const word BTN_FRONT_L =	1U << 5U;	//!< CD32 Controller \a FrontL Button
-const word BTN_START =		1U << 6U;	//!< CD32 Controller \a Start/Pause Button
+//! \name Button bits for CD32 mode
+//! @{
+const word BTN_BLUE =		1U << 0U;	//!< \a Blue Button
+const word BTN_RED =		1U << 1U;	//!< \a Red Button
+const word BTN_YELLOW =		1U << 2U;	//!< \a Yellow Button
+const word BTN_GREEN =		1U << 3U;	//!< \a Green Button
+const word BTN_FRONT_R =	1U << 4U;	//!< \a Front \a Right Button
+const word BTN_FRONT_L =	1U << 5U;	//!< \a Front \a Left Button
+const word BTN_START =		1U << 6U;	//!< \a Start/Pause Button
+//! @}
 
 // This is only used for blinking the led when mapping is changed
 enum JoyButtonMapping {
