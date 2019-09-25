@@ -207,7 +207,7 @@ enum JoyButtonMapping {
 	JMAP_RACING1,
 	JMAP_RACING2,
 	JMAP_PLATFORM,
-	JMAP_CUSTOM1
+	JMAP_CUSTOM
 };
 
 /** \brief Structure representing a standard 2-button Atari-style joystick
@@ -1365,7 +1365,7 @@ void stateMachine () {
 						debugln (configIdx);
 						currentCustomConfig = &controllerConfigs[configIdx];
 						joyMappingFunc = mapJoystickCustom;
-						flashLed (JMAP_CUSTOM1);
+						flashLed (JMAP_CUSTOM);
 					} else {
 						// Something went wrong, just pretend it never happened
 						state = ST_JOYSTICK;
