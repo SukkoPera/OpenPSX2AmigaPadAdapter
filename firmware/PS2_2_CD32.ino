@@ -277,6 +277,9 @@ struct ControllerConfiguration {
  */
 ControllerConfiguration controllerConfigs[PSX_BUTTONS_NO];
 
+//! \brief Custom controller configuration currently selected
+ControllerConfiguration *currentCustomConfig = NULL;
+
 //! True if mouse mode was enabled before switching to CD32 mode
 boolean wasMouse = false;
 
@@ -529,7 +532,8 @@ inline void disbleCD32Trigger () {
 }
 
 //! \brief Clear controller configurations
-boolean clearConfigurations () {
+void clearConfigurations () {
+	debugln (F("Clearing controllerConfigs"));
 	memset (controllerConfigs, 0x00, sizeof (controllerConfigs));
 }
 
@@ -537,7 +541,7 @@ boolean clearConfigurations () {
 boolean loadConfigurations () {
 	boolean ret = false;
 	
-	debug (F("Size of controllerConfigs is ");
+	debug (F("Size of controllerConfigs is "));
 	debugln (sizeof (controllerConfigs));
 	
 	EEPROM.get (4, controllerConfigs);
@@ -564,6 +568,8 @@ boolean loadConfigurations () {
 
 //! \brief Save controller configurations to EEPROM
 void saveConfigurations () {
+	debugln (F("Saving controllerConfigs"));
+	
 	EEPROM.put (4, controllerConfigs);
 	
 	// CRC
@@ -573,7 +579,6 @@ void saveConfigurations () {
 		crc = _crc16_update (crc, data[i]);
 	}
 	EEPROM.put (2, crc);
-
 }
 
 
@@ -787,7 +792,7 @@ void mapJoystickPlatform (TwoButtonJoystick& j) {
 /** \brief Map PSX controller buttons to two-button joystick according to Custom
  *         mapping 1
  */
-void mapJoystickCustom1 (TwoButtonJoystick& j) {
+void mapJoystickCustom (TwoButtonJoystick& j) {
 	// Use horizontal analog axis fully, but only down on vertical
 	mapAnalogStickHorizontal (j);
 	mapAnalogStickVertical (j);
@@ -798,12 +803,11 @@ void mapJoystickCustom1 (TwoButtonJoystick& j) {
 	j.left |= ps2x.Button (PSB_PAD_LEFT);
 	j.right |= ps2x.Button (PSB_PAD_RIGHT);
 
-	ControllerConfiguration *config = &controllerConfigs[0];
 	for (byte i = 0; i < PSX_BUTTONS_NO; ++i) {
 		Buttons button = 1 << i;
 		if (isButtonMappable (button) && ps2x.Button (button)) {
-			byte pos = button2position (button);
-			mergeButtons (j, config -> buttonMappings[pos]);
+			byte buttonIdx = button2position (button);
+			mergeButtons (j, currentCustomConfig -> buttonMappings[buttonIdx]);
 		}
 	}
 }
@@ -824,8 +828,6 @@ void mergeButtons (TwoButtonJoystick& dest, const TwoButtonJoystick& src) {
 	dest.b1 |= src.b1;
 	dest.b2 |= src.b2;
 }
-
-void mapJoystickCustom1 (TwoButtonJoystick& j);
 
 void flashLed (byte n) {
 	for (byte i = 0; i < n; ++i) {
@@ -875,6 +877,16 @@ void handleJoystick () {
 	//~ if (!joyMappingFunc)
 		//~ joyMappingFunc = mapJoystickNormal;			
 	joyMappingFunc (j);
+
+#ifdef ENABLE_SERIAL_DEBUG
+	static TwoButtonJoystick oldJoy = {false, false, false, false, false, false};
+
+	if (memcmp (&j, &oldJoy, sizeof (TwoButtonJoystick)) != 0) {
+		debug (F("Sending to DB-9: "));
+		dumpJoy (j);
+		oldJoy = j;
+	}
+#endif
 
 	// Make mapped buttons affect the actual pins
 	if (j.up) {
@@ -1346,12 +1358,20 @@ void stateMachine () {
 					joyMappingFunc = mapJoystickPlatform;
 					flashLed (JMAP_PLATFORM);
 					break;
-				case PSB_START:
-					debugln (F("Setting Custom1 mapping"));
-					joyMappingFunc = mapJoystickCustom1;
-					flashLed (JMAP_CUSTOM1);
+				case PSB_START: {
+					byte configIdx = psxButtonToIndex (selectComboButton);
+					if (configIdx < PSX_BUTTONS_NO) {
+						debug (F("Setting Custom mapping for controllerConfig "));
+						debugln (configIdx);
+						currentCustomConfig = &controllerConfigs[configIdx];
+						joyMappingFunc = mapJoystickCustom;
+						flashLed (JMAP_CUSTOM1);
+					} else {
+						// Something went wrong, just pretend it never happened
+						state = ST_JOYSTICK;
+					}
 					break;
-				default:
+				} default:
 					// Shouldn't be reached
 					break;
 			}
