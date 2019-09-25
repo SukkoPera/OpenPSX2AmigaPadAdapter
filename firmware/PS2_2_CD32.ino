@@ -1312,8 +1312,17 @@ void stateMachine () {
 			} else if (ps2x.Button (PSB_CROSS)) {
 				selectComboButton = PSB_CROSS;
 				state = ST_SELECT_AND_BTN_HELD;
-			} else if (ps2x.Button (PSB_START)) {
-				selectComboButton = PSB_START;
+			} else if (ps2x.Button (PSB_L1)) {
+				selectComboButton = PSB_L1;
+				state = ST_SELECT_AND_BTN_HELD;
+			} else if (ps2x.Button (PSB_R1)) {
+				selectComboButton = PSB_R1;
+				state = ST_SELECT_AND_BTN_HELD;
+			} else if (ps2x.Button (PSB_L2)) {
+				selectComboButton = PSB_L2;
+				state = ST_SELECT_AND_BTN_HELD;
+			} else if (ps2x.Button (PSB_R2)) {
+				selectComboButton = PSB_R2;
 				state = ST_SELECT_AND_BTN_HELD;
 			}
 			break;
@@ -1358,7 +1367,10 @@ void stateMachine () {
 					joyMappingFunc = mapJoystickPlatform;
 					flashLed (JMAP_PLATFORM);
 					break;
-				case PSB_START: {
+				case PSB_L1:
+				case PSB_R1:
+				case PSB_L2:
+				case PSB_R2: {
 					byte configIdx = psxButtonToIndex (selectComboButton);
 					if (configIdx < PSX_BUTTONS_NO) {
 						debug (F("Setting Custom mapping for controllerConfig "));
