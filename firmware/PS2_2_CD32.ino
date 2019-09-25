@@ -1,3 +1,9 @@
+/** \file psx.ino
+ * \author SukkoPera <software@sukkology.net>
+ * \date 25 Sep 2019
+ * \brief  Playstation/Playstation 2 to Commodore Amiga/CD32 controller adapter
+ */
+
 /*******************************************************************************
  * This file is part of OpenPSX2AmigaPadAdapter.                               *
  *                                                                             *
@@ -25,8 +31,11 @@
  *
  * CD32 pad protocol information found at:
  * http://gerdkautzmann.de/cd32gamepad/cd32gamepad.html
+ *
  */
 
+#include <EEPROM.h>
+#include <util/crc16.h>
 #include <PS2X_lib.h>
 
 // INPUT pins, connected to PS2 controller
@@ -46,16 +55,25 @@ const byte PIN_RIGHT = 7; // Amiga Pin 4
 const byte PIN_BTN1 = 3;  // Amiga Pin 6
 const byte PIN_BTN2 = 8;  // Amiga Pin 9
 
-// This pin switches between Amiga (HIGH) and CD32 (LOW) mode
-// It also triggers the loading of the button status shift register
+/** \brief Controller mode input pin
+ *  
+ * This pin switches between Amiga (HIGH) and CD32 (LOW) mode.
+ * 
+ * It also triggers the loading of the button status shift register.
+ */
 const byte PIN_PADMODE = 2; // Amiga Pin 5
 
-/* When in CD32 mode, button status is saved to an 8-bit register that gets
+/** \brief Shift register output pin for CD32 mode
+ * 
+ * When in CD32 mode, button status is saved to an 8-bit register that gets
  * shifted out one bit at a time through this pin.
  */
 const byte PIN_BTNREGOUT = PIN_BTN2;
 
-// The shifting is clocked by rising edges on this pin
+/** \brief Shift register clock input pin for CD32 mode
+ * 
+ * The shifting is clocked by rising edges on this pin.
+ */
 const byte PIN_BTNREGCLK = PIN_BTN1;
 
 // Analog sticks idle value
@@ -145,7 +163,7 @@ enum State {
 volatile State state = ST_NO_CONTROLLER;
 
 // Button bits for CD32 mode
-const word BTN_BLUE =		1U << 0U;
+const word BTN_BLUE =		1U << 0U;	//!< CD32 Controller Blue Button
 const word BTN_RED =		1U << 1U;
 const word BTN_YELLOW =		1U << 2U;
 const word BTN_GREEN =		1U << 3U;
@@ -170,39 +188,42 @@ enum JoyButtonMapping {
  * True means pressed.
  */
 struct TwoButtonJoystick {
-	boolean up: 1;
-	boolean down: 1;
-	boolean left: 1;
-	boolean right: 1;
-	boolean b1: 1;
-	boolean b2: 1;
+	boolean up: 1;			//!< Up/Forward direction
+	boolean down: 1;		//!< Down/Backwards direction
+	boolean left: 1;		//!< Left direction
+	boolean right: 1;		//!< Right direction
+	boolean b1: 1;			//!< Button 1
+	boolean b2: 1;			//!< Button 2
 };
 
-/** \brief Button mapping function
+/** \brief Joystick mapping function
  * 
  * This represents a function that should inspect the buttons currently being
- * pressed on the PSX controller and somehow map them to a #TwoButtonJoystick.
+ * pressed on the PSX controller and somehow map them to a #TwoButtonJoystick to
+ * be sent to the DB-9 port.
  */
 typedef void (*JoyMappingFunc) (TwoButtonJoystick& j);
 
 // Default button mapping function prototype for initialization of the following
 void mapJoystickNormal (TwoButtonJoystick& j);
 
-//! \brief Button mapping function currently in effect
+//! \brief Joystick mapping function currently in effect
 JoyMappingFunc joyMappingFunc = mapJoystickNormal;
 
-/** Only 11 buttons can be mapped (X/O/^/[]/Lx/Rx/Start), but the way we store
+/** \brief Number of buttons on a PSX controller
+ *
+ * Includes *everything*.
+ */
+const byte PSX_BUTTONS_NO = 16;
+
+/** \brief Number of buttons on the PSX controller that can be mapped
+ * 
+ * Only 11 buttons can be mapped (X/O/^/[]/Lx/Rx/Start), but the way we store
  * these needs 2 extra slots.
  *
  * \sa button2position()
  */
-const byte MAX_MAPPINGS = 13;
-
-/** \brief Number of buttons on a PSX controller
- *
- * Including *everything*.
- */
-const byte PSX_BUTTONS_NO = 16;
+const byte MAPPABLE_BUTTONS_NO = 13;
 
 /** \brief Map a PSX button to a two-button-joystick combo
  * 
@@ -211,33 +232,47 @@ const byte PSX_BUTTONS_NO = 16;
  * 
  * \sa isButtonMappable()
  */
-struct JoystickMapping {
-	TwoButtonJoystick combos[MAX_MAPPINGS];
+struct ControllerConfiguration {
+	/** Two-button joystick combo to send out when the corresponding button is
+	 * pressed
+	 */
+	TwoButtonJoystick buttonMappings[MAPPABLE_BUTTONS_NO];
 };
 
-/** \fixme
+/** \brief All possible controller configurations
+ * 
+ * Since these are activated with SELECT + a button, ideally there can be as
+ * many different ones as other buttons we have (i.e.: #PSX_BUTTONS_NO). In
+ * practice, we will start handling only a handful.
  */
-JoystickMapping customMappings[PSX_BUTTONS_NO];
+ControllerConfiguration controllerConfigs[PSX_BUTTONS_NO];
 
 //! True if mouse mode was enabled before switching to CD32 mode
 boolean wasMouse = false;
 
-/* Button register currently being shifted in ISRs
- * 0 means pressed
- */
-volatile byte buttons;
-
-/* Button register being updated
- * 0 means pressed, MSB must be 1 for ID sequence (for the very first report)
+/** \brief Button register for CD32 mode being updated
+ * 
+ * This shall be updated as often as possible, and is what gets sampled when we
+ * get a falling edge on #PIN_PADMODE.
+ * 
+ * 0 means pressed, MSB must be 1 for the ID sequence
  */
 byte buttonsLive = 0x80;
+
+/** \brief Button register for CD32 mode currently being shifted out
+ * 
+ * This is where #buttonsLive gets copied when it is sampled.
+ * 
+ * 0 means pressed, etc.
+ */
+volatile byte buttons;
 
 //! Timestamp of last time the pad was switched out of CD32 mode
 unsigned long lastSwitchedTime = 0;
 
 /** \brief Type that is used to report button presses
  *
- * This can be used with the PSB_* values from PS2X_lib, and casted from/to
+ * This can be used with the PSB_* values from PS2X_lib, and cast from/to
  * values of that type.
  */
 typedef unsigned int Buttons;
@@ -342,6 +377,15 @@ const char* const psxButtonNames[PSX_BUTTONS_NO] PROGMEM = {
 	buttonSquareName
 };
 
+/** \brief Convert a button on the PSX controller to a small integer
+ * 
+ * Similar to #button2position() but slower as this function is iterative. Might
+ * do some measurements and unify them later on.
+ * 
+ * Output will always be in the range [0, #PSX_BUTTONS_NO - 1] and is not
+ * guaranteed to be valid, so it should be checked to be < PSX_BUTTONS_NO before
+ * use.
+ */
 byte psxButtonToIndex (Buttons psxButtons) {
 	byte i;
 
@@ -435,14 +479,73 @@ void onClockEdge () {
 	                 */
 }
 
+/** \brief Enable CD32 controller support
+ * 
+ * CD32 mode is entered automatically whenever a HIGH level is detected on
+ * #PIN_PADMODE, after this function has been called.
+ */
 inline void enableCD32Trigger () {
 	// Call ISR on changes of the CD32 pad mode pin
 	attachInterrupt (digitalPinToInterrupt (PIN_PADMODE), onPadModeChange, CHANGE);
 }
 
+/** \brief Disable CD32 controller support
+ * 
+ * CD32 mode will no longer be entered automatically, after this function has
+ * been called.
+ */
 inline void disbleCD32Trigger () {
 	detachInterrupt (digitalPinToInterrupt (PIN_PADMODE));
 }
+
+//! \brief Clear controller configurations
+boolean clearConfigurations () {
+	memset (controllerConfigs, 0x00, sizeof (controllerConfigs));
+}
+
+//! \brief Load controller configurations from EEPROM
+boolean loadConfigurations () {
+	boolean ret = false;
+	
+	debug (F("Size of controllerConfigs is ");
+	debugln (sizeof (controllerConfigs));
+	
+	EEPROM.get (4, controllerConfigs);
+	
+	// Validation
+	uint16_t crc = 0x4242;
+	uint8_t *data = (uint8_t *) controllerConfigs;
+	for (word i = 0; i < sizeof (controllerConfigs); ++i) {
+		crc = _crc16_update (crc, data[i]);
+	}
+	
+	uint16_t goodCrc;
+	EEPROM.get (2, goodCrc);
+	if (crc == goodCrc) {
+		debugln (F("CRCs match"));
+		ret = true;
+	} else {
+		debugln (F("CRCs do not match"));
+		clearConfigurations ();
+	}
+	
+	return ret;
+}
+
+//! \brief Save controller configurations to EEPROM
+void saveConfigurations () {
+	EEPROM.put (4, controllerConfigs);
+	
+	// CRC
+	uint16_t crc = 0x4242;
+	uint8_t *data = (uint8_t *) controllerConfigs;
+	for (word i = 0; i < sizeof (controllerConfigs); ++i) {
+		crc = _crc16_update (crc, data[i]);
+	}
+	EEPROM.put (2, crc);
+
+}
+
 
 void setup () {
 	dstart (115200);
@@ -458,6 +561,9 @@ void setup () {
 
 	// Give wireless PS2 module some time to startup, before configuring it
 	delay (300);
+
+	// This will also initialize the configurations if EEPROM is invalid
+	loadConfigurations ();
 
 	enableCD32Trigger ();
 	
@@ -662,12 +768,12 @@ void mapJoystickCustom1 (TwoButtonJoystick& j) {
 	j.left |= ps2x.Button (PSB_PAD_LEFT);
 	j.right |= ps2x.Button (PSB_PAD_RIGHT);
 
-	JoystickMapping *curMapping = &customMappings[0];
+	ControllerConfiguration *config = &controllerConfigs[0];
 	for (byte i = 0; i < PSX_BUTTONS_NO; ++i) {
 		Buttons button = 1 << i;
 		if (isButtonMappable (button) && ps2x.Button (button)) {
 			byte pos = button2position (button);
-			mergeButtons (j, curMapping -> combos[pos]);
+			mergeButtons (j, config -> buttonMappings[pos]);
 		}
 	}
 }
@@ -1047,17 +1153,18 @@ boolean isButtonMappable (Buttons b) {
 
 /** \brief Convert a mappable button to a small integer
  * 
- * A mappable button is converted to an integer in the [0-#MAX_MAPPINGS - 1)
- * range as detailed in the table below.
+ * A mappable button is converted to an integer in the
+ * [0 - #MAPPABLE_BUTTONS_NO - 1) range as detailed in the table below.
  * 
- * This is used to quickly look up a button in an array and is used both to map
- * a button press to a programmed combo and to map a button to its mapping entry
- * set.
+ * This allows to quickly look up a button in an array and is used both to map a
+ * button press to a programmed combo and to map a button to its corresponding
+ * #ControllerConfiguration.
  * 
- * 									    >> 2		>> 9		>> 13
- * #define PSB_L3          0x0002		0
- * #define PSB_R3          0x0004		1
- * #define PSB_START       0x0008		2
+ * <pre>
+ *                                      >> 2		>> 9		>> 13
+ * #define PSB_L3          0x0002       0
+ * #define PSB_R3          0x0004       1
+ * #define PSB_START       0x0008       2
  * #define PSB_L2          0x0100					0
  * #define PSB_R2          0x0200					1
  * #define PSB_L1          0x0400					2
@@ -1066,6 +1173,7 @@ boolean isButtonMappable (Buttons b) {
  * #define PSB_CIRCLE      0x2000								1
  * #define PSB_CROSS       0x4000								2
  * #define PSB_SQUARE      0x8000								4
+ * </pre>
  *
  * Positions 6 and 11 are unused, but this should be fast
  * 
@@ -1232,6 +1340,7 @@ void stateMachine () {
 			if (ps2x.Button (PSB_SELECT)) {
 				// Exit programming mode
 				debugln (F("Leaving programming mode"));
+				saveConfigurations ();	// No need to check for changes as this uses EEPROM.update()
 				state = ST_WAIT_SELECT_RELEASE_FOR_EXIT;
 			} else {
 				buttons = debounceButtons (DEBOUNCE_TIME_BUTTON);
@@ -1258,11 +1367,18 @@ void stateMachine () {
 				debug (F("Programmed to "));
 				dumpJoy (j);
 
-				JoystickMapping *curMapping = &customMappings[0];
-				byte pos = button2position (programmedButton);
-				debug (F("Position is "));
-				debugln (pos);
-				curMapping -> combos[pos] = j;
+				// First look up the config the mapping shall be saved to
+				byte configIdx = psxButtonToIndex (selectComboButton);
+				if (configIdx < PSX_BUTTONS_NO) {
+					debug (F("Storing to controllerConfig "));
+					debugln (configIdx);
+					
+					ControllerConfiguration *config = &controllerConfigs[configIdx];
+
+					// Then look up the mapping according to the programmed button
+					byte buttonIdx = button2position (programmedButton);
+					config -> buttonMappings[buttonIdx] = j;
+				}
 				
 				programmedButton = NO_BUTTON;
 				flashLed (5);
@@ -1356,7 +1472,7 @@ void loop () {
 
 void lookupButtonMapping (Buttons b, TwoButtonJoystick& j) {
 	if (currentMapping != NULL) {
-		for (byte i = 0; currentMapping -> mappings[i].button != 0 && i < MAX_MAPPINGS; ++i) {
+		for (byte i = 0; currentMapping -> mappings[i].button != 0 && i < MAPPABLE_BUTTONS_NO; ++i) {
 			if (b == currentMapping -> mappings[i].button) {
 				j = currentMapping -> mappings[i].combo;
 				break;
