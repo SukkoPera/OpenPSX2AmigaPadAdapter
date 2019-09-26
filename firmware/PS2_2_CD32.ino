@@ -525,6 +525,11 @@ void onClockEdge () {
  * #PIN_PADMODE, after this function has been called.
  */
 inline void enableCD32Trigger () {
+	/* Avoid any pending interrupts, see
+	 * https://github.com/arduino/ArduinoCore-avr/issues/244
+	 */
+	EIFR |= (1 << INTF1) | (1 << INTF0);
+
 	// Call ISR on changes of the CD32 pad mode pin
 	attachInterrupt (digitalPinToInterrupt (PIN_PADMODE), onPadModeChange, CHANGE);
 }
@@ -1269,7 +1274,7 @@ void stateMachine () {
 			 */
 			if (initPad ()) {
 				// Got a controller
-				st = ST_FIRST_READ;
+				state = ST_FIRST_READ;
 			}
 			break;
 		case ST_FIRST_READ:
@@ -1277,11 +1282,13 @@ void stateMachine () {
 				/* The controller was plugged in (or the adapter was powered on)
 				 * with SELECT held, so the user wants to do a factory reset
 				 */
+				debugln (F("SELECT pressed at power-up, starting factory reset"));
 				state = ST_FACTORY_RESET_WAIT_0;
 			} else {
 				// Default to joystick mode
 				toJoystick ();
 			}
+			break;
 				
 		/**********************************************************************
 		 * MAIN MODES
@@ -1483,8 +1490,8 @@ void stateMachine () {
 			if (stateEnteredTime == 0) {
 				stateEnteredTime = millis ();
 			} else if (millis () - stateEnteredTime >= 1000) {
-				stateEnteredTime = 0
-				state = ST_FACTORY_RESET_1;
+				stateEnteredTime = 0;
+				state = ST_FACTORY_RESET_WAIT_1;
 			} else if (!ps2x.Button (PSB_SELECT)) {
 				stateEnteredTime = 0;
 				state = ST_JOYSTICK;
@@ -1494,8 +1501,8 @@ void stateMachine () {
 			if (stateEnteredTime == 0) {
 				stateEnteredTime = millis ();
 			} else if (millis () - stateEnteredTime >= 2000) {
-				stateEnteredTime = 0
-				state = ST_FACTORY_RESET_2;
+				stateEnteredTime = 0;
+				state = ST_FACTORY_RESET_WAIT_2;
 			} else if (!ps2x.Button (PSB_SELECT)) {
 				stateEnteredTime = 0;
 				state = ST_JOYSTICK;
@@ -1505,12 +1512,13 @@ void stateMachine () {
 			if (stateEnteredTime == 0) {
 				stateEnteredTime = millis ();
 			} else if (millis () - stateEnteredTime >= 2000) {
-				stateEnteredTime = 0
+				stateEnteredTime = 0;
 				state = ST_FACTORY_RESET_PERFORM;
 			} else if (!ps2x.Button (PSB_SELECT)) {
 				stateEnteredTime = 0;
 				state = ST_JOYSTICK;
 			}
+			break;
 		case ST_FACTORY_RESET_PERFORM:
 			// OK, user has convinced us to actually perform the reset
 			for (byte i = 0; i < 2; ++i) {
@@ -1524,7 +1532,7 @@ void stateMachine () {
 			digitalWrite (PIN_LED_MODE, LOW);
 			clearConfigurations ();
 			state = ST_JOYSTICK;
-		}
+			break;
 	}
 }
 
