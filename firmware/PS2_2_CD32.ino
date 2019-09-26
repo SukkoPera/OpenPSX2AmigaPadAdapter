@@ -164,6 +164,7 @@ static const unsigned long DEBOUNCE_TIME_COMBO = 150;
  */
 enum State {
 	ST_NO_CONTROLLER,			//!< No controller connected
+	ST_FIRST_READ,				//!< First time the controller is read
 	
 	// Main functioning modes
 	ST_JOYSTICK,				//!< Two-button joystick mode
@@ -181,7 +182,13 @@ enum State {
 	ST_WAIT_BUTTON_RELEASE,		//!< Programmable button released
 	ST_WAIT_COMBO_PRESS,		//!< Combo pressed
 	ST_WAIT_COMBO_RELEASE,		//!< Combo released
-	ST_WAIT_SELECT_RELEASE_FOR_EXIT	//!< Wait for releact to be released to go back to joystick mode
+	ST_WAIT_SELECT_RELEASE_FOR_EXIT,	//!< Wait for releact to be released to go back to joystick mode
+	
+	// States for factory reset
+	ST_FACTORY_RESET_WAIT_0,
+	ST_FACTORY_RESET_WAIT_1,
+	ST_FACTORY_RESET_WAIT_2,
+	ST_FACTORY_RESET_PERFORM
 };
 
 /** \brief Current state of the internal state machine
@@ -580,7 +587,6 @@ void saveConfigurations () {
 	}
 	EEPROM.put (2, crc);
 }
-
 
 void setup () {
 	dstart (115200);
@@ -1239,6 +1245,7 @@ void stateMachine () {
 	static Buttons selectComboButton = NO_BUTTON;
 	static Buttons programmedButton = NO_BUTTON;
 	Buttons buttons = NO_BUTTON;
+	static unsigned long stateEnteredTime = 0;
 
 	/* This is done first since ALL states except NO_CONTROLLER need to poll the
 	 * controller first and switch to NO_CONTROLLER if polling failed
@@ -1257,17 +1264,27 @@ void stateMachine () {
 
 	switch (state) {
 		case ST_NO_CONTROLLER:
-			/* There's no need to pnly poll every so often, the function is slow
-			 * and will basically time itself fine
+			/* There's no need to only poll every so often, the function is slow
+			 * and will basically time itself just fine
 			 */
 			if (initPad ()) {
-				// Got a controller, default to joystick mode
-				toJoystick ();
+				// Got a controller
+				st = ST_FIRST_READ;
 			}
 			break;
+		case ST_FIRST_READ:
+			if (ps2x.Button (PSB_SELECT)) {
+				/* The controller was plugged in (or the adapter was powered on)
+				 * with SELECT held, so the user wants to do a factory reset
+				 */
+				state = ST_FACTORY_RESET_WAIT_0;
+			} else {
+				// Default to joystick mode
+				toJoystick ();
+			}
 				
 		/**********************************************************************
-		 * MAIN MODE STATES
+		 * MAIN MODES
 		 **********************************************************************/
 		case ST_JOYSTICK:
 			if (rightAnalogMoved ()) {
@@ -1294,7 +1311,7 @@ void stateMachine () {
 			break;
 				
 		/**********************************************************************
-		 * SELECT MAPPING/SWITCH TO PROGRAMMING MODE STATES
+		 * SELECT MAPPING/SWITCH TO PROGRAMMING MODE
 		 **********************************************************************/
 		case ST_SELECT_HELD:
 			if (!ps2x.Button (PSB_SELECT)) {
@@ -1391,7 +1408,7 @@ void stateMachine () {
 			break;
 		
 		/**********************************************************************
-		 * PROGRAMMING STATES
+		 * PROGRAMMING
 		 **********************************************************************/
 		case ST_WAIT_SELECT_RELEASE:
 			if (!ps2x.Button (PSB_SELECT)) {
@@ -1458,12 +1475,62 @@ void stateMachine () {
 				state = ST_JOYSTICK;
 			}
 			break;
+			
+		/**********************************************************************
+		 * FACTORY_RESET
+		 **********************************************************************/
+		case ST_FACTORY_RESET_WAIT_0:
+			if (stateEnteredTime == 0) {
+				stateEnteredTime = millis ();
+			} else if (millis () - stateEnteredTime >= 1000) {
+				stateEnteredTime = 0
+				state = ST_FACTORY_RESET_1;
+			} else if (!ps2x.Button (PSB_SELECT)) {
+				stateEnteredTime = 0;
+				state = ST_JOYSTICK;
+			}
+			break;
+		case ST_FACTORY_RESET_WAIT_1:
+			if (stateEnteredTime == 0) {
+				stateEnteredTime = millis ();
+			} else if (millis () - stateEnteredTime >= 2000) {
+				stateEnteredTime = 0
+				state = ST_FACTORY_RESET_2;
+			} else if (!ps2x.Button (PSB_SELECT)) {
+				stateEnteredTime = 0;
+				state = ST_JOYSTICK;
+			}
+			break;
+		case ST_FACTORY_RESET_WAIT_2:
+			if (stateEnteredTime == 0) {
+				stateEnteredTime = millis ();
+			} else if (millis () - stateEnteredTime >= 2000) {
+				stateEnteredTime = 0
+				state = ST_FACTORY_RESET_PERFORM;
+			} else if (!ps2x.Button (PSB_SELECT)) {
+				stateEnteredTime = 0;
+				state = ST_JOYSTICK;
+			}
+		case ST_FACTORY_RESET_PERFORM:
+			// OK, user has convinced us to actually perform the reset
+			for (byte i = 0; i < 2; ++i) {
+				digitalWrite (PIN_LED_MODE, HIGH);
+				delay (500);
+				digitalWrite (PIN_LED_MODE, LOW);
+				delay (500);
+			}
+			digitalWrite (PIN_LED_MODE, HIGH);
+			delay (2000);
+			digitalWrite (PIN_LED_MODE, LOW);
+			clearConfigurations ();
+			state = ST_JOYSTICK;
+		}
 	}
 }
 
-/** \brief Update mode led
+/** \brief Update leds
  *
- * We have a separate function for this as several states share the same led state
+ * We have a separate function for this as several machine states share the same led state.
  */
 void updateLeds () {
 	// Pad OK led
@@ -1478,6 +1545,8 @@ void updateLeds () {
 	// Mode led
 	switch (state) {
 		case ST_NO_CONTROLLER:
+		case ST_FIRST_READ:
+		case ST_FACTORY_RESET_PERFORM:	// Led for this state is handled in SM
 			digitalWrite (PIN_LED_MODE, LOW);
 			break;		
 		case ST_JOYSTICK:
@@ -1504,6 +1573,15 @@ void updateLeds () {
 			// Programming mode, blink fast
 			digitalWrite (PIN_LED_MODE, (millis () / 250) % 2 == 0);
 			break;
+		case ST_FACTORY_RESET_WAIT_0:
+			digitalWrite (PIN_LED_MODE, (millis () / 333) % 2 == 0);
+			break;
+		case ST_FACTORY_RESET_WAIT_1:
+			digitalWrite (PIN_LED_MODE, (millis () / 200) % 2 == 0);
+			break;
+		case ST_FACTORY_RESET_WAIT_2:
+			digitalWrite (PIN_LED_MODE, (millis () / 80) % 2 == 0);
+			break;
 		default:
 			// WTF?! Blink fast... er!
 			digitalWrite (PIN_LED_MODE, (millis () / 100) % 2 == 0);
@@ -1526,23 +1604,3 @@ void loop () {
 		lastSwitchedTime = 0;
 	}
 }
-
-
-#if 0
-
-
-
-void lookupButtonMapping (Buttons b, TwoButtonJoystick& j) {
-	if (currentMapping != NULL) {
-		for (byte i = 0; currentMapping -> mappings[i].button != 0 && i < MAPPABLE_BUTTONS_NO; ++i) {
-			if (b == currentMapping -> mappings[i].button) {
-				j = currentMapping -> mappings[i].combo;
-				break;
-			}
-		}
-	}
-}
-		
-
-
-#endif
