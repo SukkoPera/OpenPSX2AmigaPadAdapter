@@ -18,9 +18,12 @@ digraph {
 	}
 	
 	NO_CONTROLLER;
+	FIRST_READ;
 
 	INIT -> NO_CONTROLLER;
-	NO_CONTROLLER -> MODE_JOYSTICK [label = "Supported controller plugged-in"]
+	NO_CONTROLLER -> FIRST_READ [label = "Supported controller plugged-in"];
+	FIRST_READ -> FACTORY_RESET_WAIT_0 [label = "SELECT pressed"];
+	FIRST_READ -> MODE_JOYSTICK [label = "SELECT not pressed"]
 
 	# Main Mode Transitions
 	subgraph "cluster_main" {
@@ -46,7 +49,7 @@ digraph {
 	}
 
 	# This actually represents a transitions valid for all nodes in the cluster
-	MODE_JOYSTICK -> NO_CONTROLLER [label = "Controller read error", ltail = cluster_main];
+	MODE_JOYSTICK -> NO_CONTROLLER [label = "Controller Read Error", ltail = cluster_main];
 	
 	subgraph "cluster_progswitch" {
 		label = "Select Mapping/Switch to Programming Mode";
@@ -66,10 +69,10 @@ digraph {
 	MODE_JOYSTICK -> SELECT_HELD [label = "SELECT Pressed"]
 	SELECT_HELD -> MODE_JOYSTICK [label = "SELECT Released"]
 	ENABLE_MAPPING -> MODE_JOYSTICK [label = "Mapping enabled"]
-	SELECT_AND_BTN_HELD -> PS_WAIT_SELECT_RELEASE [label = "<PROGTIME> Elapsed"]
+	SELECT_AND_BTN_HELD -> WAIT_SELECT_RELEASE [label = "<PROGTIME> Elapsed"]
 
 	# Again, valid for all nodes in the cluster
-	SELECT_HELD -> NO_CONTROLLER [label = "Controller read error", ltail = cluster_progswitch];
+	SELECT_HELD -> NO_CONTROLLER [label = "Controller Read Error", ltail = cluster_progswitch];
 
 	subgraph "cluster_progmode" {
 		label = "Programming Mode";
@@ -77,24 +80,44 @@ digraph {
 		fontsize = "20pt";
 		
 		# Programming Mode States
-		PS_WAIT_SELECT_RELEASE;
-		PS_WAIT_BUTTON_PRESS;
-		PS_WAIT_BUTTON_RELEASE;
-		PS_WAIT_COMBO_PRESS;
-		PS_WAIT_COMBO_RELEASE;
-		PS_WAIT_SELECT_RELEASE_FOR_EXIT;
+		WAIT_SELECT_RELEASE;
+		WAIT_BUTTON_PRESS;
+		WAIT_BUTTON_RELEASE;
+		WAIT_COMBO_PRESS;
+		WAIT_COMBO_RELEASE;
+		WAIT_SELECT_RELEASE_FOR_EXIT;
 
-		PS_WAIT_SELECT_RELEASE -> PS_WAIT_BUTTON_PRESS [label = "SELECT Released"]
-		PS_WAIT_BUTTON_PRESS -> PS_WAIT_SELECT_RELEASE_FOR_EXIT [label = "SELECT Pressed"]
-		PS_WAIT_BUTTON_PRESS -> PS_WAIT_BUTTON_RELEASE [label = "Single Mappable Button Pressed"]
-		PS_WAIT_BUTTON_PRESS -> PS_WAIT_BUTTON_PRESS [label = "Several Buttons or Unmappable Button Pressed"]
-		PS_WAIT_BUTTON_RELEASE -> PS_WAIT_COMBO_PRESS [label = "Button Released"]
-		PS_WAIT_COMBO_PRESS -> PS_WAIT_COMBO_RELEASE [label = "Combo pressed"]
-		PS_WAIT_COMBO_RELEASE -> PS_WAIT_BUTTON_PRESS [label = "Combo released"]
+		WAIT_SELECT_RELEASE -> WAIT_BUTTON_PRESS [label = "SELECT Released"]
+		WAIT_BUTTON_PRESS -> WAIT_SELECT_RELEASE_FOR_EXIT [label = "SELECT Pressed"]
+		WAIT_BUTTON_PRESS -> WAIT_BUTTON_RELEASE [label = "Single Mappable Button Pressed"]
+		WAIT_BUTTON_PRESS -> WAIT_BUTTON_PRESS [label = "Several Buttons or Unmappable Button Pressed"]
+		WAIT_BUTTON_RELEASE -> WAIT_COMBO_PRESS [label = "Button Released"]
+		WAIT_COMBO_PRESS -> WAIT_COMBO_RELEASE [label = "Combo Pressed"]
+		WAIT_COMBO_RELEASE -> WAIT_BUTTON_PRESS [label = "Combo Released"]
 	}
 
-	PS_WAIT_SELECT_RELEASE_FOR_EXIT -> MODE_JOYSTICK [label = "SELECT Released"]
+	WAIT_SELECT_RELEASE_FOR_EXIT -> MODE_JOYSTICK [label = "SELECT Released"]
 
 	# Guess what??? Valid for all nodes in the cluster
-	PS_WAIT_SELECT_RELEASE -> NO_CONTROLLER [label = "Controller read error", ltail = cluster_progmode];
+	WAIT_SELECT_RELEASE -> NO_CONTROLLER [label = "Controller Read Error", ltail = cluster_progmode];
+	
+	subgraph "cluster_reset" {
+		label = "Factory Reset";
+		fontname = "Courier-bold";
+		fontsize = "20pt";
+		
+		FACTORY_RESET_WAIT_0;
+		FACTORY_RESET_WAIT_1;
+		FACTORY_RESET_WAIT_2;
+		FACTORY_RESET_PERFORM;
+		
+		FACTORY_RESET_WAIT_0 -> FACTORY_RESET_WAIT_1 [label = "1 Second Elapsed"];
+		FACTORY_RESET_WAIT_1 -> FACTORY_RESET_WAIT_2 [label = "2 Seconds Elapsed"];
+		FACTORY_RESET_WAIT_2 -> FACTORY_RESET_PERFORM [label = "2 Seconds Elapsed"];
+	}
+	
+	FACTORY_RESET_PERFORM -> MODE_JOYSTICK;
+	
+	# Valid for all nodes in the cluster
+	FACTORY_RESET_WAIT_0 -> MODE_JOYSTICK [label = "SELECT Released", ltail = cluster_reset];
 }
