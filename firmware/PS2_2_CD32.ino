@@ -80,7 +80,7 @@ const byte PIN_BTNREGCLK = PIN_BTN1;
  * 
  * Value reported when the analog stick is in the (ideal) center position.
  */
-const byte ANALOG_IDLE_VALUE = 127;
+const byte ANALOG_IDLE_VALUE = 128;
 
 /** \brief Dead zone for analog sticks
  *  
@@ -543,10 +543,24 @@ inline void disbleCD32Trigger () {
 	detachInterrupt (digitalPinToInterrupt (PIN_PADMODE));
 }
 
-//! \brief Clear controller configurations
+/** \brief Clear controller configurations
+ * 
+ * All controller configuration will be reset so that:
+ * - Square is button 1
+ * - Cross is button 2
+ * - All other buttons are inactive
+ * 
+ * The programming function can then be used to map any button as desired.
+ */
 void clearConfigurations () {
 	debugln (F("Clearing controllerConfigs"));
-	memset (controllerConfigs, 0x00, sizeof (controllerConfigs));
+	//~ memset (controllerConfigs, 0x00, sizeof (controllerConfigs));
+	for (byte i = 0; i < PSX_BUTTONS_NO; ++i) {
+		ControllerConfiguration& config = controllerConfigs[i];
+		memset (&config, 0x00, sizeof (TwoButtonJoystick));
+		config.buttonMappings[button2position (PSB_SQUARE)].b1 = true;
+		config.buttonMappings[button2position (PSB_CROSS)].b2 = true;
+	}
 }
 
 /** \brief Load controller configurations from EEPROM
@@ -854,35 +868,54 @@ void flashLed (byte n) {
 	}
 }
 
-boolean rightAnalogMoved () {
+/** \brief Check if the right analog stick has been moved
+ * 
+ * The stick is not considered moved if it moves less than #ANALOG_DEAD_ZONE.
+ * 
+ * \param[out] x Movement on the horizontal axis [-127 ... 128]
+ * \param[out] y Movement on the vertical axis [-127 ... 128]
+ * \return True if the stick is not in the center position, false otherwise
+ */
+boolean rightAnalogMoved (int& x, int& y) {
 	boolean ret = false;
 	
-	int rx = ps2x.Analog (PSS_RX);   // 0 ... 255
-	int deltaRX = rx - ANALOG_IDLE_VALUE;
+	int rx = ps2x.Analog (PSS_RX);   		// [0 ... 255]
+	int deltaRX = rx - ANALOG_IDLE_VALUE;	// [-128 ... 127]
 	int deltaRXabs = abs (deltaRX);
-
+	if (deltaRXabs > ANALOG_DEAD_ZONE) {
+		x = deltaRX;
+		ret = true;
+	} else {
+		x = 0;
+	}
+	
 	int ry = ps2x.Analog (PSS_RY);
 	int deltaRY = ry - ANALOG_IDLE_VALUE;
 	int deltaRYabs = abs (deltaRY);
-	if (deltaRXabs > ANALOG_DEAD_ZONE || deltaRYabs > ANALOG_DEAD_ZONE) {
+	if (deltaRYabs > ANALOG_DEAD_ZONE) {
+		y = deltaRY;
 		ret = true;
-		
+	} else {
+		y = 0;
+	}
+	
 #ifdef ENABLE_SERIAL_DEBUG
+	if (ret) {
 		static int oldx = -1000;
-		if (deltaRX != oldx) {
+		if (x != oldx) {
 			debug (F("R Analog X = "));
-			debugln (deltaRX);
-			oldx = deltaRX;
+			debugln (x);
+			oldx = x;
 		}
 
 		static int oldy = -1000;
-		if (deltaRY != oldy) {
+		if (y != oldy) {
 			debug (F("R Analog Y = "));
-			debugln (deltaRY);
-			oldy = deltaRY;
+			debugln (y);
+			oldy = y;
 		}
-#endif
 	}
+#endif
 	
 	return ret;
 }
@@ -954,12 +987,12 @@ void handleJoystick () {
 void handleMouse () {
 	static unsigned long tx = 0, ty = 0;
 	
-	// Right analog stick works as a mouse - Horizontal axis
-	int x = ps2x.Analog (PSS_RX);   // 0 ... 255
-	int deltaX = x - ANALOG_IDLE_VALUE;
-	int deltaXabs = abs (deltaX);
-	if (deltaXabs > ANALOG_DEAD_ZONE) {
-		unsigned int period = map (deltaXabs, ANALOG_DEAD_ZONE, ANALOG_IDLE_VALUE, MOUSE_SLOW_DELTA, MOUSE_FAST_DELTA);
+	int x, y;
+	rightAnalogMoved (x, y);
+	
+	// Horizontal axis
+	if (x > 0) {
+		unsigned int period = map (abs (x), ANALOG_DEAD_ZONE, ANALOG_IDLE_VALUE, MOUSE_SLOW_DELTA, MOUSE_FAST_DELTA);
 		//~ debug (F("x = "));
 		//~ debug (x);
 		//~ debug (F(" --> period = "));
@@ -967,7 +1000,7 @@ void handleMouse () {
 
 		byte leadingPin;
 		byte trailingPin;
-		if (deltaX > 0) {
+		if (x > 0) {
 			// Right
 			leadingPin = PIN_RIGHT;
 			trailingPin = PIN_DOWN;
@@ -988,11 +1021,8 @@ void handleMouse () {
 	}
 
 	// Vertical axis
-	int y = ps2x.Analog (PSS_RY);
-	int deltaY = y - ANALOG_IDLE_VALUE;
-	int deltaYabs = abs (deltaY);
-	if (deltaYabs > ANALOG_DEAD_ZONE) {
-		unsigned int period = map (deltaYabs, ANALOG_DEAD_ZONE, ANALOG_IDLE_VALUE, MOUSE_SLOW_DELTA, MOUSE_FAST_DELTA);
+	if (y > ANALOG_DEAD_ZONE) {
+		unsigned int period = map (abs (y), ANALOG_DEAD_ZONE, ANALOG_IDLE_VALUE, MOUSE_SLOW_DELTA, MOUSE_FAST_DELTA);
 		//~ debug (F("y = "));
 		//~ debug (y);
 		//~ debug (F(" --> period = "));
@@ -1000,7 +1030,7 @@ void handleMouse () {
 
 		byte leadingPin;
 		byte trailingPin;
-		if (deltaY > 0) {
+		if (y > 0) {
 			// Down
 			leadingPin = PIN_LEFT;
 			trailingPin = PIN_UP;
