@@ -563,6 +563,16 @@ void clearConfigurations () {
 	}
 }
 
+uint16_t calculateConfigCrc () {
+	uint16_t crc = 0x4242;
+	uint8_t *data = (uint8_t *) controllerConfigs;
+	for (word i = 0; i < sizeof (controllerConfigs); ++i) {
+		crc = _crc16_update (crc, data[i]);
+	}
+	
+	return crc;
+}
+
 /** \brief Load controller configurations from EEPROM
  * 
  * If the loaded configurations are not valid, they are cleared.
@@ -578,14 +588,9 @@ boolean loadConfigurations () {
 	EEPROM.get (4, controllerConfigs);
 	
 	// Validation
-	uint16_t crc = 0x4242;
-	uint8_t *data = (uint8_t *) controllerConfigs;
-	for (word i = 0; i < sizeof (controllerConfigs); ++i) {
-		crc = _crc16_update (crc, data[i]);
-	}
-	
 	uint16_t goodCrc;
 	EEPROM.get (2, goodCrc);
+	uint16_t crc = calculateConfigCrc ();
 	if (crc == goodCrc) {
 		debugln (F("CRCs match"));
 		ret = true;
@@ -604,11 +609,7 @@ void saveConfigurations () {
 	EEPROM.put (4, controllerConfigs);
 	
 	// CRC
-	uint16_t crc = 0x4242;
-	uint8_t *data = (uint8_t *) controllerConfigs;
-	for (word i = 0; i < sizeof (controllerConfigs); ++i) {
-		crc = _crc16_update (crc, data[i]);
-	}
+	uint16_t crc = calculateConfigCrc ();
 	EEPROM.put (2, crc);
 }
 
@@ -998,14 +999,11 @@ void handleMouse () {
 		//~ debug (F(" --> period = "));
 		//~ debugln (period);
 
-		byte leadingPin;
-		byte trailingPin;
-		if (x > 0) {
-			// Right
-			leadingPin = PIN_RIGHT;
-			trailingPin = PIN_DOWN;
-		} else {
-			// Left
+		// Assume Right
+		byte leadingPin = PIN_RIGHT;
+		byte trailingPin = PIN_DOWN;
+		if (x < 0) {
+			// No, it was Left
 			leadingPin = PIN_DOWN;
 			trailingPin = PIN_RIGHT;
 		}
@@ -1021,21 +1019,18 @@ void handleMouse () {
 	}
 
 	// Vertical axis
-	if (y > ANALOG_DEAD_ZONE) {
+	if (y > 0) {
 		unsigned int period = map (abs (y), ANALOG_DEAD_ZONE, ANALOG_IDLE_VALUE, MOUSE_SLOW_DELTA, MOUSE_FAST_DELTA);
 		//~ debug (F("y = "));
 		//~ debug (y);
 		//~ debug (F(" --> period = "));
 		//~ debugln (period);
 
-		byte leadingPin;
-		byte trailingPin;
-		if (y > 0) {
-			// Down
-			leadingPin = PIN_LEFT;
-			trailingPin = PIN_UP;
-		} else {
-			// Up
+		// Assume Down
+		byte leadingPin = PIN_LEFT;
+		byte trailingPin = PIN_UP;
+		if (y < 0) {
+			// No, it was Up
 			leadingPin = PIN_UP;
 			trailingPin = PIN_LEFT;
 		}
@@ -1328,8 +1323,10 @@ void stateMachine () {
 		/**********************************************************************
 		 * MAIN MODES
 		 **********************************************************************/
-		case ST_JOYSTICK:
-			if (rightAnalogMoved ()) {
+		case ST_JOYSTICK: {
+			int x, y;
+			
+			if (rightAnalogMoved (x, y)) {
 				// Right analog stick moved, switch to Mouse mode
 				toMouse ();
 			} else if (ps2x.Button (PSB_SELECT)) {
@@ -1339,7 +1336,7 @@ void stateMachine () {
 				handleJoystick ();
 			}
 			break;
-		case ST_MOUSE:
+		} case ST_MOUSE:
 			if (ps2x.Button (PSB_PAD_UP) || ps2x.Button (PSB_PAD_DOWN) ||
 				ps2x.Button (PSB_PAD_LEFT) || ps2x.Button (PSB_PAD_RIGHT)) {
 				// D-Pad pressed, go back to joystick mode
