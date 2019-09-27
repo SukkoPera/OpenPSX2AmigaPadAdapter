@@ -549,7 +549,12 @@ void clearConfigurations () {
 	memset (controllerConfigs, 0x00, sizeof (controllerConfigs));
 }
 
-//! \brief Load controller configurations from EEPROM
+/** \brief Load controller configurations from EEPROM
+ * 
+ * If the loaded configurations are not valid, they are cleared.
+ * 
+ * \return True if the loaded configurations are valid
+ */
 boolean loadConfigurations () {
 	boolean ret = false;
 	
@@ -1531,6 +1536,7 @@ void stateMachine () {
 			delay (2000);
 			digitalWrite (PIN_LED_MODE, LOW);
 			clearConfigurations ();
+			saveConfigurations ();
 			state = ST_JOYSTICK;
 			break;
 	}
