@@ -287,9 +287,6 @@ ControllerConfiguration controllerConfigs[PSX_BUTTONS_NO];
 //! \brief Custom controller configuration currently selected
 ControllerConfiguration *currentCustomConfig = NULL;
 
-//! True if mouse mode was enabled before switching to CD32 mode
-boolean wasMouse = false;
-
 /** \brief Button register for CD32 mode being updated
  * 
  * This shall be updated as often as possible, and is what gets sampled when we
@@ -679,12 +676,7 @@ void toCD32 () {
 	// Pin 6 becomes an input for clock
 	pinMode (PIN_BTNREGCLK, INPUT);
 	attachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK), onClockEdge, RISING);
-	
-	if (state == ST_MOUSE)
-		wasMouse = true;
-	else
-		wasMouse = false;
-		
+
 	state = ST_CD32;
 }
 
@@ -1636,12 +1628,7 @@ void loop () {
 
 	if (lastSwitchedTime > 0 && millis () - lastSwitchedTime > TIMEOUT_CD32_MODE) {
 		// Pad Mode pin has been high for a while, disable CD32 mode
-		if (wasMouse) {
-			toMouse ();
-		} else {
-			toJoystick ();
-		}
-
+		toJoystick ();
 		lastSwitchedTime = 0;
 	}
 }
