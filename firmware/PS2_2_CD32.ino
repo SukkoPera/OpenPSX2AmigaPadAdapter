@@ -38,6 +38,8 @@
 #include <util/crc16.h>
 #include <PS2X_lib.h>
 
+#define ENABLE_FACTORY_RESET
+
 // INPUT pins, connected to PS2 controller
 const byte PS2_CLK = 13;
 const byte PS2_DAT = 12;
@@ -89,7 +91,7 @@ const byte ANALOG_IDLE_VALUE = 128;
  * 
  * \sa ANALOG_IDLE_VALUE
  */
-const byte ANALOG_DEAD_ZONE = 65;
+const uint8_t ANALOG_DEAD_ZONE = 65;
 
 /** \brief Delay of the quadrature square waves when mouse is moving at the
  * \a slowest speed
@@ -131,7 +133,7 @@ const byte TIMEOUT_CD32_MODE = 200;
  * 
  * \sa debounceButtons()
  */
-static const unsigned long DEBOUNCE_TIME_BUTTON = 30;
+const unsigned long DEBOUNCE_TIME_BUTTON = 30;
 
 /** \brief Combo debounce time
  * 
@@ -140,7 +142,7 @@ static const unsigned long DEBOUNCE_TIME_BUTTON = 30;
  * 
  * \sa debounceButtons()
  */
-static const unsigned long DEBOUNCE_TIME_COMBO = 150;
+const unsigned long DEBOUNCE_TIME_COMBO = 150;
 
 
 /*******************************************************************************
@@ -148,7 +150,7 @@ static const unsigned long DEBOUNCE_TIME_COMBO = 150;
  ******************************************************************************/
 
 // Send debug messages to serial port
-//~ #define ENABLE_SERIAL_DEBUG
+#define ENABLE_SERIAL_DEBUG
 
 // Print the controller status on serial. Useful for debugging.
 //~ #define DEBUG_PAD
@@ -185,10 +187,11 @@ enum State {
 	ST_WAIT_SELECT_RELEASE_FOR_EXIT,	//!< Wait for releact to be released to go back to joystick mode
 	
 	// States for factory reset
-	ST_FACTORY_RESET_WAIT_0,
+#ifdef ENABLE_FACTORY_RESET
 	ST_FACTORY_RESET_WAIT_1,
 	ST_FACTORY_RESET_WAIT_2,
 	ST_FACTORY_RESET_PERFORM
+#endif
 };
 
 /** \brief Current state of the internal state machine
@@ -692,8 +695,8 @@ inline void buttonRelease (byte pin) {
 }
 
 void mapAnalogStickHorizontal (TwoButtonJoystick& j) {
-	int lx = ps2x.Analog (PSS_LX);   			// 0 ... 255
-	int deltaLX = lx - ANALOG_IDLE_VALUE;		// --> -127 ... +128
+	byte lx = ps2x.Analog (PSS_LX);   			// 0 ... 255
+	int8_t deltaLX = lx - ANALOG_IDLE_VALUE;		// --> -127 ... +128
 	j.left = deltaLX < -ANALOG_DEAD_ZONE;
 	j.right = deltaLX > +ANALOG_DEAD_ZONE;
 
@@ -708,8 +711,8 @@ void mapAnalogStickHorizontal (TwoButtonJoystick& j) {
 }
 
 void mapAnalogStickVertical (TwoButtonJoystick& j) {
-	int ly = ps2x.Analog (PSS_LY);
-	int deltaLY = ly - ANALOG_IDLE_VALUE;
+	byte ly = ps2x.Analog (PSS_LY);
+	int8_t deltaLY = ly - ANALOG_IDLE_VALUE;
 	j.up = deltaLY < -ANALOG_DEAD_ZONE;
 	j.down = deltaLY > +ANALOG_DEAD_ZONE;
 
@@ -865,28 +868,32 @@ void flashLed (byte n) {
  * 
  * The stick is not considered moved if it moves less than #ANALOG_DEAD_ZONE.
  * 
- * \param[out] x Movement on the horizontal axis [-127 ... 128]
- * \param[out] y Movement on the vertical axis [-127 ... 128]
+ * \param[out] x Movement on the horizontal axis [-127 ... 127]
+ * \param[out] y Movement on the vertical axis [-127 ... 127]
  * \return True if the stick is not in the center position, false otherwise
  */
-boolean rightAnalogMoved (int& x, int& y) {
+boolean rightAnalogMoved (int8_t& x, int8_t& y) {
 	boolean ret = false;
 	
-	int rx = ps2x.Analog (PSS_RX);   		// [0 ... 255]
-	int deltaRX = rx - ANALOG_IDLE_VALUE;	// [-128 ... 127]
-	int deltaRXabs = abs (deltaRX);
+	uint8_t rx = ps2x.Analog (PSS_RX);   		// [0 ... 255]
+	int8_t deltaRX = rx - ANALOG_IDLE_VALUE;	// [-128 ... 127]
+	uint8_t deltaRXabs = abs (deltaRX);
 	if (deltaRXabs > ANALOG_DEAD_ZONE) {
 		x = deltaRX;
+		if (x == -128)
+			x = -127;
 		ret = true;
 	} else {
 		x = 0;
 	}
 	
-	int ry = ps2x.Analog (PSS_RY);
-	int deltaRY = ry - ANALOG_IDLE_VALUE;
-	int deltaRYabs = abs (deltaRY);
+	uint8_t ry = ps2x.Analog (PSS_RY);
+	int8_t deltaRY = ry - ANALOG_IDLE_VALUE;
+	uint8_t deltaRYabs = abs (deltaRY);
 	if (deltaRYabs > ANALOG_DEAD_ZONE) {
 		y = deltaRY;
+		if (y == -128)
+			y = -127;
 		ret = true;
 	} else {
 		y = 0;
@@ -980,16 +987,13 @@ void handleJoystick () {
 void handleMouse () {
 	static unsigned long tx = 0, ty = 0;
 	
-	int x, y;
+	int8_t x, y;
 	rightAnalogMoved (x, y);
 	
 	// Horizontal axis
-	if (x > 0) {
-		unsigned int period = map (abs (x), ANALOG_DEAD_ZONE, ANALOG_IDLE_VALUE, MOUSE_SLOW_DELTA, MOUSE_FAST_DELTA);
-		//~ debug (F("x = "));
-		//~ debug (x);
-		//~ debug (F(" --> period = "));
-		//~ debugln (period);
+	if (x != 0) {
+		debug (F("x = "));
+		debug (x);
 
 		// Assume Right
 		byte leadingPin = PIN_RIGHT;
@@ -998,8 +1002,14 @@ void handleMouse () {
 			// No, it was Left
 			leadingPin = PIN_DOWN;
 			trailingPin = PIN_RIGHT;
+
+			x = -x;
 		}
 
+		unsigned int period = map (x, ANALOG_DEAD_ZONE, 127, MOUSE_SLOW_DELTA, MOUSE_FAST_DELTA);
+		debug (F(" --> period = "));
+		debugln (period);
+		
 		if (millis () - tx >= period) {
 			digitalWrite (leadingPin, !digitalRead (leadingPin));
 			tx = millis ();
@@ -1011,12 +1021,9 @@ void handleMouse () {
 	}
 
 	// Vertical axis
-	if (y > 0) {
-		unsigned int period = map (abs (y), ANALOG_DEAD_ZONE, ANALOG_IDLE_VALUE, MOUSE_SLOW_DELTA, MOUSE_FAST_DELTA);
-		//~ debug (F("y = "));
-		//~ debug (y);
-		//~ debug (F(" --> period = "));
-		//~ debugln (period);
+	if (y != 0) {
+		debug (F("y = "));
+		debug (y);
 
 		// Assume Down
 		byte leadingPin = PIN_LEFT;
@@ -1025,8 +1032,14 @@ void handleMouse () {
 			// No, it was Up
 			leadingPin = PIN_UP;
 			trailingPin = PIN_LEFT;
+
+			y = -y;
 		}
 
+		unsigned int period = map (y, ANALOG_DEAD_ZONE, 127, MOUSE_SLOW_DELTA, MOUSE_FAST_DELTA);
+		debug (F(" --> period = "));
+		debugln (period);
+		
 		if (millis () - ty >= period) {
 			digitalWrite (leadingPin, !digitalRead (leadingPin));
 			ty = millis ();
@@ -1134,11 +1147,11 @@ Buttons debounceButtons (unsigned long holdTime) {
 	static Buttons oldButtons = NO_BUTTON;
 	static unsigned long pressedOn = 0;
 
-	unsigned int ret = NO_BUTTON;
+	Buttons ret = NO_BUTTON;
 
 	Buttons buttons = (Buttons) ps2x.ButtonDataByte ();
 	if (buttons == oldButtons) {
-		if (millis () - pressedOn >= holdTime) {
+		if (millis () - pressedOn > holdTime) {
 			// Same combo held long enough
 			ret = buttons;
 		} else {
@@ -1301,11 +1314,13 @@ void stateMachine () {
 			break;
 		case ST_FIRST_READ:
 			if (ps2x.Button (PSB_SELECT)) {
+#ifdef ENABLE_FACTORY_RESET
 				/* The controller was plugged in (or the adapter was powered on)
 				 * with SELECT held, so the user wants to do a factory reset
 				 */
 				debugln (F("SELECT pressed at power-up, starting factory reset"));
-				state = ST_FACTORY_RESET_WAIT_0;
+				state = ST_FACTORY_RESET_WAIT_1;
+#endif
 			} else {
 				// Default to joystick mode
 				toJoystick ();
@@ -1316,7 +1331,7 @@ void stateMachine () {
 		 * MAIN MODES
 		 **********************************************************************/
 		case ST_JOYSTICK: {
-			int x, y;
+			int8_t x, y;
 			
 			if (rightAnalogMoved (x, y)) {
 				// Right analog stick moved, switch to Mouse mode
@@ -1374,25 +1389,23 @@ void stateMachine () {
 				state = ST_SELECT_AND_BTN_HELD;
 			}
 			break;
-		case ST_SELECT_AND_BTN_HELD: {
-			static unsigned long selectComboPressTime = 0;
-			
-			if (selectComboPressTime == 0) {
+		case ST_SELECT_AND_BTN_HELD:
+			if (stateEnteredTime == 0) {
 				// State was just entered
-				selectComboPressTime = millis ();
-			} else if (millis () - selectComboPressTime >= 1000) {
+				stateEnteredTime = millis ();
+			} else if (millis () - stateEnteredTime > 1000) {
 				// Combo kept pressed, enter programming mode
 				debug (F("Entering programming mode for "));
 				debugln (getButtonName (selectComboButton));
-				selectComboPressTime = 0;
+				stateEnteredTime = 0;
 				state = ST_WAIT_SELECT_RELEASE;
 			} else if (!ps2x.Button (PSB_SELECT) || !ps2x.Button (selectComboButton)) {
 				// Combo released, switch to desired mapping
-				selectComboPressTime = 0;
+				stateEnteredTime = 0;
 				state = ST_ENABLE_MAPPING;
 			}
 			break;
-		} case ST_ENABLE_MAPPING:
+		case ST_ENABLE_MAPPING:
 			// Change button mapping
 			switch (selectComboButton) {
 				case PSB_SQUARE:
@@ -1510,21 +1523,11 @@ void stateMachine () {
 		/**********************************************************************
 		 * FACTORY_RESET
 		 **********************************************************************/
-		case ST_FACTORY_RESET_WAIT_0:
-			if (stateEnteredTime == 0) {
-				stateEnteredTime = millis ();
-			} else if (millis () - stateEnteredTime >= 1000) {
-				stateEnteredTime = 0;
-				state = ST_FACTORY_RESET_WAIT_1;
-			} else if (!ps2x.Button (PSB_SELECT)) {
-				stateEnteredTime = 0;
-				state = ST_JOYSTICK;
-			}
-			break;
+#ifdef ENABLE_FACTORY_RESET
 		case ST_FACTORY_RESET_WAIT_1:
 			if (stateEnteredTime == 0) {
 				stateEnteredTime = millis ();
-			} else if (millis () - stateEnteredTime >= 2000) {
+			} else if (millis () - stateEnteredTime > 2000) {
 				stateEnteredTime = 0;
 				state = ST_FACTORY_RESET_WAIT_2;
 			} else if (!ps2x.Button (PSB_SELECT)) {
@@ -1535,7 +1538,7 @@ void stateMachine () {
 		case ST_FACTORY_RESET_WAIT_2:
 			if (stateEnteredTime == 0) {
 				stateEnteredTime = millis ();
-			} else if (millis () - stateEnteredTime >= 2000) {
+			} else if (millis () - stateEnteredTime > 2000) {
 				stateEnteredTime = 0;
 				state = ST_FACTORY_RESET_PERFORM;
 			} else if (!ps2x.Button (PSB_SELECT)) {
@@ -1545,19 +1548,20 @@ void stateMachine () {
 			break;
 		case ST_FACTORY_RESET_PERFORM:
 			// OK, user has convinced us to actually perform the reset
-			for (byte i = 0; i < 2; ++i) {
-				digitalWrite (PIN_LED_MODE, HIGH);
-				delay (500);
-				digitalWrite (PIN_LED_MODE, LOW);
-				delay (500);
-			}
-			digitalWrite (PIN_LED_MODE, HIGH);
-			delay (2000);
-			digitalWrite (PIN_LED_MODE, LOW);
+			//~ for (byte i = 0; i < 2; ++i) {
+				//~ digitalWrite (PIN_LED_MODE, HIGH);
+				//~ delay (500);
+				//~ digitalWrite (PIN_LED_MODE, LOW);
+				//~ delay (500);
+			//~ }
+			//~ digitalWrite (PIN_LED_MODE, HIGH);
+			//~ delay (2000);
+			//~ digitalWrite (PIN_LED_MODE, LOW);
 			clearConfigurations ();
 			saveConfigurations ();
 			state = ST_JOYSTICK;
 			break;
+#endif
 	}
 }
 
@@ -1579,7 +1583,9 @@ void updateLeds () {
 	switch (state) {
 		case ST_NO_CONTROLLER:
 		case ST_FIRST_READ:
+#ifdef ENABLE_FACTORY_RESET
 		case ST_FACTORY_RESET_PERFORM:	// Led for this state is handled in SM
+#endif
 			digitalWrite (PIN_LED_MODE, LOW);
 			break;		
 		case ST_JOYSTICK:
@@ -1606,15 +1612,14 @@ void updateLeds () {
 			// Programming mode, blink fast
 			digitalWrite (PIN_LED_MODE, (millis () / 250) % 2 == 0);
 			break;
-		case ST_FACTORY_RESET_WAIT_0:
-			digitalWrite (PIN_LED_MODE, (millis () / 333) % 2 == 0);
-			break;
+#ifdef ENABLE_FACTORY_RESET
 		case ST_FACTORY_RESET_WAIT_1:
-			digitalWrite (PIN_LED_MODE, (millis () / 200) % 2 == 0);
+			digitalWrite (PIN_LED_MODE, (millis () / 333) % 2 == 0);
 			break;
 		case ST_FACTORY_RESET_WAIT_2:
 			digitalWrite (PIN_LED_MODE, (millis () / 80) % 2 == 0);
 			break;
+#endif
 		default:
 			// WTF?! Blink fast... er!
 			digitalWrite (PIN_LED_MODE, (millis () / 100) % 2 == 0);
