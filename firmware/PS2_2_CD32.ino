@@ -150,7 +150,7 @@ const unsigned long DEBOUNCE_TIME_COMBO = 150;
  ******************************************************************************/
 
 // Send debug messages to serial port
-#define ENABLE_SERIAL_DEBUG
+//~ #define ENABLE_SERIAL_DEBUG
 
 // Print the controller status on serial. Useful for debugging.
 //~ #define DEBUG_PAD
