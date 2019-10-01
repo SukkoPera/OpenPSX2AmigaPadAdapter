@@ -38,7 +38,7 @@
 #include <util/crc16.h>
 #include <PS2X_lib.h>
 
-#define ENABLE_FACTORY_RESET
+//~ #define ENABLE_FACTORY_RESET
 
 // INPUT pins, connected to PS2 controller
 const byte PS2_CLK = 13;
@@ -1239,6 +1239,11 @@ boolean isButtonMappable (Buttons b) {
 	       !ps2x.Button (b, PSB_PAD_RIGHT);
 }
 
+boolean isButtonProgrammable (Buttons b) {
+	return ps2x.Button (b, PSB_L1) || ps2x.Button (b, PSB_L2) ||
+	       ps2x.Button (b, PSB_R1) || ps2x.Button (b, PSB_R2);
+}
+
 /** \brief Convert a mappable button to a small integer
  * 
  * A mappable button is converted to an integer in the
@@ -1393,7 +1398,7 @@ void stateMachine () {
 			if (stateEnteredTime == 0) {
 				// State was just entered
 				stateEnteredTime = millis ();
-			} else if (millis () - stateEnteredTime > 1000) {
+			} else if (isButtonProgrammable (selectComboButton) && millis () - stateEnteredTime > 1000) {
 				// Combo kept pressed, enter programming mode
 				debug (F("Entering programming mode for "));
 				debugln (getButtonName (selectComboButton));
