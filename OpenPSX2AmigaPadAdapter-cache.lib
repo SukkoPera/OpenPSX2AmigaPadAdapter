@@ -262,6 +262,39 @@ X ~ 2 0 -150 50 U 50 50 1 1 P
 ENDDRAW
 ENDDEF
 #
+# Device_Resonator
+#
+DEF Device_Resonator Y 0 40 Y N 1 F N
+F0 "Y" 0 225 50 H V C CNN
+F1 "Device_Resonator" 0 150 50 H V C CNN
+F2 "" -25 0 50 H I C CNN
+F3 "" -25 0 50 H I C CNN
+$FPLIST
+ Filter*
+ Resonator*
+$ENDFPLIST
+DRAW
+C -95 0 10 0 1 0 F
+C 0 -150 10 0 1 0 F
+C 95 0 10 0 1 0 F
+S -135 -125 -55 -135 0 1 0 F
+S -135 -95 -55 -105 0 1 0 F
+S -40 80 40 -80 0 1 12 N
+S 55 -125 135 -135 0 1 0 F
+S 55 -95 135 -105 0 1 0 F
+P 2 0 1 0 -95 -95 -95 0 N
+P 2 0 1 0 -75 0 -125 0 N
+P 2 0 1 20 -70 -50 -70 50 N
+P 2 0 1 20 70 -50 70 50 N
+P 2 0 1 0 75 0 100 0 N
+P 2 0 1 0 95 0 95 -100 N
+P 4 0 1 0 95 -130 95 -150 -95 -150 -95 -130 N
+X 1 1 -150 0 50 R 50 50 1 1 P
+X 2 2 0 -200 50 U 50 50 1 1 P
+X 3 3 150 0 50 L 50 50 1 1 P
+ENDDRAW
+ENDDEF
+#
 # MCU_Microchip_ATmega_ATmega328P-AU
 #
 DEF MCU_Microchip_ATmega_ATmega328P-AU U 0 20 Y Y 1 F N
