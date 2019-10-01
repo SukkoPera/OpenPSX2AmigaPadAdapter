@@ -256,19 +256,12 @@ JoyMappingFunc joyMappingFunc = mapJoystickNormal;
  */
 const byte PSX_BUTTONS_NO = 16;
 
-/** \brief Number of buttons on the PSX controller that can be mapped
- * 
- * Only 11 buttons can be mapped (X/O/^/[]/Lx/Rx/Start), but the way we store
- * these needs 2 extra slots.
- *
- * \sa button2position()
- */
-const byte MAPPABLE_BUTTONS_NO = 13;
-
 /** \brief Map a PSX button to a two-button-joystick combo
  * 
- * There's an entry for every mappable button. Use #button2position() to convert
- * the button to the index to use in the array.
+ * There's an entry for every button, even those that cannot be mapped, for
+ * future extension.
+ *
+ * Use #psxButtonToIndex() to convert a button to the index to use in the array.
  * 
  * \sa isButtonMappable()
  */
@@ -276,7 +269,7 @@ struct ControllerConfiguration {
 	/** Two-button joystick combo to send out when the corresponding button is
 	 * pressed
 	 */
-	TwoButtonJoystick buttonMappings[MAPPABLE_BUTTONS_NO];
+	TwoButtonJoystick buttonMappings[PSX_BUTTONS_NO];
 };
 
 /** \brief All possible controller configurations
@@ -419,9 +412,6 @@ const char* const psxButtonNames[PSX_BUTTONS_NO] PROGMEM = {
 
 /** \brief Convert a button on the PSX controller to a small integer
  * 
- * Similar to #button2position() but slower as this function is iterative. Might
- * do some measurements and unify them later on.
- * 
  * Output will always be in the range [0, #PSX_BUTTONS_NO - 1] and is not
  * guaranteed to be valid, so it should be checked to be < PSX_BUTTONS_NO before
  * use.
@@ -558,8 +548,8 @@ void clearConfigurations () {
 	for (byte i = 0; i < PSX_BUTTONS_NO; ++i) {
 		ControllerConfiguration& config = controllerConfigs[i];
 		memset (&config, 0x00, sizeof (TwoButtonJoystick));
-		config.buttonMappings[button2position (PSB_SQUARE)].b1 = true;
-		config.buttonMappings[button2position (PSB_CROSS)].b2 = true;
+		config.buttonMappings[psxButtonToIndex (PSB_SQUARE)].b1 = true;
+		config.buttonMappings[psxButtonToIndex (PSB_CROSS)].b2 = true;
 	}
 }
 
@@ -832,7 +822,7 @@ void mapJoystickCustom (TwoButtonJoystick& j) {
 	for (byte i = 0; i < PSX_BUTTONS_NO; ++i) {
 		Buttons button = 1 << i;
 		if (isButtonMappable (button) && ps2x.Button (button)) {
-			byte buttonIdx = button2position (button);
+			byte buttonIdx = psxButtonToIndex (button);
 			mergeButtons (j, currentCustomConfig -> buttonMappings[buttonIdx]);
 		}
 	}
@@ -1244,48 +1234,6 @@ boolean isButtonProgrammable (Buttons b) {
 	       ps2x.Button (b, PSB_R1) || ps2x.Button (b, PSB_R2);
 }
 
-/** \brief Convert a mappable button to a small integer
- * 
- * A mappable button is converted to an integer in the
- * [0 - #MAPPABLE_BUTTONS_NO - 1) range as detailed in the table below.
- * 
- * This allows to quickly look up a button in an array and is used both to map a
- * button press to a programmed combo and to map a button to its corresponding
- * #ControllerConfiguration.
- * 
- * <pre>
- *                                      >> 2		>> 9		>> 13
- * #define PSB_L3          0x0002       0
- * #define PSB_R3          0x0004       1
- * #define PSB_START       0x0008       2
- * #define PSB_L2          0x0100					0
- * #define PSB_R2          0x0200					1
- * #define PSB_L1          0x0400					2
- * #define PSB_R1          0x0800					4
- * #define PSB_TRIANGLE    0x1000								0
- * #define PSB_CIRCLE      0x2000								1
- * #define PSB_CROSS       0x4000								2
- * #define PSB_SQUARE      0x8000								4
- * </pre>
- *
- * Positions 6 and 11 are unused, but this should be fast
- * 
- * \sa mapJoystickCustom1()
- */ 
-byte button2position (Buttons b) {
-	byte pos = 0xFF;
-	
-	if (b < 0x100) {
-		pos = b >> 2;			// 0, 1, 2
-	} else if (b < 0x1000) {
-		pos = (b >> 9) + 3;		// 0, 1, 2, 4 + 3 = 3, 4, 5, 7
-	} else {
-		pos = (b >> 13) + 8;	// 0, 1, 2, 4 + 8 = 8, 9, 10, 12
-	}
-	
-	return pos;
-}
-
 void stateMachine () {
 	static Buttons selectComboButton = NO_BUTTON;
 	static Buttons programmedButton = NO_BUTTON;
@@ -1504,7 +1452,7 @@ void stateMachine () {
 					ControllerConfiguration *config = &controllerConfigs[configIdx];
 
 					// Then look up the mapping according to the programmed button
-					byte buttonIdx = button2position (programmedButton);
+					byte buttonIdx = psxButtonToIndex (programmedButton);
 					config -> buttonMappings[buttonIdx] = j;
 				}
 				
