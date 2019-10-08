@@ -837,12 +837,19 @@ void mapJoystickCustom (TwoButtonJoystick& j) {
  * \param[in] src Source
  */
 void mergeButtons (TwoButtonJoystick& dest, const TwoButtonJoystick& src) {
-	dest.up |= src.up;
-	dest.down |= src.down;
-	dest.left |= src.left;
-	dest.right |= src.right;
-	dest.b1 |= src.b1;
-	dest.b2 |= src.b2;
+	/* This is what we need to do:
+	 * dest.up |= src.up;
+	 * dest.down |= src.down;
+	 * dest.left |= src.left;
+	 * dest.right |= src.right;
+	 * dest.b1 |= src.b1;
+	 * dest.b2 |= src.b2;
+	 *
+	 * And this is the way we're doing it to be faaaast and save flash:
+	 */
+	byte *bd = reinterpret_cast<byte *> (&dest);
+	const byte *sd = reinterpret_cast<const byte *> (&src);
+	*bd |= *sd;
 }
 
 void flashLed (byte n) {
