@@ -1438,7 +1438,8 @@ void stateMachine () {
 			}
 			break;
 		case ST_WAIT_BUTTON_RELEASE:
-			buttons = debounceButtons (DEBOUNCE_TIME_BUTTON);
+			//buttons = debounceButtons (DEBOUNCE_TIME_BUTTON);
+			buttons = ps2x.ButtonDataByte ();
 			if (buttons == NO_BUTTON) {
 				state = ST_WAIT_COMBO_PRESS;
 			}
@@ -1469,7 +1470,8 @@ void stateMachine () {
 			}
 			break;
 		case ST_WAIT_COMBO_RELEASE:
-			buttons = debounceButtons (DEBOUNCE_TIME_BUTTON);
+			//buttons = debounceButtons (DEBOUNCE_TIME_BUTTON);
+			buttons = ps2x.ButtonDataByte ();
 			if (buttons == NO_BUTTON) {
 				state = ST_WAIT_BUTTON_PRESS;
 			}
