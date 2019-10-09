@@ -13,6 +13,6 @@
 |9   |Button 2  |SR Output  |RMB        |
 
 All pins are OUTPUTs for the peripherals and INPUTs for the computer/console
-EXCEPT those marked with an asterisk.
+EXCEPT those marked with an asterisk (and the power pins, of course).
 
-All signals are active-low and should be drive in an open-collector fashion.
+All signals are active-low and should be driven in an open-collector fashion.
