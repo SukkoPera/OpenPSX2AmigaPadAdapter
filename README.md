@@ -55,9 +55,10 @@ The programming procedure is as follows:
 4. Release the button or combo you were holding.
 5. Repeat steps 2-4 for every button you want to customize.
 6. When you are done, press <kbd>Select</kbd> to store the mapping and leave Programming Mode. LD1 will stop blinking and you will be back to Two-Button Joystick Mode.
-7. Press and release <kbd>Select</kbd> and one of <kbd>R1</kbd>/<kbd>R2</kbd>/<kbd>L1</kbd>/<kbd>L2</kbd> to switch to the mapping you have just configured.
 
-The Custom Mappings cannot be configured so that <kbd>&darr;</kbd> overrides <kbd>&uarr;</kbd> or so that the vertical axis of Left Analog is ignored, still they might be useful here and there. For instance, having <kbd>B1</kbd> + <kbd>&uarr;</kbd> on <kbd>&cross;</kbd> and <kbd>B1</kbd> + <kbd>&darr;</kbd> on <kbd>&triangle;</kbd> makes the Amiga version of *Golden Axe* much more playable.
+Note that a mapping you have just programmed is not activated automatically, so you will have to press <kbd>Select</kbd> and one of <kbd>R1</kbd>/<kbd>R2</kbd>/<kbd>L1</kbd>/<kbd>L2</kbd> (and release them quickly) to switch to it.
+
+The Custom Mappings **cannot** be configured so that <kbd>&darr;</kbd> overrides <kbd>&uarr;</kbd> or so that the vertical axis of Left Analog is ignored, still they might be useful here and there. For instance, having <kbd>B1</kbd> + <kbd>&uarr;</kbd> on <kbd>&cross;</kbd> and <kbd>B1</kbd> + <kbd>&darr;</kbd> on <kbd>&triangle;</kbd> makes the Amiga version of *Golden Axe* much more playable.
 
 ### Mouse Mode
 If the right analog stick is moved, the adapter switches to Amiga Mouse Mode. This is indicated by LD1 blinking.
