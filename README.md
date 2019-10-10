@@ -49,15 +49,15 @@ What if the built-in mappings are not enough? OpenPSX2AmigaPadAdapter allows you
 
 The programming procedure is as follows:
 
-1. Press and hold <kbd>Select</kbd>, then press and hold one of <kbd>R1</kbd>/<kbd>R2</kbd>/<kbd>L1</kbd>/<kbd>L2</kbd> until LD1 starts blinking, then release both buttons. You are now in Programming Mode.
+1. Press and hold <kbd>Select</kbd>, then press and hold one of <kbd>R1</kbd>/<kbd>R2</kbd>/<kbd>L1</kbd>/<kbd>L2</kbd> until LD1 starts blinking, finally release both buttons. You are now in Programming Mode.
 2. Press the button you want to configure. LD1 will flash quickly a few times.
 3. Press and hold the single button or button combo you want to be assigned to the button you pressed before. At this stage the D-Pad directions have their obvious meaning, while <kbd>&square;</kbd> represents <kbd>B1</kbd> and <kbd>&cross;</kbd> represents <kbd>B2</kbd>. LD1 will again flash quickly a few times.
 4. Release the button or combo you were holding.
 5. Repeat steps 2-4 for every button you want to customize.
-6. When you are done, press <kbd>Select</kbd> to leave Programming Mode. LD1 will stop blinking and you will be back to Two-Button Joystick Mode.
+6. When you are done, press <kbd>Select</kbd> to store the mapping and leave Programming Mode. LD1 will stop blinking and you will be back to Two-Button Joystick Mode.
 7. Press and release <kbd>Select</kbd> and one of <kbd>R1</kbd>/<kbd>R2</kbd>/<kbd>L1</kbd>/<kbd>L2</kbd> to switch to the mapping you have just configured.
 
-The Custom Mappings cannot be configured so that <kbd>&darr;</kbd> overrides <kbd>&uarr;</kbd> or so that the vertical axis of Left Analog is ignored, still they might be useful here and there. For instance, having <kbd>B1</kbd> + <kbd>&uarr;</kbd> on <kbd>&cross;</kbd> and <kbd>B1</kbd> + <kbd>&darr;</kbd> on <kbd>&triangle;</kbd> makes *Golden Axe* much more playable.
+The Custom Mappings cannot be configured so that <kbd>&darr;</kbd> overrides <kbd>&uarr;</kbd> or so that the vertical axis of Left Analog is ignored, still they might be useful here and there. For instance, having <kbd>B1</kbd> + <kbd>&uarr;</kbd> on <kbd>&cross;</kbd> and <kbd>B1</kbd> + <kbd>&darr;</kbd> on <kbd>&triangle;</kbd> makes the Amiga version of *Golden Axe* much more playable.
 
 ### Mouse Mode
 If the right analog stick is moved, the adapter switches to Amiga Mouse Mode. This is indicated by LD1 blinking.
