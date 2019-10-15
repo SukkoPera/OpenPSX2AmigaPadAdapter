@@ -4,7 +4,7 @@ OpenPSX2AmigaPadAdapter is an Open Hardware adapter that allows using a Sony Pla
 ![Board](https://raw.githubusercontent.com/SukkoPera/OpenPSX2AmigaPadAdapter/master/doc/render-top.png)
 
 ## Summary
-The Commodore Amiga CD<sup>32</sup> came with cumbersome and fragile controllers, most of which did not survive the challenge of time. While many third-party replacements have surfaced in the meantime, most of them are not as solid and comfortable as the ubiquitous Sony PlayStation controllers. These have more than enough buttons, are cheap and most people are familiar with them, as the same basic design has been around for nearly 25 years, so they would be a very good replacement, if they just didn't use a different connector and communication protocol.
+The Commodore Amiga CD<sup>32</sup> came with cumbersome and fragile controllers, most of which did not survive the challenge of time. While many third-party replacements have surfaced in the meantime, most of them are not as solid and comfortable as the ubiquitous Sony PlayStation controllers. These have more than enough buttons, are cheap and most people are familiar with them, as the same basic design has been around for nearly 25 years. This means they would be a very good replacement, if they just didn't use a different connector and communication protocol.
 
 OpenPSX2AmigaPadAdapter is a simple board that adapts the connector and translates the protocol, allowing the use of many PlayStation controllers on Commodore computers. It can either behave as a simple 1/2-button Atari-style joystick or as a full-fledged 7-button CD<sup>32</sup> gamepad. It can also appear as an Amiga mouse, which is handy when it is connected to port 1 of an Amiga computer.
 
@@ -16,7 +16,7 @@ The adapter has two leds:
 ### Two-Button Joystick Mode
 When the adapter is powered on, it defaults to Atari-style Two-Button Mode, which is indicated by LD1 being off.
 
-This mode has been throughly tested on several Amiga models, but it **should** work wherever an Atari-style joystick is supported, including the Commodore VIC-20, Commodore 16 (through an [adapter](https://github.com/SukkoPera/OpenC16JoyAdapter)), Commodore 64, Sega Master System (but NOT MegaDrive/Genesis), etc. Although these platforms have NOT been tested yet, so use at your own risk.
+This mode has been throughly tested on several Amiga models, but it **should** work wherever an Atari-style joystick is supported, including the Commodore VIC-20, Commodore 16 (through an [adapter](https://github.com/SukkoPera/OpenC16JoyAdapter)), Commodore 64, Sega Master System (but NOT MegaDrive/Genesis), etc. Although **these platforms have NOT been tested** yet, so use at your own risk.
 
 [Here is a list](http://eab.abime.net/showthread.php?t=57540) of games that somehow support two buttons, if it can be any useful.
 
@@ -46,6 +46,22 @@ Platform Mapping is very similar to Standard Mapping, it just makes jumping way 
 
 LD1 will blink four times when this mapping is activated.
 
+#### Custom Mappings: <kbd>Select</kbd> + <kbd>R1</kbd>/<kbd>R2</kbd>/<kbd>L1</kbd>/<kbd>L2</kbd>
+What if the built-in mappings are not enough? OpenPSX2AmigaPadAdapter allows you to make your own! And you can have up to four different ones, which are stored internally so that they can be recalled at any time. By default they behave similarly to the Standard Mapping, but they can be customized so that any button produces either the press of a single button or even of a button combo!
+
+The programming procedure is as follows:
+
+1. Press and hold <kbd>Select</kbd>, then press and hold one of <kbd>R1</kbd>/<kbd>R2</kbd>/<kbd>L1</kbd>/<kbd>L2</kbd> until LD1 starts blinking, finally release both buttons. You are now in Programming Mode.
+2. Press the button you want to configure. LD1 will flash quickly a few times.
+3. Press and hold the single button or button combo you want to be assigned to the button you pressed before. At this stage the D-Pad directions have their obvious meaning, while <kbd>&square;</kbd> represents <kbd>B1</kbd> and <kbd>&cross;</kbd> represents <kbd>B2</kbd>. LD1 will again flash quickly a few times.
+4. Release the button or combo you were holding.
+5. Repeat steps 2-4 for every button you want to customize.
+6. When you are done, press <kbd>Select</kbd> to store the mapping and leave Programming Mode. LD1 will stop blinking and you will be back to Two-Button Joystick Mode.
+
+Note that a mapping you have just programmed is not activated automatically, so you will have to press <kbd>Select</kbd> and one of <kbd>R1</kbd>/<kbd>R2</kbd>/<kbd>L1</kbd>/<kbd>L2</kbd> (and release them quickly) to switch to it.
+
+The Custom Mappings **cannot** be configured so that <kbd>&darr;</kbd> overrides <kbd>&uarr;</kbd> or so that the vertical axis of Left Analog is ignored, still they might be useful here and there. For instance, having <kbd>B1</kbd> + <kbd>&uarr;</kbd> on <kbd>&cross;</kbd> and <kbd>B1</kbd> + <kbd>&darr;</kbd> on <kbd>&triangle;</kbd> makes the Amiga version of *Golden Axe* much more playable.
+
 ### Mouse Mode
 If the right analog stick is moved, the adapter switches to Amiga Mouse Mode. This is indicated by LD1 blinking.
 
@@ -55,7 +71,6 @@ Press any direction on the D-Pad to go back to Joystick Mode.
 
 ### CD<sup>32</sup> Controller Mode
 When the adapter is connected to a CD<sup>32</sup> console, it will automatically switch into this mode, which will emulate all 7 buttons of the original CD<sup>32</sup> controller. LD1 will light up steadily.
-
 
 Buttons are mapped as follows:
 - <kbd>&square;</kbd>: Red
