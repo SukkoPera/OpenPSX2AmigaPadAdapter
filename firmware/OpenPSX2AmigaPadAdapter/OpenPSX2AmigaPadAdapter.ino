@@ -301,8 +301,7 @@ ControllerConfiguration *currentCustomConfig = NULL;
  * 
  * 0 means pressed, MSB must be 1 for the ID sequence
  */
-//~ volatile byte *buttonsLive = &GPIOR0;
-volatile byte buttonsLive;
+volatile byte *buttonsLive = &GPIOR0;
 
 /** \brief Button register for CD32 mode currently being shifted out
  * 
@@ -310,8 +309,7 @@ volatile byte buttonsLive;
  * 
  * 0 means pressed, etc.
  */
-//~ volatile byte *isrButtons = &GPIOR1;
-volatile byte isrButtons;
+volatile byte *isrButtons = &GPIOR1;
 
 //~ //! Timestamp of last time the pad was switched out of CD32 mode
 //~ unsigned long lastSwitchedTime = 0;
@@ -495,7 +493,7 @@ void onPadModeChange () {
 		
 		// Output status of first button as soon as possible
 		fastPinMode (PIN_BTNREGOUT, OUTPUT);
-		if (buttonsLive & 0x01) {
+		if (*buttonsLive & 0x01) {
 			fastDigitalWrite (PIN_BTNREGOUT, HIGH);
 		} else {
 			fastDigitalWrite (PIN_BTNREGOUT, LOW);
@@ -508,10 +506,10 @@ void onPadModeChange () {
 		 * by the shift. This will report non-existing buttons 8 as released and
 		 * 9 as pressed as required by the ID sequence.
 		 */
-		isrButtons = buttonsLive >> 1;
+		*isrButtons = *buttonsLive >> 1U;
 						 
 		// Enable INT1, i.e. interrupt on clock edges
-		pinMode (PIN_BTNREGCLK, INPUT);
+		fastPinMode (PIN_BTNREGCLK, INPUT);
 		EIFR |= (1 << INTF1);			// Clear any pending interrupts
 		attachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK), onClockEdge, RISING);
 
@@ -531,7 +529,7 @@ void onPadModeChange () {
 		/* PIN_BTN1 (aka PIN_BTNREGCLK) was an INPUT and it must either remain
 		 * an input or a low output, so this should be enough
 		 */
-		if (!(buttonsLive & BTN_RED)) {
+		if (!(*buttonsLive & BTN_RED)) {
 			buttonPress (PIN_BTN1);
 		} else {
 			buttonRelease (PIN_BTN1);
@@ -540,14 +538,14 @@ void onPadModeChange () {
 		/* PIN_BTN2 (aka PIN_BTNREGOUT) was an output, either high or low, which
 		 * means it might turn into a pulled-up input
 		 */
-		if (!(buttonsLive & BTN_BLUE)) {
+		if (!(*buttonsLive & BTN_BLUE)) {
 			// To LOW OUTPUT
 			buttonPress (PIN_BTN2);
 		} else {
 			// To INPUT
 			buttonRelease (PIN_BTN2);
 		}
-		digitalWrite (PIN_BTN2, LOW);	/* Disable pull-up, don't do it before
+		fastDigitalWrite (PIN_BTN2, LOW);	/* Disable pull-up, don't do it before
 										 * to avoid a spurious 0V state when
 										 * going from output high to input
 										 */
@@ -559,13 +557,13 @@ void onPadModeChange () {
 
 // ISR
 void onClockEdge () {
-	if (isrButtons & 0x01) {
+	if (*isrButtons & 0x01) {
 		fastDigitalWrite (PIN_BTNREGOUT, HIGH);
 	} else {
 		fastDigitalWrite (PIN_BTNREGOUT, LOW);
 	}
 	
-	isrButtons >>= 1;	/* Again, non-existing button 10 will be reported as
+	*isrButtons >>= 1U;	/* Again, non-existing button 10 will be reported as
 						 * pressed for the ID sequence
 						 */
 }
@@ -1076,7 +1074,7 @@ void handleJoystickCommon () {
 		buttonsTmp &= ~BTN_FRONT_R;
 
 	// Atomic operation, interrupt either happens before or after this
-	buttonsLive = buttonsTmp;
+	*buttonsLive = buttonsTmp;
 }
 
 void handleJoystick () {
@@ -1191,40 +1189,6 @@ void handleMouse () {
 
 	interrupts ();
 }
-
-//~ void handleCD32Pad () {
-	//~ // Directions still behave as in normal joystick mode, so abuse those functions
-	//~ TwoButtonJoystick analog;
-	//~ mapAnalogStickHorizontal (analog);
-	//~ mapAnalogStickVertical (analog);
-
-	//~ // D-Pad is fully functional as well, keep it in mind
-	//~ if (analog.up || ps2x.Button (PSB_PAD_UP)) {
-		//~ buttonPress (PIN_UP);
-	//~ } else {
-		//~ buttonRelease (PIN_UP);
-	//~ }
-
-	//~ if (analog.down || ps2x.Button (PSB_PAD_DOWN)) {
-		//~ buttonPress (PIN_DOWN);
-	//~ } else {
-		//~ buttonRelease (PIN_DOWN);
-	//~ }
-
-	//~ if (analog.left || ps2x.Button (PSB_PAD_LEFT)) {
-		//~ buttonPress (PIN_LEFT);
-	//~ } else {
-		//~ buttonRelease (PIN_LEFT);
-	//~ }
-
-	//~ if (analog.right || ps2x.Button (PSB_PAD_RIGHT)) {
-		//~ buttonPress (PIN_RIGHT);
-	//~ } else {
-		//~ buttonRelease (PIN_RIGHT);
-	//~ }
-
-
-//~ }
 
 /** \brief Debounce button/combo presses
  * 
@@ -1354,7 +1318,7 @@ void stateMachine () {
 			// Polling failed
 			debugln (F("Controller lost"));
 			state = ST_NO_CONTROLLER;
-			buttonsLive = 0x7F;		// No ID sequence, all buttons released
+			*buttonsLive = 0x7F;		// No ID sequence, all buttons released
 		}
 	}
 
