@@ -38,7 +38,17 @@
 #include <util/crc16.h>
 #include <PS2X_lib.h>
 
-//~ #define ENABLE_FACTORY_RESET
+#define ENABLE_FAST_IO
+
+#ifdef ENABLE_FAST_IO
+#include "DigitalIO.h"		// https://github.com/greiman/DigitalIO
+#else
+#define fastDigitalRead(x) digitalRead(x)
+#define fastDigitalWrite(x, y) digitalWrite(x, y)
+#define fastPinMode(x, y) pinMode(x, y)
+#endif
+
+#define ENABLE_FACTORY_RESET
 
 // INPUT pins, connected to PS2 controller
 const byte PS2_CLK = 13;
@@ -164,7 +174,7 @@ const unsigned long DEBOUNCE_TIME_COMBO = 150;
  * 
  * Possible states for the internal state machine that drives the whole thing.
  */
-enum State {
+enum __attribute__((packed)) State {
 	ST_NO_CONTROLLER,			//!< No controller connected
 	ST_FIRST_READ,				//!< First time the controller is read
 	
@@ -172,6 +182,7 @@ enum State {
 	ST_JOYSTICK,				//!< Two-button joystick mode
 	ST_MOUSE,					//!< Mouse mode
 	ST_CD32,					//!< CD32-controller mode
+	ST_JOYSTICK_TEMP,			//!< Just come out of CD32 mode, will it last?
 	
 	// States to select mapping or go into programming mode
 	ST_SELECT_HELD,				//!< Select being held
@@ -212,7 +223,7 @@ const word BTN_START =		1U << 6U;	//!< \a Start/Pause Button
 //! @}
 
 // This is only used for blinking the led when mapping is changed
-enum JoyButtonMapping {
+enum __attribute__((packed)) JoyButtonMapping {
 	JMAP_NORMAL = 1,
 	JMAP_RACING1,
 	JMAP_RACING2,
@@ -290,7 +301,8 @@ ControllerConfiguration *currentCustomConfig = NULL;
  * 
  * 0 means pressed, MSB must be 1 for the ID sequence
  */
-byte buttonsLive = 0x80;
+//~ volatile byte *buttonsLive = &GPIOR0;
+volatile byte buttonsLive;
 
 /** \brief Button register for CD32 mode currently being shifted out
  * 
@@ -298,10 +310,11 @@ byte buttonsLive = 0x80;
  * 
  * 0 means pressed, etc.
  */
-volatile byte buttons;
+//~ volatile byte *isrButtons = &GPIOR1;
+volatile byte isrButtons;
 
-//! Timestamp of last time the pad was switched out of CD32 mode
-unsigned long lastSwitchedTime = 0;
+//~ //! Timestamp of last time the pad was switched out of CD32 mode
+//~ unsigned long lastSwitchedTime = 0;
 
 /** \brief Type that is used to report button presses
  *
@@ -476,37 +489,85 @@ void dumpButtons (Buttons psxButtons) {
 
 // ISR
 void onPadModeChange () {
-	if (digitalRead (PIN_PADMODE) == LOW) {
-		if (state != ST_CD32) {
-			// Switch to CD32 mode
-			toCD32 ();
+	if (fastDigitalRead (PIN_PADMODE) == LOW) {
+		// Switch to CD32 mode
+		debugln (F("Joystick -> CD32"));
+		
+		// Output status of first button as soon as possible
+		fastPinMode (PIN_BTNREGOUT, OUTPUT);
+		if (buttonsLive & 0x01) {
+			fastDigitalWrite (PIN_BTNREGOUT, HIGH);
+		} else {
+			fastDigitalWrite (PIN_BTNREGOUT, LOW);
+		}
+				
+		/* Sample input values, they will be shifted out on subsequent clock
+		 * inputs.
+		 * 
+		 * At this point MSB must be 1 for ID sequence. Then it will be zeroed
+		 * by the shift. This will report non-existing buttons 8 as released and
+		 * 9 as pressed as required by the ID sequence.
+		 */
+		isrButtons = buttonsLive >> 1;
+						 
+		// Enable INT1, i.e. interrupt on clock edges
+		pinMode (PIN_BTNREGCLK, INPUT);
+		EIFR |= (1 << INTF1);			// Clear any pending interrupts
+		attachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK), onClockEdge, RISING);
+
+		// Set state to ST_CD32 
+		state = ST_CD32;
+	} else {
+		// Switch back to joystick mode
+		debugln (F("CD32 -> Joystick"));
+		
+		// Disable INT1
+		detachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK));
+
+		/* Set pin directions and set levels according to buttons, as waiting
+		 * for the main loop to do it takes too much time (= a few ms), for some
+		 * reason
+		 */
+		/* PIN_BTN1 (aka PIN_BTNREGCLK) was an INPUT and it must either remain
+		 * an input or a low output, so this should be enough
+		 */
+		if (!(buttonsLive & BTN_RED)) {
+			buttonPress (PIN_BTN1);
+		} else {
+			buttonRelease (PIN_BTN1);
 		}
 		
-		// Sample input values, they will be shifted out on subsequent clock inputs
-		//~ buttons = buttonsLive | 0x80;   // Make sure bit MSB is 1 for ID sequence
-		buttons = buttonsLive;		/* The above is now handled elsewhere so that
-									 * here we can run as fast as possible
-									 */
-
-		// Output first bit immediately
-		digitalWrite (PIN_BTNREGOUT, buttons & 0x01);
-		buttons >>= 1;	/* MSB will be zeroed during shifting, this will report
-						 * non-existing button 9 as pressed for the ID sequence
-						 */
-	} else {
-		/* Mark time pin went high so that we can see if it goes back high in a
-		 * short while
+		/* PIN_BTN2 (aka PIN_BTNREGOUT) was an output, either high or low, which
+		 * means it might turn into a pulled-up input
 		 */
-		lastSwitchedTime = millis ();
+		if (!(buttonsLive & BTN_BLUE)) {
+			// To LOW OUTPUT
+			buttonPress (PIN_BTN2);
+		} else {
+			// To INPUT
+			buttonRelease (PIN_BTN2);
+		}
+		digitalWrite (PIN_BTN2, LOW);	/* Disable pull-up, don't do it before
+										 * to avoid a spurious 0V state when
+										 * going from output high to input
+										 */
+			
+		// Set state to ST_JOYSTICK_TEMP
+		state = ST_JOYSTICK_TEMP;
 	}
 }
 
 // ISR
 void onClockEdge () {
-	digitalWrite (PIN_BTNREGOUT, buttons & 0x01);
-	buttons >>= 1;	/* Again, non-existing button 10 will be reported as pressed
-	                 * for the ID sequence
-	                 */
+	if (isrButtons & 0x01) {
+		fastDigitalWrite (PIN_BTNREGOUT, HIGH);
+	} else {
+		fastDigitalWrite (PIN_BTNREGOUT, LOW);
+	}
+	
+	isrButtons >>= 1;	/* Again, non-existing button 10 will be reported as
+						 * pressed for the ID sequence
+						 */
 }
 
 /** \brief Enable CD32 controller support
@@ -515,13 +576,17 @@ void onClockEdge () {
  * #PIN_PADMODE, after this function has been called.
  */
 inline void enableCD32Trigger () {
-	/* Avoid any pending interrupts, see
+	noInterrupts ();
+	
+	/* Clear any pending interrupts, see
 	 * https://github.com/arduino/ArduinoCore-avr/issues/244
 	 */
-	EIFR |= (1 << INTF1) | (1 << INTF0);
+	EIFR |= (1 << INTF0);
 
-	// Call ISR on changes of the CD32 pad mode pin
+	// Enable interrupt 0 (i.e.: on pin 2)
 	attachInterrupt (digitalPinToInterrupt (PIN_PADMODE), onPadModeChange, CHANGE);
+	
+	interrupts ();
 }
 
 /** \brief Disable CD32 controller support
@@ -529,8 +594,14 @@ inline void enableCD32Trigger () {
  * CD32 mode will no longer be entered automatically, after this function has
  * been called.
  */
-inline void disbleCD32Trigger () {
+inline void disableCD32Trigger () {
+	noInterrupts ();
+	
+	// Disable both interrupts, as this might happen halfway during a shift
 	detachInterrupt (digitalPinToInterrupt (PIN_PADMODE));
+	detachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK));
+
+	interrupts ();
 }
 
 /** \brief Clear controller configurations
@@ -607,71 +678,86 @@ void setup () {
 	dstart (115200);
 	debugln (F("Starting up..."));
 
-	pinMode (PIN_PADMODE, INPUT_PULLUP);
-	//~ pinMode (PIN_BTNREGOUT, OUTPUT);
-	//~ pinMode (PIN_BTNREGCLK, INPUT);
-
 	// Prepare leds
-	pinMode (PIN_LED_PAD_OK, OUTPUT);
-	pinMode (PIN_LED_MODE, OUTPUT);
+	fastPinMode (PIN_LED_PAD_OK, OUTPUT);
+	fastPinMode (PIN_LED_MODE, OUTPUT);
 
-	// Give wireless PS2 module some time to startup, before configuring it
-	delay (300);
-
-	// This will also initialize the configurations if EEPROM is invalid
+	/* Load custom mappings from EEPROM, this will also initialize them if
+	 * EEPROM data is invalid
+	 */
 	loadConfigurations ();
 
-	enableCD32Trigger ();
+	/* This pin tells us when to toggle in/out of CD32 mode, and it will always
+	 * be an input
+	 */
+	fastPinMode (PIN_PADMODE, INPUT_PULLUP);
+
+	/* Prepare interrupts: we can't use attachInterrupt() here, since our ISRs
+	 * are going to be "bare"
+	 * 
+	 * INT0 is triggered by pin 2, i.e. PIN_PADMODE, so it must be triggered on
+	 * CHANGE.
+	 */
+	//~ EICRA |= (1 << ISC00);
+	//~ EICRA &= ~(1 << ISC01);		// Probably redundant
+
+	/* INT1 is triggered by pin 3, i.e. PIN_BTNREGCLK/PIN_BTN1, and we want that
+	 * triggered by RISING edges. Actually we should care about falling edges,
+	 * but since it will take us some time to react to the interrupt, we start
+	 * in advance ;).
+	 */
+	//~ EICRA |= (1 << ISC11) | (1 << ISC10);
 	
 	// Start polling for controller
 	state = ST_NO_CONTROLLER;
+	
+	// Give wireless PS2 module some time to startup, before configuring it
+	delay (300);
 }
 
-void toMouse () {
-	debugln (F("To mouse mode"));
+
+
+void mouseToJoystick () {
+	debugln (F("Mouse -> Joystick"));
+	
+	// All direction pins to Hi-Z without pull-up
+	fastDigitalWrite (PIN_UP, LOW);
+	fastPinMode (PIN_UP, INPUT);
+	fastDigitalWrite (PIN_DOWN, LOW);
+	fastPinMode (PIN_DOWN, INPUT);
+	fastDigitalWrite (PIN_LEFT, LOW);
+	fastPinMode (PIN_LEFT, INPUT);
+	digitalWrite (PIN_RIGHT, LOW);
+	fastPinMode (PIN_RIGHT, INPUT);
+	
+	/* These should already be setup correctly, but since we use this function
+	 * to switch from ST_INIT to ST_JOYSTICK as well...
+	 */
+	fastDigitalWrite (PIN_BTN1, LOW);
+	fastPinMode (PIN_BTN1, INPUT);
+	fastDigitalWrite (PIN_BTN2, LOW);
+	fastPinMode (PIN_BTN2, INPUT);
+	
+	// Be ready to switch to ST_CD32
+	enableCD32Trigger ();
+}
+
+void joystickToMouse () {
+	debugln (F("Joystick -> Mouse"));
 	
 	// Direction pins must be outputs
-	pinMode (PIN_UP, OUTPUT);
-	pinMode (PIN_DOWN, OUTPUT);
-	pinMode (PIN_LEFT, OUTPUT);
-	pinMode (PIN_RIGHT, OUTPUT);
+	fastPinMode (PIN_UP, OUTPUT);
+	fastPinMode (PIN_DOWN, OUTPUT);
+	fastPinMode (PIN_LEFT, OUTPUT);
+	fastPinMode (PIN_RIGHT, OUTPUT);
 
+	// When in mouse mode, we can't switch to CD32 mode
 	// We're not going to care for clock pulses anymore
-	detachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK));
+	disableCD32Trigger ();
 	
 	state = ST_MOUSE;
 }
 
-void toJoystick () {
-	debugln (F("To joystick mode"));
-	
-	// All pins to Hi-Z without pull-up
-	digitalWrite (PIN_UP, LOW);
-	pinMode (PIN_UP, INPUT);
-	digitalWrite (PIN_DOWN, LOW);
-	pinMode (PIN_DOWN, INPUT);
-	digitalWrite (PIN_LEFT, LOW);
-	pinMode (PIN_LEFT, INPUT);
-	digitalWrite (PIN_RIGHT, LOW);
-	pinMode (PIN_RIGHT, INPUT);
-	
-	detachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK));
-
-	state = ST_JOYSTICK;
-}
-
-void toCD32 () {
-	debugln (F("To CD32 mode"));
-		
-	// Pin 9 becomes our data output
-	pinMode (PIN_BTNREGOUT, OUTPUT);
-	
-	// Pin 6 becomes an input for clock
-	pinMode (PIN_BTNREGCLK, INPUT);
-	attachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK), onClockEdge, RISING);
-
-	state = ST_CD32;
-}
 
 inline void buttonPress (byte pin) {
 	/* Drive pins in open-collector style, so that we are compatible with the
@@ -917,7 +1003,7 @@ boolean rightAnalogMoved (int8_t& x, int8_t& y) {
 	return ret;
 }
 
-void handleJoystick () {
+void handleJoystickCommon () {
 	// Call button mapping function
 	TwoButtonJoystick j = {false, false, false, false, false, false};
 	//~ if (!joyMappingFunc)
@@ -959,6 +1045,47 @@ void handleJoystick () {
 		buttonRelease (PIN_RIGHT);
 	}
 
+	/* Map buttons, working on a temporary variable to avoid the sampling
+	 * interrupt to happen while we are filling in button statuses and catch a
+	 * value that has not yet been fully populated.
+	 *
+	 * Note that 0 means pressed and that MSB must be 1 for the ID
+	 * sequence.
+	 */
+	byte buttonsTmp = 0xFF;
+
+	if (ps2x.Button (PSB_START))
+		buttonsTmp &= ~BTN_START;
+
+	if (ps2x.Button (PSB_TRIANGLE))
+		buttonsTmp &= ~BTN_GREEN;
+
+	if (ps2x.Button (PSB_SQUARE))
+		buttonsTmp &= ~BTN_RED;
+
+	if (ps2x.Button (PSB_CROSS))
+		buttonsTmp &= ~BTN_BLUE;
+
+	if (ps2x.Button (PSB_CIRCLE))
+		buttonsTmp &= ~BTN_YELLOW;
+
+	if (ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2) || ps2x.Button (PSB_L3))
+		buttonsTmp &= ~BTN_FRONT_L;
+
+	if (ps2x.Button (PSB_R1) || ps2x.Button (PSB_R2) || ps2x.Button (PSB_R3))
+		buttonsTmp &= ~BTN_FRONT_R;
+
+	// Atomic operation, interrupt either happens before or after this
+	buttonsLive = buttonsTmp;
+}
+
+void handleJoystick () {
+	// Call button mapping function
+	TwoButtonJoystick j = {false, false, false, false, false, false};
+	//~ if (!joyMappingFunc)
+		//~ joyMappingFunc = mapJoystickNormal;			
+	joyMappingFunc (j);
+	
 	/* If the interrupt that switches us to CD32 mode is
 	 * triggered while we are here we might end up setting pin states after
 	 * we should have relinquished control of the pins, so let's avoid this
@@ -1065,70 +1192,39 @@ void handleMouse () {
 	interrupts ();
 }
 
-void handleCD32Pad () {
-	// Directions still behave as in normal joystick mode, so abuse those functions
-	TwoButtonJoystick analog;
-	mapAnalogStickHorizontal (analog);
-	mapAnalogStickVertical (analog);
+//~ void handleCD32Pad () {
+	//~ // Directions still behave as in normal joystick mode, so abuse those functions
+	//~ TwoButtonJoystick analog;
+	//~ mapAnalogStickHorizontal (analog);
+	//~ mapAnalogStickVertical (analog);
 
-	// D-Pad is fully functional as well, keep it in mind
-	if (analog.up || ps2x.Button (PSB_PAD_UP)) {
-		buttonPress (PIN_UP);
-	} else {
-		buttonRelease (PIN_UP);
-	}
+	//~ // D-Pad is fully functional as well, keep it in mind
+	//~ if (analog.up || ps2x.Button (PSB_PAD_UP)) {
+		//~ buttonPress (PIN_UP);
+	//~ } else {
+		//~ buttonRelease (PIN_UP);
+	//~ }
 
-	if (analog.down || ps2x.Button (PSB_PAD_DOWN)) {
-		buttonPress (PIN_DOWN);
-	} else {
-		buttonRelease (PIN_DOWN);
-	}
+	//~ if (analog.down || ps2x.Button (PSB_PAD_DOWN)) {
+		//~ buttonPress (PIN_DOWN);
+	//~ } else {
+		//~ buttonRelease (PIN_DOWN);
+	//~ }
 
-	if (analog.left || ps2x.Button (PSB_PAD_LEFT)) {
-		buttonPress (PIN_LEFT);
-	} else {
-		buttonRelease (PIN_LEFT);
-	}
+	//~ if (analog.left || ps2x.Button (PSB_PAD_LEFT)) {
+		//~ buttonPress (PIN_LEFT);
+	//~ } else {
+		//~ buttonRelease (PIN_LEFT);
+	//~ }
 
-	if (analog.right || ps2x.Button (PSB_PAD_RIGHT)) {
-		buttonPress (PIN_RIGHT);
-	} else {
-		buttonRelease (PIN_RIGHT);
-	}
+	//~ if (analog.right || ps2x.Button (PSB_PAD_RIGHT)) {
+		//~ buttonPress (PIN_RIGHT);
+	//~ } else {
+		//~ buttonRelease (PIN_RIGHT);
+	//~ }
 
-	/* Map buttons, working on a temporary variable to avoid the sampling
-	 * interrupt to happen while we are filling in button statuses and catch a
-	 * value that has not yet been fully populated.
-	 *
-	 * Note that 0 means pressed and that MSB must be 1 for the ID
-	 * sequence.
-	 */
-	byte buttonsTmp = 0xFF;
 
-	if (ps2x.Button (PSB_START))
-		buttonsTmp &= ~BTN_START;
-
-	if (ps2x.Button (PSB_TRIANGLE))
-		buttonsTmp &= ~BTN_GREEN;
-
-	if (ps2x.Button (PSB_SQUARE))
-		buttonsTmp &= ~BTN_RED;
-
-	if (ps2x.Button (PSB_CROSS))
-		buttonsTmp &= ~BTN_BLUE;
-
-	if (ps2x.Button (PSB_CIRCLE))
-		buttonsTmp &= ~BTN_YELLOW;
-
-	if (ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2) || ps2x.Button (PSB_L3))
-		buttonsTmp &= ~BTN_FRONT_L;
-
-	if (ps2x.Button (PSB_R1) || ps2x.Button (PSB_R2) || ps2x.Button (PSB_R3))
-		buttonsTmp &= ~BTN_FRONT_R;
-
-	// Atomic operation, interrupt either happens before or after this
-	buttonsLive = buttonsTmp;
-}
+//~ }
 
 /** \brief Debounce button/combo presses
  * 
@@ -1283,7 +1379,8 @@ void stateMachine () {
 #endif
 			} else {
 				// Default to joystick mode
-				toJoystick ();
+				mouseToJoystick ();
+				state = ST_JOYSTICK;
 			}
 			break;
 				
@@ -1295,11 +1392,12 @@ void stateMachine () {
 			
 			if (rightAnalogMoved (x, y)) {
 				// Right analog stick moved, switch to Mouse mode
-				toMouse ();
+				joystickToMouse ();
 			} else if (ps2x.Button (PSB_SELECT)) {
 				state = ST_SELECT_HELD;
 			} else {
 				// Handle normal joystick movements
+				handleJoystickCommon ();
 				handleJoystick ();
 			}
 			break;
@@ -1307,13 +1405,28 @@ void stateMachine () {
 			if (ps2x.Button (PSB_PAD_UP) || ps2x.Button (PSB_PAD_DOWN) ||
 				ps2x.Button (PSB_PAD_LEFT) || ps2x.Button (PSB_PAD_RIGHT)) {
 				// D-Pad pressed, go back to joystick mode
-				toJoystick ();
+				mouseToJoystick ();
+				state = ST_JOYSTICK;
 			} else {
 				handleMouse ();
 			}
 			break;
 		case ST_CD32:
-			handleCD32Pad ();
+			handleJoystickCommon ();
+			stateEnteredTime = 0;
+			break;
+		case ST_JOYSTICK_TEMP:
+			handleJoystickCommon ();
+			handleJoystick ();
+
+			if (stateEnteredTime == 0) {
+				// State was just entered
+				stateEnteredTime = millis ();
+			} else if (millis () - stateEnteredTime > TIMEOUT_CD32_MODE) {
+				// CD32 mode was exited once for all
+				stateEnteredTime = 0;
+				state = ST_JOYSTICK;
+			}
 			break;
 				
 		/**********************************************************************
@@ -1562,6 +1675,7 @@ void updateLeds () {
 			digitalWrite (PIN_LED_MODE, (millis () / 500) % 2 == 0);
 			break;
 		case ST_CD32:
+		case ST_JOYSTICK_TEMP:
 			// Led lit up steadily
 			digitalWrite (PIN_LED_MODE, HIGH);
 			break;
@@ -1593,9 +1707,9 @@ void loop () {
 	stateMachine ();
 	updateLeds ();
 
-	if (lastSwitchedTime > 0 && millis () - lastSwitchedTime > TIMEOUT_CD32_MODE) {
-		// Pad Mode pin has been high for a while, disable CD32 mode
-		toJoystick ();
-		lastSwitchedTime = 0;
-	}
+	//~ if (lastSwitchedTime > 0 && millis () - lastSwitchedTime > TIMEOUT_CD32_MODE) {
+		//~ // Pad Mode pin has been high for a while, disable CD32 mode
+		//~ toJoystick ();
+		//~ lastSwitchedTime = 0;
+	//~ }
 }
