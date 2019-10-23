@@ -496,10 +496,10 @@ void onPadModeChange () {
 		
 		// Output status of first button as soon as possible
 		fastPinMode (PIN_BTNREGOUT, OUTPUT);
-		if (*buttonsLive & 0x01) {
-			fastDigitalWrite (PIN_BTNREGOUT, HIGH);
-		} else {
+		if (!(*buttonsLive & 0x01)) {
 			fastDigitalWrite (PIN_BTNREGOUT, LOW);
+		} else {
+			fastDigitalWrite (PIN_BTNREGOUT, HIGH);
 		}
 				
 		/* Sample input values, they will be shifted out on subsequent clock
@@ -574,10 +574,10 @@ void onPadModeChange () {
 
 // ISR
 void onClockEdge () {
-	if (*isrButtons & 0x01) {
-		fastDigitalWrite (PIN_BTNREGOUT, HIGH);
-	} else {
+	if (!(*isrButtons & 0x01)) {
 		fastDigitalWrite (PIN_BTNREGOUT, LOW);
+	} else {
+		fastDigitalWrite (PIN_BTNREGOUT, HIGH);
 	}
 
 #ifdef SUPER_OPTIMIZE
