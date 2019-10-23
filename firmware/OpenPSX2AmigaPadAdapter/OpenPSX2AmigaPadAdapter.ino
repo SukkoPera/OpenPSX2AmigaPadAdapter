@@ -314,9 +314,6 @@ volatile byte *buttonsLive = &GPIOR0;
  */
 volatile byte *isrButtons = &GPIOR1;
 
-//~ //! Timestamp of last time the pad was switched out of CD32 mode
-//~ unsigned long lastSwitchedTime = 0;
-
 /** \brief Type that is used to report button presses
  *
  * This can be used with the PSB_* values from PS2X_lib, and cast from/to
@@ -775,7 +772,6 @@ void joystickToMouse () {
 	fastPinMode (PIN_RIGHT, OUTPUT);
 
 	// When in mouse mode, we can't switch to CD32 mode
-	// We're not going to care for clock pulses anymore
 	disableCD32Trigger ();
 	
 	state = ST_MOUSE;
@@ -785,8 +781,9 @@ void joystickToMouse () {
 inline void buttonPress (byte pin) {
 	/* Drive pins in open-collector style, so that we are compatible with the
 	 * C64 too
+	 *
+	 * Low is implicit when switching over from INPUT without pull-ups
 	 */
-	//~ pinMode (pin, OUTPUT);  // Low is implicit
 	switch (pin) {
 		case PIN_UP:
 			fastPinMode (PIN_UP, OUTPUT);
@@ -810,7 +807,7 @@ inline void buttonPress (byte pin) {
 }
 
 inline void buttonRelease (byte pin) {
-	//~ pinMode (pin, INPUT); // Hi-Z
+	// Switch to Hi-Z
 	switch (pin) {
 		case PIN_UP:
 			fastPinMode (PIN_UP, INPUT);
@@ -835,7 +832,7 @@ inline void buttonRelease (byte pin) {
 
 void mapAnalogStickHorizontal (TwoButtonJoystick& j) {
 	byte lx = ps2x.Analog (PSS_LX);   			// 0 ... 255
-	int8_t deltaLX = lx - ANALOG_IDLE_VALUE;		// --> -127 ... +128
+	int8_t deltaLX = lx - ANALOG_IDLE_VALUE;	// --> -127 ... +128
 	j.left = deltaLX < -ANALOG_DEAD_ZONE;
 	j.right = deltaLX > +ANALOG_DEAD_ZONE;
 
@@ -1741,10 +1738,4 @@ void updateLeds () {
 void loop () {
 	stateMachine ();
 	updateLeds ();
-
-	//~ if (lastSwitchedTime > 0 && millis () - lastSwitchedTime > TIMEOUT_CD32_MODE) {
-		//~ // Pad Mode pin has been high for a while, disable CD32 mode
-		//~ toJoystick ();
-		//~ lastSwitchedTime = 0;
-	//~ }
 }
