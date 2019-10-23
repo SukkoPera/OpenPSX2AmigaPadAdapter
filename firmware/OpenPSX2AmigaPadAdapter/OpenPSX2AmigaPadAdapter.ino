@@ -1187,7 +1187,7 @@ void handleMouse () {
 		if (x > 0) {
 			// Right
 			if (delta >= period) {
-				fastDigitalWrite (PIN_RIGHT, !fastDigitalRead (PIN_RIGHT));
+				fastDigitalToggle (PIN_RIGHT);
 				tx = millis ();
 			}
 			
@@ -1197,7 +1197,7 @@ void handleMouse () {
 		} else {
 			// Left
 			if (delta >= period) {
-				fastDigitalWrite (PIN_DOWN, !fastDigitalRead (PIN_DOWN));
+				fastDigitalToggle (PIN_DOWN);
 				tx = millis ();
 			}
 			
