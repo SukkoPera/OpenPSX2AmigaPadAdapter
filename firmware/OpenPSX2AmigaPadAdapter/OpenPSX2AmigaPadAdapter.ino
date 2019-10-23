@@ -1182,7 +1182,7 @@ void handleMouse () {
 		debug (F("x = "));
 		debug (x);
 
-		unsigned int period = map (x, ANALOG_DEAD_ZONE, 127, MOUSE_SLOW_DELTA, MOUSE_FAST_DELTA);
+		unsigned int period = map (abs (x), ANALOG_DEAD_ZONE, 127, MOUSE_SLOW_DELTA, MOUSE_FAST_DELTA);
 		debug (F(" --> period = "));
 		debugln (period);
 
@@ -1215,7 +1215,7 @@ void handleMouse () {
 		debug (F("y = "));
 		debug (y);
 
-		unsigned int period = map (y, ANALOG_DEAD_ZONE, 127, MOUSE_SLOW_DELTA, MOUSE_FAST_DELTA);
+		unsigned int period = map (abs (y), ANALOG_DEAD_ZONE, 127, MOUSE_SLOW_DELTA, MOUSE_FAST_DELTA);
 		debug (F(" --> period = "));
 		debugln (period);
 
@@ -1223,22 +1223,22 @@ void handleMouse () {
 		if (y > 0) {
 			// Up
 			if (delta >= period) {
-				fastDigitalWrite (PIN_UP, !fastDigitalRead (PIN_UP));
-				ty = millis ();
-			}
-			
-			if (delta >= period / 2) {
-				fastDigitalWrite (PIN_LEFT, !fastDigitalRead (PIN_UP));
-			}
-		} else {
-			// Down
-			if (delta >= period) {
 				fastDigitalWrite (PIN_LEFT, !fastDigitalRead (PIN_LEFT));
 				ty = millis ();
 			}
 			
 			if (delta >= period / 2) {
 				fastDigitalWrite (PIN_UP, !fastDigitalRead (PIN_LEFT));
+			}
+		} else {
+			// Down
+			if (delta >= period) {
+				fastDigitalWrite (PIN_UP, !fastDigitalRead (PIN_UP));
+				ty = millis ();
+			}
+			
+			if (delta >= period / 2) {
+				fastDigitalWrite (PIN_LEFT, !fastDigitalRead (PIN_UP));
 			}	
 		}
 	}
