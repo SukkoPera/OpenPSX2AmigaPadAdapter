@@ -435,7 +435,7 @@ byte psxButtonToIndex (Buttons psxButtons) {
 			break;
 		}
 
-		psxButtons >>= 1;
+		psxButtons >>= 1U;
 	}
 
 	return i;
@@ -538,7 +538,7 @@ void onPadModeChange () {
 		 * reason
 		 */
 		/* PIN_BTN1 (aka PIN_BTNREGCLK) was an INPUT and it must either remain
-		 * an input or a low output, so this should be enough
+		 * an input or become a low output, so this should be enough
 		 */
 		if (!(*buttonsLive & BTN_RED)) {
 			buttonPress (PIN_BTN1);
