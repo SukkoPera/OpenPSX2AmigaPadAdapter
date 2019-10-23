@@ -213,13 +213,13 @@ volatile State state = ST_NO_CONTROLLER;
 
 //! \name Button bits for CD32 mode
 //! @{
-const word BTN_BLUE =		1U << 0U;	//!< \a Blue Button
-const word BTN_RED =		1U << 1U;	//!< \a Red Button
-const word BTN_YELLOW =		1U << 2U;	//!< \a Yellow Button
-const word BTN_GREEN =		1U << 3U;	//!< \a Green Button
-const word BTN_FRONT_R =	1U << 4U;	//!< \a Front \a Right Button
-const word BTN_FRONT_L =	1U << 5U;	//!< \a Front \a Left Button
-const word BTN_START =		1U << 6U;	//!< \a Start/Pause Button
+const byte BTN_BLUE =		1U << 0U;	//!< \a Blue Button
+const byte BTN_RED =		1U << 1U;	//!< \a Red Button
+const byte BTN_YELLOW =		1U << 2U;	//!< \a Yellow Button
+const byte BTN_GREEN =		1U << 3U;	//!< \a Green Button
+const byte BTN_FRONT_R =	1U << 4U;	//!< \a Front \a Right Button
+const byte BTN_FRONT_L =	1U << 5U;	//!< \a Front \a Left Button
+const byte BTN_START =		1U << 6U;	//!< \a Start/Pause Button
 //! @}
 
 // This is only used for blinking the led when mapping is changed
@@ -562,10 +562,18 @@ void onClockEdge () {
 	} else {
 		fastDigitalWrite (PIN_BTNREGOUT, LOW);
 	}
-	
+
+#ifdef SUPER_OPTIMIZE
+	asm volatile (
+	   "lsr %0;"
+	   : "=r" (*isrButtons)
+	   : "0"
+	);
+#else
 	*isrButtons >>= 1U;	/* Again, non-existing button 10 will be reported as
 						 * pressed for the ID sequence
 						 */
+#endif
 }
 
 /** \brief Enable CD32 controller support
@@ -725,7 +733,7 @@ void mouseToJoystick () {
 	fastPinMode (PIN_DOWN, INPUT);
 	fastDigitalWrite (PIN_LEFT, LOW);
 	fastPinMode (PIN_LEFT, INPUT);
-	digitalWrite (PIN_RIGHT, LOW);
+	fastDigitalWrite (PIN_RIGHT, LOW);
 	fastPinMode (PIN_RIGHT, INPUT);
 	
 	/* These should already be setup correctly, but since we use this function
@@ -761,11 +769,51 @@ inline void buttonPress (byte pin) {
 	/* Drive pins in open-collector style, so that we are compatible with the
 	 * C64 too
 	 */
-	pinMode (pin, OUTPUT);  // Low is implicit
+	//~ pinMode (pin, OUTPUT);  // Low is implicit
+	switch (pin) {
+		case PIN_UP:
+			fastPinMode (PIN_UP, OUTPUT);
+			break;
+		case PIN_DOWN:
+			fastPinMode (PIN_DOWN, OUTPUT);
+			break;
+		case PIN_LEFT:
+			fastPinMode (PIN_LEFT, OUTPUT);
+			break;
+		case PIN_RIGHT:
+			fastPinMode (PIN_RIGHT, OUTPUT);
+			break;
+		case PIN_BTN1:
+			fastPinMode (PIN_BTN1, OUTPUT);
+			break;
+		case PIN_BTN2:
+			fastPinMode (PIN_BTN2, OUTPUT);
+			break;
+	}
 }
 
 inline void buttonRelease (byte pin) {
-	pinMode (pin, INPUT); // Hi-Z
+	//~ pinMode (pin, INPUT); // Hi-Z
+	switch (pin) {
+		case PIN_UP:
+			fastPinMode (PIN_UP, INPUT);
+			break;
+		case PIN_DOWN:
+			fastPinMode (PIN_DOWN, INPUT);
+			break;
+		case PIN_LEFT:
+			fastPinMode (PIN_LEFT, INPUT);
+			break;
+		case PIN_RIGHT:
+			fastPinMode (PIN_RIGHT, INPUT);
+			break;
+		case PIN_BTN1:
+			fastPinMode (PIN_BTN1, INPUT);
+			break;
+		case PIN_BTN2:
+			fastPinMode (PIN_BTN2, INPUT);
+			break;
+	}
 }
 
 void mapAnalogStickHorizontal (TwoButtonJoystick& j) {
@@ -938,9 +986,9 @@ void mergeButtons (TwoButtonJoystick& dest, const TwoButtonJoystick& src) {
 
 void flashLed (byte n) {
 	for (byte i = 0; i < n; ++i) {
-		digitalWrite (PIN_LED_MODE, HIGH);
+		fastDigitalWrite (PIN_LED_MODE, HIGH);
 		delay (40);
-		digitalWrite (PIN_LED_MODE, LOW);
+		fastDigitalWrite (PIN_LED_MODE, LOW);
 		delay (80);
 	}
 }
@@ -1117,28 +1165,31 @@ void handleMouse () {
 		debug (F("x = "));
 		debug (x);
 
-		// Assume Right
-		byte leadingPin = PIN_RIGHT;
-		byte trailingPin = PIN_DOWN;
-		if (x < 0) {
-			// No, it was Left
-			leadingPin = PIN_DOWN;
-			trailingPin = PIN_RIGHT;
-
-			x = -x;
-		}
-
 		unsigned int period = map (x, ANALOG_DEAD_ZONE, 127, MOUSE_SLOW_DELTA, MOUSE_FAST_DELTA);
 		debug (F(" --> period = "));
 		debugln (period);
-		
-		if (millis () - tx >= period) {
-			digitalWrite (leadingPin, !digitalRead (leadingPin));
-			tx = millis ();
-		}
-		
-		if (millis () - tx >= period / 2) {
-			digitalWrite (trailingPin, !digitalRead (leadingPin));
+
+		unsigned long delta = millis () - tx;
+		if (x > 0) {
+			// Right
+			if (delta >= period) {
+				fastDigitalWrite (PIN_RIGHT, !fastDigitalRead (PIN_RIGHT));
+				tx = millis ();
+			}
+			
+			if (delta >= period / 2) {
+				fastDigitalWrite (PIN_DOWN, !fastDigitalRead (PIN_RIGHT));
+			}
+		} else {
+			// Left
+			if (delta >= period) {
+				fastDigitalWrite (PIN_DOWN, !fastDigitalRead (PIN_DOWN));
+				tx = millis ();
+			}
+			
+			if (delta >= period / 2) {
+				fastDigitalWrite (PIN_RIGHT, !fastDigitalRead (PIN_DOWN));
+			}
 		}
 	}
 
@@ -1147,28 +1198,31 @@ void handleMouse () {
 		debug (F("y = "));
 		debug (y);
 
-		// Assume Down
-		byte leadingPin = PIN_LEFT;
-		byte trailingPin = PIN_UP;
-		if (y < 0) {
-			// No, it was Up
-			leadingPin = PIN_UP;
-			trailingPin = PIN_LEFT;
-
-			y = -y;
-		}
-
 		unsigned int period = map (y, ANALOG_DEAD_ZONE, 127, MOUSE_SLOW_DELTA, MOUSE_FAST_DELTA);
 		debug (F(" --> period = "));
 		debugln (period);
-		
-		if (millis () - ty >= period) {
-			digitalWrite (leadingPin, !digitalRead (leadingPin));
-			ty = millis ();
-		}
-		
-		if (millis () - ty >= period / 2) {
-			digitalWrite (trailingPin, !digitalRead (leadingPin));
+
+		unsigned long delta = millis () - ty;
+		if (y > 0) {
+			// Up
+			if (delta >= period) {
+				fastDigitalWrite (PIN_UP, !fastDigitalRead (PIN_UP));
+				ty = millis ();
+			}
+			
+			if (delta >= period / 2) {
+				fastDigitalWrite (PIN_LEFT, !fastDigitalRead (PIN_UP));
+			}
+		} else {
+			// Down
+			if (delta >= period) {
+				fastDigitalWrite (PIN_LEFT, !fastDigitalRead (PIN_LEFT));
+				ty = millis ();
+			}
+			
+			if (delta >= period / 2) {
+				fastDigitalWrite (PIN_UP, !fastDigitalRead (PIN_LEFT));
+			}	
 		}
 	}
 
@@ -1612,10 +1666,10 @@ void updateLeds () {
 	// Pad OK led
 	if (state == ST_NO_CONTROLLER) {
 		// Blink
-		digitalWrite (PIN_LED_PAD_OK, (millis () / 500) % 2 == 0);
+		fastDigitalWrite (PIN_LED_PAD_OK, (millis () / 500) % 2 == 0);
 	} else {
 		// Steadily lit
-		digitalWrite (PIN_LED_PAD_OK, HIGH);
+		fastDigitalWrite (PIN_LED_PAD_OK, HIGH);
 	}
 
 	// Mode led
@@ -1625,23 +1679,23 @@ void updateLeds () {
 #ifdef ENABLE_FACTORY_RESET
 		case ST_FACTORY_RESET_PERFORM:	// Led for this state is handled in SM
 #endif
-			digitalWrite (PIN_LED_MODE, LOW);
+			fastDigitalWrite (PIN_LED_MODE, LOW);
 			break;		
 		case ST_JOYSTICK:
 		case ST_SELECT_HELD:
 		case ST_SELECT_AND_BTN_HELD:
 		case ST_ENABLE_MAPPING:
 			// Led off
-			digitalWrite (PIN_LED_MODE, LOW);
+			fastDigitalWrite (PIN_LED_MODE, LOW);
 			break;
 		case ST_MOUSE:
 			// Blink slowly
-			digitalWrite (PIN_LED_MODE, (millis () / 500) % 2 == 0);
+			fastDigitalWrite (PIN_LED_MODE, (millis () / 500) % 2 == 0);
 			break;
 		case ST_CD32:
 		case ST_JOYSTICK_TEMP:
 			// Led lit up steadily
-			digitalWrite (PIN_LED_MODE, HIGH);
+			fastDigitalWrite (PIN_LED_MODE, HIGH);
 			break;
 		case ST_WAIT_SELECT_RELEASE:
 		case ST_WAIT_BUTTON_PRESS:
@@ -1650,19 +1704,19 @@ void updateLeds () {
 		case ST_WAIT_COMBO_RELEASE:
 		case ST_WAIT_SELECT_RELEASE_FOR_EXIT:
 			// Programming mode, blink fast
-			digitalWrite (PIN_LED_MODE, (millis () / 250) % 2 == 0);
+			fastDigitalWrite (PIN_LED_MODE, (millis () / 250) % 2 == 0);
 			break;
 #ifdef ENABLE_FACTORY_RESET
 		case ST_FACTORY_RESET_WAIT_1:
-			digitalWrite (PIN_LED_MODE, (millis () / 333) % 2 == 0);
+			fastDigitalWrite (PIN_LED_MODE, (millis () / 333) % 2 == 0);
 			break;
 		case ST_FACTORY_RESET_WAIT_2:
-			digitalWrite (PIN_LED_MODE, (millis () / 80) % 2 == 0);
+			fastDigitalWrite (PIN_LED_MODE, (millis () / 80) % 2 == 0);
 			break;
 #endif
 		default:
 			// WTF?! Blink fast... er!
-			digitalWrite (PIN_LED_MODE, (millis () / 100) % 2 == 0);
+			fastDigitalWrite (PIN_LED_MODE, (millis () / 100) % 2 == 0);
 			break;
 	}
 }
