@@ -38,6 +38,7 @@
 #include <util/crc16.h>
 #include <PS2X_lib.h>
 
+//~ #define SUPER_OPTIMIZE
 #define ENABLE_FAST_IO
 
 #ifdef ENABLE_FAST_IO
@@ -506,7 +507,15 @@ void onPadModeChange () {
 		 * by the shift. This will report non-existing buttons 8 as released and
 		 * 9 as pressed as required by the ID sequence.
 		 */
+#ifdef SUPER_OPTIMIZE
+		asm volatile (
+			"lsr %0\n\t"
+			: "=r" (*isrButtons)
+			: "r" (*buttonsLive)
+		);
+#else
 		*isrButtons = *buttonsLive >> 1U;
+#endif
 						 
 		// Enable INT1, i.e. interrupt on clock edges
 		fastPinMode (PIN_BTNREGCLK, INPUT);
@@ -565,9 +574,9 @@ void onClockEdge () {
 
 #ifdef SUPER_OPTIMIZE
 	asm volatile (
-	   "lsr %0;"
+		"lsr %0\n\t"
 	   : "=r" (*isrButtons)
-	   : "0"
+	   : "0" (*isrButtons)
 	);
 #else
 	*isrButtons >>= 1U;	/* Again, non-existing button 10 will be reported as
