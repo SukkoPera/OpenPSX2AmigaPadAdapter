@@ -527,9 +527,6 @@ void onPadModeChange () {
 	} else {
 		// Switch back to joystick mode
 		debugln (F("CD32 -> Joystick"));
-		
-		// Disable INT1
-		detachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK));
 
 		/* Set pin directions and set levels according to buttons, as waiting
 		 * for the main loop to do it takes too much time (= a few ms), for some
@@ -555,9 +552,12 @@ void onPadModeChange () {
 			buttonRelease (PIN_BTN2);
 		}
 		fastDigitalWrite (PIN_BTN2, LOW);	/* Disable pull-up, don't do it before
-										 * to avoid a spurious 0V state when
-										 * going from output high to input
-										 */
+											 * to avoid a spurious 0V state when
+											 * going from output high to input
+											 */
+		
+		// Disable INT1
+		detachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK));
 			
 		// Set state to ST_JOYSTICK_TEMP
 		state = ST_JOYSTICK_TEMP;
