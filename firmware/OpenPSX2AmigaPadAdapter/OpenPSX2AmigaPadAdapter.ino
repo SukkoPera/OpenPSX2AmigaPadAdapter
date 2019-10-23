@@ -212,6 +212,8 @@ enum __attribute__((packed)) State {
  */
 volatile State state = ST_NO_CONTROLLER;
 
+volatile unsigned long stateEnteredTime = 0;
+
 //! \name Button bits for CD32 mode
 //! @{
 const byte BTN_BLUE =		1U << 0U;	//!< \a Blue Button
@@ -522,8 +524,14 @@ void onPadModeChange () {
 		EIFR |= (1 << INTF1);			// Clear any pending interrupts
 		attachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK), onClockEdge, RISING);
 
-		// Set state to ST_CD32 
+		// Set state to ST_CD32
 		state = ST_CD32;
+
+		/* We also need to clear this, as ST_CD32 only lasts so little that the
+		 * main state machine loop never has the occasion to run. This is the
+		 * only reason why stateEnteredTime is global, sigh :(.
+		 */
+		stateEnteredTime = 0;
 	} else {
 		// Switch back to joystick mode
 		debugln (F("CD32 -> Joystick"));
@@ -1368,7 +1376,6 @@ void stateMachine () {
 	static Buttons selectComboButton = NO_BUTTON;
 	static Buttons programmedButton = NO_BUTTON;
 	Buttons buttons = NO_BUTTON;
-	static unsigned long stateEnteredTime = 0;
 
 	/* This is done first since ALL states except NO_CONTROLLER need to poll the
 	 * controller first and switch to NO_CONTROLLER if polling failed
@@ -1439,6 +1446,7 @@ void stateMachine () {
 			}
 			break;
 		case ST_CD32:
+			// This state is never entered, the interrupt is too fast
 			handleJoystickCommon ();
 			stateEnteredTime = 0;
 			break;
