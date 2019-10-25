@@ -1,0 +1,3 @@
+[submodule "firmware/LogicAnalyzer/AnalyzerSDK"]
+	path = firmware/LogicAnalyzer/AnalyzerSDK
+	url = https://github.com/saleae/AnalyzerSDK.git
