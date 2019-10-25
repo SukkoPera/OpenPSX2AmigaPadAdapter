@@ -38,7 +38,7 @@
 #include <util/crc16.h>
 #include <PS2X_lib.h>
 
-//~ #define SUPER_OPTIMIZE
+#define SUPER_OPTIMIZE
 #define ENABLE_FAST_IO
 
 #ifdef ENABLE_FAST_IO
@@ -485,11 +485,27 @@ void dumpButtons (Buttons psxButtons) {
 #endif
 }
 
+inline void suspendClockInterrupt () {
+	EIMSK &= ~(1 << INT1);
+}
+
+inline void restoreClockInterrupt () {
+	EIFR |= (1 << INTF1);		// Clear any pending interrupts
+	EIMSK |= (1 << INT1);
+}
+
 // ISR
+#ifndef SUPER_OPTIMIZE
 void onPadModeChange () {
+#else
+ISR (INT0_vect) {
+#endif
 	if (fastDigitalRead (PIN_PADMODE) == LOW) {
 		// Switch to CD32 mode
 		debugln (F("Joystick -> CD32"));
+
+		// Immediately disable output on clock pin
+		fastPinMode (PIN_BTNREGCLK, INPUT);
 		
 		// Output status of first button as soon as possible
 		fastPinMode (PIN_BTNREGOUT, OUTPUT);
@@ -506,20 +522,18 @@ void onPadModeChange () {
 		 * by the shift. This will report non-existing buttons 8 as released and
 		 * 9 as pressed as required by the ID sequence.
 		 */
-#ifdef SUPER_OPTIMIZE
+#ifndef SUPER_OPTIMIZE
+		*isrButtons = *buttonsLive >> 1U;
+#else
 		asm volatile (
 			"lsr %0\n\t"
 			: "=r" (*isrButtons)
 			: "r" (*buttonsLive)
 		);
-#else
-		*isrButtons = *buttonsLive >> 1U;
 #endif
 						 
 		// Enable INT1, i.e. interrupt on clock edges
-		fastPinMode (PIN_BTNREGCLK, INPUT);
-		EIFR |= (1 << INTF1);			// Clear any pending interrupts
-		attachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK), onClockEdge, RISING);
+		restoreClockInterrupt ();
 
 		// Set state to ST_CD32
 		state = ST_CD32;
@@ -562,7 +576,7 @@ void onPadModeChange () {
 											 */
 		
 		// Disable INT1
-		detachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK));
+		suspendClockInterrupt ();
 			
 		// Set state to ST_JOYSTICK_TEMP
 		state = ST_JOYSTICK_TEMP;
@@ -570,23 +584,27 @@ void onPadModeChange () {
 }
 
 // ISR
+#ifndef SUPER_OPTIMIZE
 void onClockEdge () {
+#else
+ISR (INT1_vect) {
+#endif
 	if (!(*isrButtons & 0x01)) {
 		fastDigitalWrite (PIN_BTNREGOUT, LOW);
 	} else {
 		fastDigitalWrite (PIN_BTNREGOUT, HIGH);
 	}
 
-#ifdef SUPER_OPTIMIZE
+#ifndef SUPER_OPTIMIZE
+	*isrButtons >>= 1U;	/* Again, non-existing button 10 will be reported as
+						 * pressed for the ID sequence
+						 */
+#else
 	asm volatile (
 		"lsr %0\n\t"
 	   : "=r" (*isrButtons)
 	   : "0" (*isrButtons)
 	);
-#else
-	*isrButtons >>= 1U;	/* Again, non-existing button 10 will be reported as
-						 * pressed for the ID sequence
-						 */
 #endif
 }
 
@@ -603,9 +621,19 @@ inline void enableCD32Trigger () {
 	 */
 	EIFR |= (1 << INTF0);
 
-	// Enable interrupt 0 (i.e.: on pin 2)
+#ifndef SUPER_OPTIMIZE
+	// Enable interrupt 0 (i.e.: on pin 2)...
 	attachInterrupt (digitalPinToInterrupt (PIN_PADMODE), onPadModeChange, CHANGE);
-	
+
+	// ... and interrupt 1 (pin 3)
+	attachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK), onClockEdge, RISING);
+
+	// ... but keep the latter on hold
+	suspendClockInterrupt ();	
+#else
+	EIMSK |= (1 << INT0);
+#endif
+
 	interrupts ();
 }
 
@@ -618,8 +646,12 @@ inline void disableCD32Trigger () {
 	noInterrupts ();
 	
 	// Disable both interrupts, as this might happen halfway during a shift
+#ifndef SUPER_OPTIMIZE
 	detachInterrupt (digitalPinToInterrupt (PIN_PADMODE));
 	detachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK));
+#else
+	EIMSK &= ~(1 << INT1) | ~(1 << INT0);
+#endif
 
 	interrupts ();
 }
@@ -712,21 +744,22 @@ void setup () {
 	 */
 	fastPinMode (PIN_PADMODE, INPUT_PULLUP);
 
-	/* Prepare interrupts: we can't use attachInterrupt() here, since our ISRs
-	 * are going to be "bare"
-	 * 
-	 * INT0 is triggered by pin 2, i.e. PIN_PADMODE, so it must be triggered on
-	 * CHANGE.
+#ifdef SUPER_OPTIMIZE
+	/* Prepare interrupts: INT0 is triggered by pin 2, i.e. PIN_PADMODE, so it
+	 * must be triggered on CHANGE.
 	 */
-	//~ EICRA |= (1 << ISC00);
-	//~ EICRA &= ~(1 << ISC01);		// Probably redundant
+	EICRA |= (1 << ISC00);
+	EICRA &= ~(1 << ISC01);		// Probably redundant
 
 	/* INT1 is triggered by pin 3, i.e. PIN_BTNREGCLK/PIN_BTN1, and we want that
 	 * triggered by RISING edges. Actually we should care about falling edges,
 	 * but since it will take us some time to react to the interrupt, we start
 	 * in advance ;).
 	 */
-	//~ EICRA |= (1 << ISC11) | (1 << ISC10);
+	EICRA |= (1 << ISC11) | (1 << ISC10);
+
+	// Interrupts are not activated here, preparation is enough :)
+#endif
 	
 	// Start polling for controller
 	state = ST_NO_CONTROLLER;
@@ -1220,7 +1253,7 @@ void handleMouse () {
 		if (y > 0) {
 			// Up
 			if (delta >= period) {
-				fastDigitalWrite (PIN_LEFT, !fastDigitalRead (PIN_LEFT));
+				fastDigitalToggle (PIN_LEFT);
 				ty = millis ();
 			}
 			
@@ -1230,7 +1263,7 @@ void handleMouse () {
 		} else {
 			// Down
 			if (delta >= period) {
-				fastDigitalWrite (PIN_UP, !fastDigitalRead (PIN_UP));
+				fastDigitalToggle (PIN_UP);
 				ty = millis ();
 			}
 			
