@@ -1203,44 +1203,34 @@ void handleJoystickDirections (TwoButtonJoystick& j) {
 }
 
 void handleJoystickButtons (const TwoButtonJoystick& j) {
-	//~ static unsigned long lastCall = 0;
-
-	/* If we do that too often we will be running with interrupts disabled too
-	 * often and we will be missing edges on the PadMode pin, so just do this as
-	 * often as the controller is polled.
-	 *
-	 * Yes, I use the "often" work too often.
+	/* If the interrupt that switches us to CD32 mode is
+	 * triggered while we are here we might end up setting pin states after
+	 * we should have relinquished control of the pins, so let's avoid this
+	 * disabling interrupts, we will handle them in a few microseconds.
 	 */
-	//~ if (millis () - lastCall > 1000 / PAD_POLLING_FREQ) {		
-		/* If the interrupt that switches us to CD32 mode is
-		 * triggered while we are here we might end up setting pin states after
-		 * we should have relinquished control of the pins, so let's avoid this
-		 * disabling interrupts, we will handle them in a few microseconds.
-		 */
-		noInterrupts ();
+	noInterrupts ();
 
-		/* Ok, this breaks the state machine abstraction a bit, but we *have* to do
-		 * this check now, as the interrupt that makes us switch to ST_CD32 might
-		 * have occurred after this function was called but before we disabled
-		 * interrupts, and we absolutely have to avoid modifying pin
-		 * directions/states if the ISR has already been called.
-		 */
-		if (state == ST_JOYSTICK || state == ST_JOYSTICK_TEMP) {
-			if (j.b1) {
-				buttonPress (PIN_BTN1);
-			} else {
-				buttonRelease (PIN_BTN1);
-			}
-
-			if (j.b2) {
-				buttonPress (PIN_BTN2);
-			} else {
-				buttonRelease (PIN_BTN2);
-			}
+	/* Ok, this breaks the state machine abstraction a bit, but we *have* to do
+	 * this check now, as the interrupt that makes us switch to ST_CD32 might
+	 * have occurred after this function was called but before we disabled
+	 * interrupts, and we absolutely have to avoid modifying pin
+	 * directions/states if the ISR has already been called.
+	 */
+	if (state == ST_JOYSTICK || state == ST_JOYSTICK_TEMP) {
+		if (j.b1) {
+			buttonPress (PIN_BTN1);
+		} else {
+			buttonRelease (PIN_BTN1);
 		}
-		
-		interrupts ();
-	//~ }
+
+		if (j.b2) {
+			buttonPress (PIN_BTN2);
+		} else {
+			buttonRelease (PIN_BTN2);
+		}
+	}
+	
+	interrupts ();
 }
 
 void handleMouse () {
