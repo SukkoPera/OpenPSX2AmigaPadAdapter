@@ -226,8 +226,6 @@ enum __attribute__((packed)) State {
  */
 volatile State state = ST_NO_CONTROLLER;
 
-volatile unsigned long stateEnteredTime = 0;
-
 //! \name Button bits for CD32 mode
 //! @{
 const byte BTN_BLUE =		1U << 0U;	//!< \a Blue Button
@@ -555,12 +553,6 @@ ISR (INT0_vect) {
 		// Set state to ST_CD32
 		state = ST_CD32;
 
-		/* We also need to clear this, as ST_CD32 only lasts so little that the
-		 * main state machine loop never has the occasion to run. This is the
-		 * only reason why stateEnteredTime is global, sigh :(.
-		 */
-		stateEnteredTime = 0;
-
 		// TODO: Evaluate if joystick mapping should be reset to default
 
 #ifdef ENABLE_INSTRUMENTATION
@@ -603,10 +595,10 @@ ISR (INT0_vect) {
 			
 		// Set state to ST_JOYSTICK_TEMP
 		state = ST_JOYSTICK_TEMP;
+		
 #ifdef ENABLE_INSTRUMENTATION
 		fastDigitalToggle (PIN_CD32MODE);
 #endif
-
 	}
 
 #ifdef ENABLE_INSTRUMENTATION
@@ -682,17 +674,15 @@ inline void enableCD32Trigger () {
  * been called.
  */
 inline void disableCD32Trigger () {
-	noInterrupts ();
-	
 	// Disable both interrupts, as this might happen halfway during a shift
 #ifndef SUPER_OPTIMIZE
+	noInterrupts ();
 	detachInterrupt (digitalPinToInterrupt (PIN_PADMODE));
 	detachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK));
+	interrupts ();
 #else
 	EIMSK &= ~(1 << INT1) | ~(1 << INT0);
 #endif
-
-	interrupts ();
 }
 
 /** \brief Clear controller configurations
@@ -851,8 +841,6 @@ void joystickToMouse () {
 
 	// When in mouse mode, we can't switch to CD32 mode
 	disableCD32Trigger ();
-	
-	state = ST_MOUSE;
 }
 
 
@@ -1141,11 +1129,8 @@ boolean rightAnalogMoved (int8_t& x, int8_t& y) {
 	return ret;
 }
 
-void handleJoystickDirections () {
+void handleJoystickDirections (TwoButtonJoystick& j) {
 	// Call button mapping function
-	TwoButtonJoystick j = {false, false, false, false, false, false};
-	//~ if (!joyMappingFunc)
-		//~ joyMappingFunc = mapJoystickNormal;			
 	joyMappingFunc (j);
 
 #ifdef ENABLE_SERIAL_DEBUG
@@ -1217,7 +1202,7 @@ void handleJoystickDirections () {
 	*buttonsLive = buttonsTmp;
 }
 
-void handleJoystickButtons () {
+void handleJoystickButtons (const TwoButtonJoystick& j) {
 	//~ static unsigned long lastCall = 0;
 
 	/* If we do that too often we will be running with interrupts disabled too
@@ -1226,13 +1211,7 @@ void handleJoystickButtons () {
 	 *
 	 * Yes, I use the "often" work too often.
 	 */
-	//~ if (millis () - lastCall > 1000 / PAD_POLLING_FREQ) {
-		// Call button mapping function
-		TwoButtonJoystick j = {false, false, false, false, false, false};
-		//~ if (!joyMappingFunc)
-			//~ joyMappingFunc = mapJoystickNormal;			
-		joyMappingFunc (j);
-		
+	//~ if (millis () - lastCall > 1000 / PAD_POLLING_FREQ) {		
 		/* If the interrupt that switches us to CD32 mode is
 		 * triggered while we are here we might end up setting pin states after
 		 * we should have relinquished control of the pins, so let's avoid this
@@ -1334,9 +1313,9 @@ void handleMouse () {
 		}
 	}
 
-	// Buttons
-	noInterrupts ();
-	
+	/* Buttons - This won't happen while in CD32 mode, so there's no need to
+	 * disable interrupts
+	 */
 	if (ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2) || ps2x.Button (PSB_L3)) {
 		buttonPress (PIN_BTN1);
 	} else {
@@ -1348,8 +1327,6 @@ void handleMouse () {
 	} else {
 		buttonRelease (PIN_BTN2);
 	}
-
-	interrupts ();
 }
 
 /** \brief Debounce button/combo presses
@@ -1464,10 +1441,12 @@ boolean isButtonProgrammable (Buttons b) {
 }
 
 void stateMachine () {
+	static unsigned long stateEnteredTime = 0;
 	static unsigned long lastPoll = 0;
 	static Buttons selectComboButton = NO_BUTTON;
 	static Buttons programmedButton = NO_BUTTON;
 	Buttons buttons = NO_BUTTON;
+	TwoButtonJoystick j = {false, false, false, false, false, false};
 
 	/* This is done first since ALL states except NO_CONTROLLER need to poll the
 	 * controller first and switch to NO_CONTROLLER if polling failed
@@ -1523,12 +1502,13 @@ void stateMachine () {
 			if (rightAnalogMoved (x, y)) {
 				// Right analog stick moved, switch to Mouse mode
 				joystickToMouse ();
+				state = ST_MOUSE;
 			} else if (ps2x.Button (PSB_SELECT)) {
 				state = ST_SELECT_HELD;
 			} else {
 				// Handle normal joystick movements
-				handleJoystickDirections ();
-				handleJoystickButtons ();
+				handleJoystickDirections (j);
+				handleJoystickButtons (j);
 			}
 			break;
 		} case ST_MOUSE:
@@ -1542,28 +1522,19 @@ void stateMachine () {
 			}
 			break;
 		case ST_CD32:
-			handleJoystickDirections ();
+			handleJoystickDirections (j);
 			stateEnteredTime = 0;
 			break;
 		case ST_JOYSTICK_TEMP: {
-			handleJoystickDirections ();
-			handleJoystickButtons ();
+			handleJoystickDirections (j);
+			handleJoystickButtons (j);
 
-			/* stateEnteredTime is a multi-byte value, so we must make a copy of
-			 * it so that we can use it without running too long with interrupts
-			 * disabled
-			 */
-			noInterrupts ();
-			unsigned long t = stateEnteredTime;
-			interrupts ();
-			if (t == 0) {
+			if (stateEnteredTime == 0) {
 				// State was just entered
-				noInterrupts ();	// Make sure we assign the right value
 				stateEnteredTime = millis ();
-				interrupts ();
-			} else if (millis () - t > TIMEOUT_CD32_MODE) {
+			} else if (millis () - stateEnteredTime > TIMEOUT_CD32_MODE) {
 				// CD32 mode was exited once for all
-				stateEnteredTime = 0;	// No need to disable interrupts here
+				stateEnteredTime = 0;
 				state = ST_JOYSTICK;
 			}
 			break;
