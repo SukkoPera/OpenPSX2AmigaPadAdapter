@@ -108,21 +108,26 @@ const byte ANALOG_IDLE_VALUE = 128;
  * 
  * \sa ANALOG_IDLE_VALUE
  */
-const uint8_t ANALOG_DEAD_ZONE = 65;
+const uint8_t ANALOG_DEAD_ZONE = 50;
+
+/** \brief Controller polling frequency
+ *
+ * Polling the PS2 controller takes a considerable amount of time, so we cannot
+ * do that all the time. Considering that an Amiga game cannot read inputs more
+ * than once every frame, 60 seems a reasonable value here, taking care of both
+ * PAL and NTSC machines.
+ */
+const byte PAD_POLLING_FREQ = 60U;
 
 /** \brief Delay of the quadrature square waves when mouse is moving at the
  * \a slowest speed
  */
-const byte MOUSE_SLOW_DELTA	= 60;
+const byte MOUSE_SLOW_DELTA	= 250;
 
 /** \brief Delay of the quadrature square waves when mouse is moving at the
  * \a fastest speed.
- * 
- * Note that a 16 MHz Arduino Uno produces irregular signals if this is too
- * small and mouse movements will be affected. The smallest value producing
- * decently-shaped waves seems to be 6.
  */
-const byte MOUSE_FAST_DELTA = 6;
+const byte MOUSE_FAST_DELTA = 10;
 
 /** \brief LED2 pin
  * 
@@ -141,7 +146,7 @@ const byte PIN_LED_MODE = A0;
  * Normal joystick mode will be entered if PIN_PADMODE is not toggled for this
  * amount of milliseconds.
  */
-const byte TIMEOUT_CD32_MODE = 200;
+const byte TIMEOUT_CD32_MODE = 100;
 
 /** \brief Single-button debounce time
  * 
@@ -171,6 +176,9 @@ const unsigned long DEBOUNCE_TIME_COMBO = 150;
 
 // Print the controller status on serial. Useful for debugging.
 //~ #define DEBUG_PAD
+
+// Print the duration of every loop() iteration
+//~ #define ENABLE_DEBUG_LOOP_DURATION
 
 
 /*******************************************************************************
@@ -546,16 +554,18 @@ ISR (INT0_vect) {
 
 		// Set state to ST_CD32
 		state = ST_CD32;
-#ifdef ENABLE_INSTRUMENTATION
-		fastDigitalToggle (PIN_CD32MODE);
-#endif
-
 
 		/* We also need to clear this, as ST_CD32 only lasts so little that the
 		 * main state machine loop never has the occasion to run. This is the
 		 * only reason why stateEnteredTime is global, sigh :(.
 		 */
 		stateEnteredTime = 0;
+
+		// TODO: Evaluate if joystick mapping should be reset to default
+
+#ifdef ENABLE_INSTRUMENTATION
+		fastDigitalToggle (PIN_CD32MODE);
+#endif
 	} else {
 		// Switch back to joystick mode
 		debugln (F("CD32 -> Joystick"));
@@ -1208,40 +1218,50 @@ void handleJoystickDirections () {
 }
 
 void handleJoystickButtons () {
-	// Call button mapping function
-	TwoButtonJoystick j = {false, false, false, false, false, false};
-	//~ if (!joyMappingFunc)
-		//~ joyMappingFunc = mapJoystickNormal;			
-	joyMappingFunc (j);
-	
-	/* If the interrupt that switches us to CD32 mode is
-	 * triggered while we are here we might end up setting pin states after
-	 * we should have relinquished control of the pins, so let's avoid this
-	 * disabling interrupts, we will handle them in a few microseconds.
-	 */
-	noInterrupts ();
+	//~ static unsigned long lastCall = 0;
 
-	/* Ok, this breaks the state machine abstraction a bit, but we *have* to do
-	 * this check now, as the interrupt that makes us switch to ST_CD32 might
-	 * have occurred after this function was called but before we disabled
-	 * interrupts, and we absolutely have to avoid modifying pin
-	 * directions/states if the ISR has already been called.
+	/* If we do that too often we will be running with interrupts disabled too
+	 * often and we will be missing edges on the PadMode pin, so just do this as
+	 * often as the controller is polled.
+	 *
+	 * Yes, I use the "often" work too often.
 	 */
-	if (state == ST_JOYSTICK || state == ST_JOYSTICK_TEMP) {
-		if (j.b1) {
-			buttonPress (PIN_BTN1);
-		} else {
-			buttonRelease (PIN_BTN1);
-		}
+	//~ if (millis () - lastCall > 1000 / PAD_POLLING_FREQ) {
+		// Call button mapping function
+		TwoButtonJoystick j = {false, false, false, false, false, false};
+		//~ if (!joyMappingFunc)
+			//~ joyMappingFunc = mapJoystickNormal;			
+		joyMappingFunc (j);
+		
+		/* If the interrupt that switches us to CD32 mode is
+		 * triggered while we are here we might end up setting pin states after
+		 * we should have relinquished control of the pins, so let's avoid this
+		 * disabling interrupts, we will handle them in a few microseconds.
+		 */
+		noInterrupts ();
 
-		if (j.b2) {
-			buttonPress (PIN_BTN2);
-		} else {
-			buttonRelease (PIN_BTN2);
+		/* Ok, this breaks the state machine abstraction a bit, but we *have* to do
+		 * this check now, as the interrupt that makes us switch to ST_CD32 might
+		 * have occurred after this function was called but before we disabled
+		 * interrupts, and we absolutely have to avoid modifying pin
+		 * directions/states if the ISR has already been called.
+		 */
+		if (state == ST_JOYSTICK || state == ST_JOYSTICK_TEMP) {
+			if (j.b1) {
+				buttonPress (PIN_BTN1);
+			} else {
+				buttonRelease (PIN_BTN1);
+			}
+
+			if (j.b2) {
+				buttonPress (PIN_BTN2);
+			} else {
+				buttonRelease (PIN_BTN2);
+			}
 		}
-	}
-	
-	interrupts ();
+		
+		interrupts ();
+	//~ }
 }
 
 void handleMouse () {
@@ -1259,25 +1279,24 @@ void handleMouse () {
 		debug (F(" --> period = "));
 		debugln (period);
 
-		unsigned long delta = millis () - tx;
 		if (x > 0) {
 			// Right
-			if (delta >= period) {
+			if (millis () - tx >= period) {
 				fastDigitalToggle (PIN_RIGHT);
 				tx = millis ();
 			}
 			
-			if (delta >= period / 2) {
+			if (millis () - tx >= period / 2) {
 				fastDigitalWrite (PIN_DOWN, !fastDigitalRead (PIN_RIGHT));
 			}
 		} else {
 			// Left
-			if (delta >= period) {
+			if (millis () - tx >= period) {
 				fastDigitalToggle (PIN_DOWN);
 				tx = millis ();
 			}
 			
-			if (delta >= period / 2) {
+			if (millis () - tx >= period / 2) {
 				fastDigitalWrite (PIN_RIGHT, !fastDigitalRead (PIN_DOWN));
 			}
 		}
@@ -1292,25 +1311,24 @@ void handleMouse () {
 		debug (F(" --> period = "));
 		debugln (period);
 
-		unsigned long delta = millis () - ty;
 		if (y > 0) {
 			// Up
-			if (delta >= period) {
+			if (millis () - ty >= period) {
 				fastDigitalToggle (PIN_LEFT);
 				ty = millis ();
 			}
 			
-			if (delta >= period / 2) {
+			if (millis () - ty >= period / 2) {
 				fastDigitalWrite (PIN_UP, !fastDigitalRead (PIN_LEFT));
 			}
 		} else {
 			// Down
-			if (delta >= period) {
+			if (millis () - ty >= period) {
 				fastDigitalToggle (PIN_UP);
 				ty = millis ();
 			}
 			
-			if (delta >= period / 2) {
+			if (millis () - ty >= period / 2) {
 				fastDigitalWrite (PIN_LEFT, !fastDigitalRead (PIN_UP));
 			}	
 		}
@@ -1446,6 +1464,7 @@ boolean isButtonProgrammable (Buttons b) {
 }
 
 void stateMachine () {
+	static unsigned long lastPoll = 0;
 	static Buttons selectComboButton = NO_BUTTON;
 	static Buttons programmedButton = NO_BUTTON;
 	Buttons buttons = NO_BUTTON;
@@ -1455,13 +1474,17 @@ void stateMachine () {
 	 */
 	if (state != ST_NO_CONTROLLER) {
 		// We have a controller and we can poll it
-		if (ps2x.read_gamepad ()) {
-			dumpButtons (ps2x.ButtonDataByte ());
-		} else {
-			// Polling failed
-			debugln (F("Controller lost"));
-			state = ST_NO_CONTROLLER;
-			*buttonsLive = 0x7F;		// No ID sequence, all buttons released
+		if (millis () - lastPoll > 1000U / PAD_POLLING_FREQ) {
+			if (ps2x.read_gamepad ()) {
+				dumpButtons (ps2x.ButtonDataByte ());
+			} else {
+				// Polling failed
+				debugln (F("Controller lost"));
+				state = ST_NO_CONTROLLER;
+				*buttonsLive = 0x7F;		// No ID sequence, all buttons released
+			}
+
+			lastPoll = millis ();
 		}
 	}
 
@@ -1519,25 +1542,32 @@ void stateMachine () {
 			}
 			break;
 		case ST_CD32:
-			/* This state is (almost?) never entered, interrupts are happening
-			 * too fast
-			 */
 			handleJoystickDirections ();
 			stateEnteredTime = 0;
 			break;
-		case ST_JOYSTICK_TEMP:
+		case ST_JOYSTICK_TEMP: {
 			handleJoystickDirections ();
 			handleJoystickButtons ();
 
-			if (stateEnteredTime == 0) {
+			/* stateEnteredTime is a multi-byte value, so we must make a copy of
+			 * it so that we can use it without running too long with interrupts
+			 * disabled
+			 */
+			noInterrupts ();
+			unsigned long t = stateEnteredTime;
+			interrupts ();
+			if (t == 0) {
 				// State was just entered
+				noInterrupts ();	// Make sure we assign the right value
 				stateEnteredTime = millis ();
-			} else if (millis () - stateEnteredTime > TIMEOUT_CD32_MODE) {
+				interrupts ();
+			} else if (millis () - t > TIMEOUT_CD32_MODE) {
 				// CD32 mode was exited once for all
-				stateEnteredTime = 0;
+				stateEnteredTime = 0;	// No need to disable interrupts here
 				state = ST_JOYSTICK;
 			}
 			break;
+		}
 				
 		/**********************************************************************
 		 * SELECT MAPPING/SWITCH TO PROGRAMMING MODE
@@ -1816,4 +1846,13 @@ void updateLeds () {
 void loop () {
 	stateMachine ();
 	updateLeds ();
+
+#ifdef ENABLE_DEBUG_LOOP_DURATION
+	static unsigned long lastMillis = 0;
+	
+	unsigned long elapsed = millis () - lastMillis;
+	debug (F("Elapsed ms = "));
+	debugln (elapsed);
+	lastMillis = millis ();
+#endif
 }
