@@ -1096,7 +1096,7 @@ boolean rightAnalogMoved (int8_t& x, int8_t& y) {
 	return ret;
 }
 
-void handleJoystickCommon () {
+void handleJoystickDirections () {
 	// Call button mapping function
 	TwoButtonJoystick j = {false, false, false, false, false, false};
 	//~ if (!joyMappingFunc)
@@ -1172,7 +1172,7 @@ void handleJoystickCommon () {
 	*buttonsLive = buttonsTmp;
 }
 
-void handleJoystick () {
+void handleJoystickButtons () {
 	// Call button mapping function
 	TwoButtonJoystick j = {false, false, false, false, false, false};
 	//~ if (!joyMappingFunc)
@@ -1186,18 +1186,26 @@ void handleJoystick () {
 	 */
 	noInterrupts ();
 
-	if (j.b1) {
-		buttonPress (PIN_BTN1);
-	} else {
-		buttonRelease (PIN_BTN1);
-	}
+	/* Ok, this breaks the state machine abstraction a bit, but we *have* to do
+	 * this check now, as the interrupt that makes us switch to ST_CD32 might
+	 * have occurred after this function was called but before we disabled
+	 * interrupts, and we absolutely have to avoid modifying pin
+	 * directions/states if the ISR has already been called.
+	 */
+	if (state == ST_JOYSTICK || state == ST_JOYSTICK_TEMP) {
+		if (j.b1) {
+			buttonPress (PIN_BTN1);
+		} else {
+			buttonRelease (PIN_BTN1);
+		}
 
-	if (j.b2) {
-		buttonPress (PIN_BTN2);
-	} else {
-		buttonRelease (PIN_BTN2);
+		if (j.b2) {
+			buttonPress (PIN_BTN2);
+		} else {
+			buttonRelease (PIN_BTN2);
+		}
 	}
-
+	
 	interrupts ();
 }
 
@@ -1461,8 +1469,8 @@ void stateMachine () {
 				state = ST_SELECT_HELD;
 			} else {
 				// Handle normal joystick movements
-				handleJoystickCommon ();
-				handleJoystick ();
+				handleJoystickDirections ();
+				handleJoystickButtons ();
 			}
 			break;
 		} case ST_MOUSE:
@@ -1476,13 +1484,15 @@ void stateMachine () {
 			}
 			break;
 		case ST_CD32:
-			// This state is never entered, the interrupt is too fast
-			handleJoystickCommon ();
+			/* This state is (almost?) never entered, interrupts are happening
+			 * too fast
+			 */
+			handleJoystickDirections ();
 			stateEnteredTime = 0;
 			break;
 		case ST_JOYSTICK_TEMP:
-			handleJoystickCommon ();
-			handleJoystick ();
+			handleJoystickDirections ();
+			handleJoystickButtons ();
 
 			if (stateEnteredTime == 0) {
 				// State was just entered
