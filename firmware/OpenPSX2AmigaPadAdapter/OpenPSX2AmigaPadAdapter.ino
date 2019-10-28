@@ -224,7 +224,7 @@ enum __attribute__((packed)) State {
  * 
  * We start out as a simple joystick.
  */
-volatile State state = ST_NO_CONTROLLER;
+volatile State *state = reinterpret_cast<volatile State *> (&GPIOR2);
 
 //! \name Button bits for CD32 mode
 //! @{
@@ -551,7 +551,7 @@ ISR (INT0_vect) {
 		restoreClockInterrupt ();
 
 		// Set state to ST_CD32
-		state = ST_CD32;
+		*state = ST_CD32;
 
 		// TODO: Evaluate if joystick mapping should be reset to default
 
@@ -594,7 +594,7 @@ ISR (INT0_vect) {
 		suspendClockInterrupt ();
 			
 		// Set state to ST_JOYSTICK_TEMP
-		state = ST_JOYSTICK_TEMP;
+		*state = ST_JOYSTICK_TEMP;
 		
 #ifdef ENABLE_INSTRUMENTATION
 		fastDigitalToggle (PIN_CD32MODE);
@@ -797,7 +797,7 @@ void setup () {
 #endif
 	
 	// Start polling for controller
-	state = ST_NO_CONTROLLER;
+	*state = ST_NO_CONTROLLER;
 	
 	// Give wireless PS2 module some time to startup, before configuring it
 	delay (300);
@@ -1216,7 +1216,7 @@ void handleJoystickButtons (const TwoButtonJoystick& j) {
 	 * interrupts, and we absolutely have to avoid modifying pin
 	 * directions/states if the ISR has already been called.
 	 */
-	if (state == ST_JOYSTICK || state == ST_JOYSTICK_TEMP) {
+	if (*state == ST_JOYSTICK || *state == ST_JOYSTICK_TEMP) {
 		if (j.b1) {
 			buttonPress (PIN_BTN1);
 		} else {
@@ -1441,7 +1441,7 @@ void stateMachine () {
 	/* This is done first since ALL states except NO_CONTROLLER need to poll the
 	 * controller first and switch to NO_CONTROLLER if polling failed
 	 */
-	if (state != ST_NO_CONTROLLER) {
+	if (*state != ST_NO_CONTROLLER) {
 		// We have a controller and we can poll it
 		if (millis () - lastPoll > 1000U / PAD_POLLING_FREQ) {
 			if (ps2x.read_gamepad ()) {
@@ -1449,7 +1449,7 @@ void stateMachine () {
 			} else {
 				// Polling failed
 				debugln (F("Controller lost"));
-				state = ST_NO_CONTROLLER;
+				*state = ST_NO_CONTROLLER;
 				*buttonsLive = 0x7F;		// No ID sequence, all buttons released
 			}
 
@@ -1457,14 +1457,14 @@ void stateMachine () {
 		}
 	}
 
-	switch (state) {
+	switch (*state) {
 		case ST_NO_CONTROLLER:
 			/* There's no need to only poll every so often, the function is slow
 			 * and will basically time itself just fine
 			 */
 			if (initPad ()) {
 				// Got a controller
-				state = ST_FIRST_READ;
+				*state = ST_FIRST_READ;
 			}
 			break;
 		case ST_FIRST_READ:
@@ -1474,12 +1474,12 @@ void stateMachine () {
 				 * with SELECT held, so the user wants to do a factory reset
 				 */
 				debugln (F("SELECT pressed at power-up, starting factory reset"));
-				state = ST_FACTORY_RESET_WAIT_1;
+				*state = ST_FACTORY_RESET_WAIT_1;
 #endif
 			} else {
 				// Default to joystick mode
 				mouseToJoystick ();
-				state = ST_JOYSTICK;
+				*state = ST_JOYSTICK;
 			}
 			break;
 				
@@ -1492,9 +1492,9 @@ void stateMachine () {
 			if (rightAnalogMoved (x, y)) {
 				// Right analog stick moved, switch to Mouse mode
 				joystickToMouse ();
-				state = ST_MOUSE;
+				*state = ST_MOUSE;
 			} else if (ps2x.Button (PSB_SELECT)) {
-				state = ST_SELECT_HELD;
+				*state = ST_SELECT_HELD;
 			} else {
 				// Handle normal joystick movements
 				handleJoystickDirections (j);
@@ -1506,7 +1506,7 @@ void stateMachine () {
 				ps2x.Button (PSB_PAD_LEFT) || ps2x.Button (PSB_PAD_RIGHT)) {
 				// D-Pad pressed, go back to joystick mode
 				mouseToJoystick ();
-				state = ST_JOYSTICK;
+				*state = ST_JOYSTICK;
 			} else {
 				handleMouse ();
 			}
@@ -1525,7 +1525,7 @@ void stateMachine () {
 			} else if (millis () - stateEnteredTime > TIMEOUT_CD32_MODE) {
 				// CD32 mode was exited once for all
 				stateEnteredTime = 0;
-				state = ST_JOYSTICK;
+				*state = ST_JOYSTICK;
 			}
 			break;
 		}
@@ -1536,31 +1536,31 @@ void stateMachine () {
 		case ST_SELECT_HELD:
 			if (!ps2x.Button (PSB_SELECT)) {
 				// Select was released
-				state = ST_JOYSTICK;
+				*state = ST_JOYSTICK;
 			} else if (ps2x.Button (PSB_SQUARE)) {
 				selectComboButton = PSB_SQUARE;
-				state = ST_SELECT_AND_BTN_HELD;
+				*state = ST_SELECT_AND_BTN_HELD;
 			} else if (ps2x.Button (PSB_TRIANGLE)) {
 				selectComboButton = PSB_TRIANGLE;
-				state = ST_SELECT_AND_BTN_HELD;
+				*state = ST_SELECT_AND_BTN_HELD;
 			} else if (ps2x.Button (PSB_CIRCLE)) {
 				selectComboButton = PSB_CIRCLE;
-				state = ST_SELECT_AND_BTN_HELD;
+				*state = ST_SELECT_AND_BTN_HELD;
 			} else if (ps2x.Button (PSB_CROSS)) {
 				selectComboButton = PSB_CROSS;
-				state = ST_SELECT_AND_BTN_HELD;
+				*state = ST_SELECT_AND_BTN_HELD;
 			} else if (ps2x.Button (PSB_L1)) {
 				selectComboButton = PSB_L1;
-				state = ST_SELECT_AND_BTN_HELD;
+				*state = ST_SELECT_AND_BTN_HELD;
 			} else if (ps2x.Button (PSB_R1)) {
 				selectComboButton = PSB_R1;
-				state = ST_SELECT_AND_BTN_HELD;
+				*state = ST_SELECT_AND_BTN_HELD;
 			} else if (ps2x.Button (PSB_L2)) {
 				selectComboButton = PSB_L2;
-				state = ST_SELECT_AND_BTN_HELD;
+				*state = ST_SELECT_AND_BTN_HELD;
 			} else if (ps2x.Button (PSB_R2)) {
 				selectComboButton = PSB_R2;
-				state = ST_SELECT_AND_BTN_HELD;
+				*state = ST_SELECT_AND_BTN_HELD;
 			}
 			break;
 		case ST_SELECT_AND_BTN_HELD:
@@ -1572,11 +1572,11 @@ void stateMachine () {
 				debug (F("Entering programming mode for "));
 				debugln (getButtonName (selectComboButton));
 				stateEnteredTime = 0;
-				state = ST_WAIT_SELECT_RELEASE;
+				*state = ST_WAIT_SELECT_RELEASE;
 			} else if (!ps2x.Button (PSB_SELECT) || !ps2x.Button (selectComboButton)) {
 				// Combo released, switch to desired mapping
 				stateEnteredTime = 0;
-				state = ST_ENABLE_MAPPING;
+				*state = ST_ENABLE_MAPPING;
 			}
 			break;
 		case ST_ENABLE_MAPPING:
@@ -1615,14 +1615,14 @@ void stateMachine () {
 						flashLed (JMAP_CUSTOM);
 					} else {
 						// Something went wrong, just pretend it never happened
-						state = ST_JOYSTICK;
+						*state = ST_JOYSTICK;
 					}
 					break;
 				} default:
 					// Shouldn't be reached
 					break;
 			}
-			state = ST_JOYSTICK;		// Exit immediately
+			*state = ST_JOYSTICK;		// Exit immediately
 			break;
 		
 		/**********************************************************************
@@ -1630,7 +1630,7 @@ void stateMachine () {
 		 **********************************************************************/
 		case ST_WAIT_SELECT_RELEASE:
 			if (!ps2x.Button (PSB_SELECT)) {
-				state = ST_WAIT_BUTTON_PRESS;
+				*state = ST_WAIT_BUTTON_PRESS;
 			}
 			break;
 		case ST_WAIT_BUTTON_PRESS:
@@ -1638,7 +1638,7 @@ void stateMachine () {
 				// Exit programming mode
 				debugln (F("Leaving programming mode"));
 				saveConfigurations ();	// No need to check for changes as this uses EEPROM.update()
-				state = ST_WAIT_SELECT_RELEASE_FOR_EXIT;
+				*state = ST_WAIT_SELECT_RELEASE_FOR_EXIT;
 			} else {
 				buttons = debounceButtons (DEBOUNCE_TIME_BUTTON);
 				if (isButtonMappable (buttons)) {
@@ -1647,7 +1647,7 @@ void stateMachine () {
 					debug (F("Programming button "));
 					debugln (getButtonName (buttons));
 					flashLed (3);
-					state = ST_WAIT_BUTTON_RELEASE;
+					*state = ST_WAIT_BUTTON_RELEASE;
 				}
 			}
 			break;
@@ -1655,12 +1655,11 @@ void stateMachine () {
 			//buttons = debounceButtons (DEBOUNCE_TIME_BUTTON);
 			buttons = ps2x.ButtonDataByte ();
 			if (buttons == NO_BUTTON) {
-				state = ST_WAIT_COMBO_PRESS;
+				*state = ST_WAIT_COMBO_PRESS;
 			}
 			break;
 		case ST_WAIT_COMBO_PRESS:
 			buttons = debounceButtons (DEBOUNCE_TIME_COMBO);
-			TwoButtonJoystick j;
 			if (buttons != NO_BUTTON && psxButton2Amiga (buttons, j)) {
 				debug (F("Programmed to "));
 				dumpJoy (j);
@@ -1680,19 +1679,19 @@ void stateMachine () {
 				
 				programmedButton = NO_BUTTON;
 				flashLed (5);
-				state = ST_WAIT_COMBO_RELEASE;
+				*state = ST_WAIT_COMBO_RELEASE;
 			}
 			break;
 		case ST_WAIT_COMBO_RELEASE:
 			//buttons = debounceButtons (DEBOUNCE_TIME_BUTTON);
 			buttons = ps2x.ButtonDataByte ();
 			if (buttons == NO_BUTTON) {
-				state = ST_WAIT_BUTTON_PRESS;
+				*state = ST_WAIT_BUTTON_PRESS;
 			}
 			break;
 		case ST_WAIT_SELECT_RELEASE_FOR_EXIT:
 			if (!ps2x.Button (PSB_SELECT)) {
-				state = ST_JOYSTICK;
+				*state = ST_JOYSTICK;
 			}
 			break;
 			
@@ -1705,10 +1704,10 @@ void stateMachine () {
 				stateEnteredTime = millis ();
 			} else if (millis () - stateEnteredTime > 2000) {
 				stateEnteredTime = 0;
-				state = ST_FACTORY_RESET_WAIT_2;
+				*state = ST_FACTORY_RESET_WAIT_2;
 			} else if (!ps2x.Button (PSB_SELECT)) {
 				stateEnteredTime = 0;
-				state = ST_JOYSTICK;
+				*state = ST_JOYSTICK;
 			}
 			break;
 		case ST_FACTORY_RESET_WAIT_2:
@@ -1716,10 +1715,10 @@ void stateMachine () {
 				stateEnteredTime = millis ();
 			} else if (millis () - stateEnteredTime > 2000) {
 				stateEnteredTime = 0;
-				state = ST_FACTORY_RESET_PERFORM;
+				*state = ST_FACTORY_RESET_PERFORM;
 			} else if (!ps2x.Button (PSB_SELECT)) {
 				stateEnteredTime = 0;
-				state = ST_JOYSTICK;
+				*state = ST_JOYSTICK;
 			}
 			break;
 		case ST_FACTORY_RESET_PERFORM:
@@ -1735,7 +1734,7 @@ void stateMachine () {
 			//~ digitalWrite (PIN_LED_MODE, LOW);
 			clearConfigurations ();
 			saveConfigurations ();
-			state = ST_JOYSTICK;
+			*state = ST_JOYSTICK;
 			break;
 #endif
 	}
@@ -1747,7 +1746,7 @@ void stateMachine () {
  */
 void updateLeds () {
 	// Pad OK led
-	if (state == ST_NO_CONTROLLER) {
+	if (*state == ST_NO_CONTROLLER) {
 		// Blink
 		fastDigitalWrite (PIN_LED_PAD_OK, (millis () / 500) % 2 == 0);
 	} else {
@@ -1756,7 +1755,7 @@ void updateLeds () {
 	}
 
 	// Mode led
-	switch (state) {
+	switch (*state) {
 		case ST_NO_CONTROLLER:
 		case ST_FIRST_READ:
 #ifdef ENABLE_FACTORY_RESET
