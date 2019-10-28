@@ -40,6 +40,7 @@
 
 #define SUPER_OPTIMIZE
 #define ENABLE_FAST_IO
+//~ #define ENABLE_INSTRUMENTATION
 
 #ifdef ENABLE_FAST_IO
 #include "DigitalIO.h"		// https://github.com/greiman/DigitalIO
@@ -47,6 +48,11 @@
 #define fastDigitalRead(x) digitalRead(x)
 #define fastDigitalWrite(x, y) digitalWrite(x, y)
 #define fastPinMode(x, y) pinMode(x, y)
+#endif
+
+#ifdef ENABLE_INSTRUMENTATION
+#define PIN_INTERRUPT_TIMING A2
+#define PIN_CD32MODE A4
 #endif
 
 #define ENABLE_FACTORY_RESET
@@ -500,6 +506,9 @@ void onPadModeChange () {
 #else
 ISR (INT0_vect) {
 #endif
+#ifdef ENABLE_INSTRUMENTATION
+	fastDigitalToggle (PIN_INTERRUPT_TIMING);
+#endif
 	if (fastDigitalRead (PIN_PADMODE) == LOW) {
 		// Switch to CD32 mode
 		debugln (F("Joystick -> CD32"));
@@ -537,6 +546,10 @@ ISR (INT0_vect) {
 
 		// Set state to ST_CD32
 		state = ST_CD32;
+#ifdef ENABLE_INSTRUMENTATION
+		fastDigitalToggle (PIN_CD32MODE);
+#endif
+
 
 		/* We also need to clear this, as ST_CD32 only lasts so little that the
 		 * main state machine loop never has the occasion to run. This is the
@@ -580,7 +593,15 @@ ISR (INT0_vect) {
 			
 		// Set state to ST_JOYSTICK_TEMP
 		state = ST_JOYSTICK_TEMP;
+#ifdef ENABLE_INSTRUMENTATION
+		fastDigitalToggle (PIN_CD32MODE);
+#endif
+
 	}
+
+#ifdef ENABLE_INSTRUMENTATION
+	fastDigitalToggle (PIN_INTERRUPT_TIMING);
+#endif
 }
 
 // ISR
@@ -589,6 +610,10 @@ void onClockEdge () {
 #else
 ISR (INT1_vect) {
 #endif
+#ifdef ENABLE_INSTRUMENTATION
+	fastDigitalToggle (PIN_INTERRUPT_TIMING);
+#endif
+
 	if (!(*isrButtons & 0x01)) {
 		fastDigitalWrite (PIN_BTNREGOUT, LOW);
 	} else {
@@ -605,6 +630,10 @@ ISR (INT1_vect) {
 	   : "=r" (*isrButtons)
 	   : "0" (*isrButtons)
 	);
+#endif
+
+#ifdef ENABLE_INSTRUMENTATION
+	fastDigitalToggle (PIN_INTERRUPT_TIMING);
 #endif
 }
 
@@ -759,6 +788,12 @@ void setup () {
 	EICRA |= (1 << ISC11) | (1 << ISC10);
 
 	// Interrupts are not activated here, preparation is enough :)
+#endif
+
+#ifdef ENABLE_INSTRUMENTATION
+	// Prepare pins for instrumentation
+	fastPinMode (PIN_INTERRUPT_TIMING, OUTPUT);
+	fastPinMode (PIN_CD32MODE, OUTPUT);
 #endif
 	
 	// Start polling for controller
