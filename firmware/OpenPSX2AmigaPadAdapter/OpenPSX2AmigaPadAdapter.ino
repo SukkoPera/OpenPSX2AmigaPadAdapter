@@ -1,9 +1,3 @@
-/** \file psx.ino
- * \author SukkoPera <software@sukkology.net>
- * \date 29 Oct 2019
- * \brief  Playstation/Playstation 2 to Commodore Amiga/CD32 controller adapter
- */
-
 /*******************************************************************************
  * This file is part of OpenPSX2AmigaPadAdapter.                               *
  *                                                                             *
@@ -12,7 +6,7 @@
  * OpenPSX2AmigaPadAdapter is free software: you can redistribute it and/or    *
  * modify it under the terms of the GNU General Public License as published by *
  * the Free Software Foundation, either version 3 of the License, or           *
- * (at your option) any later version.         Q                                *
+ * (at your option) any later version.                                         *
  *                                                                             *
  * OpenPSX2AmigaPadAdapter is distributed in the hope that it will be useful,  *
  * but WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -31,7 +25,14 @@
  *
  * CD32 pad protocol information found at:
  * http://gerdkautzmann.de/cd32gamepad/cd32gamepad.html
- *
+ */
+
+/**
+ * sss
+ * \file psx.ino
+ * \author SukkoPera <software@sukkology.net>
+ * \date 29 Oct 2019
+ * \brief  Playstation/Playstation 2 to Commodore Amiga/CD32 controller adapter
  */
 
 #include <EEPROM.h>
@@ -46,21 +47,30 @@
  * it.
  */
 #define SUPER_OPTIMIZE
+
+/** \brief Enable fast control of I/O pins
+ *
+ * This enabled very fast (2 clock cycles) control of I/O pins. The DigitalIO
+ * library by greiman is needed for this: https://github.com/greiman/DigitalIO.
+ * 
+ * This is basically mandatory for all targets currently supported, where the
+ * Arduino digitalRead()/digitalWrite() functions are too slow. This define is
+ * provided to make it easy to transition to faster platforms one day, should we
+ * ever want to.
+ */
 #define ENABLE_FAST_IO
+
+/** \def ENABLE_INSTRUMENTATION
+ * 
+ * \brief Enable code instrumentation
+ *
+ * This makes a couple of I/O pins toggle whenever ISRs are entered and is a
+ * means to measure how long they take to execute fully, by using a logic
+ * analyzer or oscilloscope.
+ * 
+ * Disabled by default.
+ */
 //~ #define ENABLE_INSTRUMENTATION
-
-#ifdef ENABLE_FAST_IO
-#include <DigitalIO.h>		// https://github.com/greiman/DigitalIO
-#else
-#define fastDigitalRead(x) digitalRead(x)
-#define fastDigitalWrite(x, y) digitalWrite(x, y)
-#define fastPinMode(x, y) pinMode(x, y)
-#endif
-
-#ifdef ENABLE_INSTRUMENTATION
-#define PIN_INTERRUPT_TIMING A2
-#define PIN_CD32MODE A4
-#endif
 
 /** \brief Disable factory reset
  * 
@@ -68,7 +78,7 @@
  * here is to save some flash, for ATmega88 targets. EEPROM can be cleared with
  * the \a eeprom_clear Arduino example.
  * 
- * At the moment we fit on all supported targets with this enabled, so just
+ * At the moment we fit on all supported targets with this enables, so just
  * ignore it.
  */
 #define DISABLE_FACTORY_RESET
@@ -206,6 +216,19 @@ const unsigned long DEBOUNCE_TIME_COMBO = 150U;
 /*******************************************************************************
  * END OF SETTINGS
  ******************************************************************************/
+
+#ifdef ENABLE_FAST_IO
+#include <DigitalIO.h>		// https://github.com/greiman/DigitalIO
+#else
+#define fastDigitalRead(x) digitalRead(x)
+#define fastDigitalWrite(x, y) digitalWrite(x, y)
+#define fastPinMode(x, y) pinMode(x, y)
+#endif
+
+#ifdef ENABLE_INSTRUMENTATION
+#define PIN_INTERRUPT_TIMING A2
+#define PIN_CD32MODE A4
+#endif
 
 //! \name Button bits for CD32 mode
 //! @{
