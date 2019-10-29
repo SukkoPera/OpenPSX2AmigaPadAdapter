@@ -1030,6 +1030,13 @@ inline void buttonRelease (byte pin) {
 	}
 }
 
+/** \brief Map horizontal movements of the left analog stick to a
+ *         #TwoButtonJoystick
+ * 
+ * The stick is not considered moved if it moves less than #ANALOG_DEAD_ZONE.
+ * 
+ * \param[out] j Mapped joystick status
+ */
 void mapAnalogStickHorizontal (TwoButtonJoystick& j) {
 	byte lx = ps2x.Analog (PSS_LX);   			// 0 ... 255
 	int8_t deltaLX = lx - ANALOG_IDLE_VALUE;	// --> -127 ... +128
@@ -1046,6 +1053,13 @@ void mapAnalogStickHorizontal (TwoButtonJoystick& j) {
 #endif
 }
 
+/** \brief Map vertical movements of the left analog stick to a
+ *         #TwoButtonJoystick
+ * 
+ * The stick is not considered moved if it moves less than #ANALOG_DEAD_ZONE.
+ * 
+ * \param[out] j Mapped joystick status
+ */
 void mapAnalogStickVertical (TwoButtonJoystick& j) {
 	byte ly = ps2x.Analog (PSS_LY);
 	int8_t deltaLY = ly - ANALOG_IDLE_VALUE;
@@ -1062,6 +1076,11 @@ void mapAnalogStickVertical (TwoButtonJoystick& j) {
 #endif
 }
 
+/** \brief Map PSX controller buttons to two-button joystick according to the
+ *         standard mapping
+ * 
+ * \param[out] j Mapped joystick status
+ */
 void mapJoystickNormal (TwoButtonJoystick& j) {
 	// Use both analog axes
 	mapAnalogStickHorizontal (j);
@@ -1080,6 +1099,11 @@ void mapJoystickNormal (TwoButtonJoystick& j) {
 	j.b2 = ps2x.Button (PSB_CROSS) || ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2) || ps2x.Button (PSB_L3);
 }
 
+/** \brief Map PSX controller buttons to two-button joystick according to Racing
+ *         mapping 1
+ * 
+ * \param[out] j Mapped joystick status
+ */
 void mapJoystickRacing1 (TwoButtonJoystick& j) {
 	// Use analog's horizontal axis to steer, ignore vertical
 	mapAnalogStickHorizontal (j);
@@ -1105,6 +1129,11 @@ void mapJoystickRacing1 (TwoButtonJoystick& j) {
 	j.b2 = ps2x.Button (PSB_CIRCLE) || ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2) || ps2x.Button (PSB_L3);
 }
 
+/** \brief Map PSX controller buttons to two-button joystick according to Racing
+ *         mapping 2
+ * 
+ * \param[out] j Mapped joystick status
+ */
 void mapJoystickRacing2 (TwoButtonJoystick& j) {
 	// Use analog's horizontal axis to steer, ignore vertical
 	mapAnalogStickHorizontal (j);
@@ -1130,6 +1159,11 @@ void mapJoystickRacing2 (TwoButtonJoystick& j) {
 	j.b2 = ps2x.Button (PSB_TRIANGLE) || ps2x.Button (PSB_L3);
 }
 
+/** \brief Map PSX controller buttons to two-button joystick according to
+ *         Platform mapping
+ * 
+ * \param[out] j Mapped joystick status
+ */
 void mapJoystickPlatform (TwoButtonJoystick& j) {
 	// Use horizontal analog axis fully, but only down on vertical
 	mapAnalogStickHorizontal (j);
@@ -1151,15 +1185,17 @@ void mapJoystickPlatform (TwoButtonJoystick& j) {
 	j.b2 = ps2x.Button (PSB_TRIANGLE) || ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2) || ps2x.Button (PSB_L3);
 }
 
-/** \brief Map PSX controller buttons to two-button joystick according to Custom
- *         mapping 1
+/** \brief Map PSX controller buttons to two-button joystick according to the
+ *         current Custom mapping
+ * 
+ * \param[out] j Mapped joystick status
  */
 void mapJoystickCustom (TwoButtonJoystick& j) {
-	// Use horizontal analog axis fully, but only down on vertical
+	// Use both analog axes fully
 	mapAnalogStickHorizontal (j);
 	mapAnalogStickVertical (j);
 
-	// D-Pad is fully functional
+	// D-Pad is fully functional as well
 	j.up |= ps2x.Button (PSB_PAD_UP);
 	j.down |= ps2x.Button (PSB_PAD_DOWN);
 	j.left |= ps2x.Button (PSB_PAD_LEFT);
@@ -1198,6 +1234,10 @@ void mergeButtons (TwoButtonJoystick& dest, const TwoButtonJoystick& src) {
 	*bd |= *sd;
 }
 
+/** \brief Flash the Mode LED
+ * 
+ * \param[in] n Desired number of flashes
+ */
 void flashLed (byte n) {
 	for (byte i = 0; i < n; ++i) {
 		fastDigitalWrite (PIN_LED_MODE, HIGH);
@@ -1263,6 +1303,16 @@ boolean rightAnalogMoved (int8_t& x, int8_t& y) {
 	return ret;
 }
 
+/** \brief Update the output direction pins
+ * 
+ * This functions updates the status of the 4 directional pins of the DB-9 port.
+ * It does so after calling the current joystick mapping function, whose output
+ * will also be exported in \a j.
+ * 
+ * It also updates \a buttonsLive.
+ *
+ * \param[out] j Mapped joystick status
+ */
 void handleJoystickDirections (TwoButtonJoystick& j) {
 	// Call button mapping function
 	joyMappingFunc (j);
@@ -1336,6 +1386,15 @@ void handleJoystickDirections (TwoButtonJoystick& j) {
 	*buttonsLive = buttonsTmp;
 }
 
+/** \brief Update the output fire button pins
+ * 
+ * This functions updates the status of the 2 fire button pins of the DB-9 port.
+ * It shall only be called when state is ST_JOYSTICK or ST_JOYSTICK_TEMP, as
+ * when in ST_CD32, buttons are handled by the ISRs.
+ *
+ * \param[in] j Mapped joystick status, as returned by
+ *              handleJoystickDirections().
+ */
 void handleJoystickButtons (const TwoButtonJoystick& j) {
 	/* If the interrupt that switches us to CD32 mode is
 	 * triggered while we are here we might end up setting pin states after
@@ -1367,6 +1426,11 @@ void handleJoystickButtons (const TwoButtonJoystick& j) {
 	interrupts ();
 }
 
+/** \brief Update all output pins for Mouse mode
+ * 
+ * This function updates all the output pins as necessary to emulate mouse
+ * movements and button presses. It shall only be called when state is ST_MOUSE.
+ */
 void handleMouse () {
 	static unsigned long tx = 0, ty = 0;
 	
@@ -1508,6 +1572,12 @@ boolean psxButton2Amiga (Buttons psxButtons, TwoButtonJoystick& j) {
 	return *reinterpret_cast<byte *> (&j);
 }
 
+/** \brief Dump a TwoButtonJoystick structure to serial
+ * 
+ * This function is meant for debugging.
+ * 
+ * \param[in] j Two-button joystick to be dumped
+ */
 void dumpJoy (TwoButtonJoystick& j) {
 	if (j.up) {
 		debug (F("Up "));
@@ -1888,7 +1958,8 @@ void stateMachine () {
 
 /** \brief Update leds
  *
- * We have a separate function for this as several machine states share the same led state.
+ * We have a separate function for this as several machine states share the same
+ * led state.
  */
 void updateLeds () {
 	// Pad OK led
