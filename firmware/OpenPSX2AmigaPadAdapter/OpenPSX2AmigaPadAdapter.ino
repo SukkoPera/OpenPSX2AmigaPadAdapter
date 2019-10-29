@@ -241,13 +241,15 @@ const byte BTN_FRONT_L =	1U << 5U;	//!< \a Front \a Left Button
 const byte BTN_START =		1U << 6U;	//!< \a Start/Pause Button
 //! @}
 
+#define ATTR_PACKED __attribute__((packed))
+
 /** \brief State machine states
  * 
  * Possible states for the internal state machine that drives the whole thing.
  * 
  * Note that we make this \a packed so that it fits in a single byte.
  */
-enum __attribute__((packed)) State {
+enum ATTR_PACKED State {
 	ST_NO_CONTROLLER,			//!< No controller connected
 	ST_FIRST_READ,				//!< First time the controller is read
 	
@@ -282,7 +284,7 @@ enum __attribute__((packed)) State {
  * 
  * This is only used for blinking the led when mapping is changed
  */
-enum __attribute__((packed)) JoyButtonMapping {
+enum ATTR_PACKED JoyButtonMapping {
 	JMAP_NORMAL = 1,
 	JMAP_RACING1,
 	JMAP_RACING2,
@@ -307,20 +309,6 @@ struct TwoButtonJoystick {
 	boolean b1: 1;			//!< Button 1
 	boolean b2: 1;			//!< Button 2
 };
-
-/** \brief Joystick mapping function
- * 
- * This represents a function that should inspect the buttons currently being
- * pressed on the PSX controller and somehow map them to a #TwoButtonJoystick to
- * be sent to the DB-9 port.
- */
-typedef void (*JoyMappingFunc) (TwoButtonJoystick& j);
-
-// Default button mapping function prototype for initialization of the following
-void mapJoystickNormal (TwoButtonJoystick& j);
-
-//! \brief Joystick mapping function currently in effect
-JoyMappingFunc joyMappingFunc = mapJoystickNormal;
 
 /** \brief Number of buttons on a PSX controller
  *
@@ -409,6 +397,14 @@ volatile byte *buttonsLive = &GPIOR0;
  * \hideinitializer
  */
 volatile byte *isrButtons = &GPIOR1;
+
+/** \brief Joystick mapping function
+ * 
+ * This represents a function that should inspect the buttons currently being
+ * pressed on the PSX controller and somehow map them to a #TwoButtonJoystick to
+ * be sent to the DB-9 port.
+ */
+typedef void (*JoyMappingFunc) (TwoButtonJoystick& j);
 
 // Default button mapping function prototype for initialization of the following
 void mapJoystickNormal (TwoButtonJoystick& j);
