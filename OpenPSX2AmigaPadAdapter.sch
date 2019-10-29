@@ -6,8 +6,8 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 1 1
 Title "OpenPSX2AmigaPadAdapter"
-Date "2019-10-21"
-Rev "2git"
+Date "2019-10-29"
+Rev "2"
 Comp "SukkoPera"
 Comment1 "Licensed under CERN OHL v.1.2"
 Comment2 ""
