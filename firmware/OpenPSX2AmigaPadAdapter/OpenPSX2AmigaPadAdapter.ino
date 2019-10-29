@@ -38,6 +38,13 @@
 #include <util/crc16.h>
 #include <PS2X_lib.h>
 
+/** \brief Enable heavy optimization
+ * 
+ * This enables some inline assembly code, GCC-style ISRs, etc.
+ * 
+ * Code has only been tested with this being enabled, so you'd better not touch
+ * it.
+ */
 #define SUPER_OPTIMIZE
 #define ENABLE_FAST_IO
 //~ #define ENABLE_INSTRUMENTATION
@@ -55,14 +62,16 @@
 #define PIN_CD32MODE A4
 #endif
 
-/* This disables the factory reset for joystick configurations. The only point
+/** \brief Disable factory reset
+ * 
+ * This disables the factory reset for joystick configurations. The only point
  * here is to save some flash, for ATmega88 targets. EEPROM can be cleared with
  * the \a eeprom_clear Arduino example.
  * 
  * At the moment we fit on all supported targets with this enables, so just
  * ignore it.
  */
-#define ENABLE_FACTORY_RESET
+#define DISABLE_FACTORY_RESET
 
 //! \name INPUT pins, connected to PS2 controller
 //! @{
@@ -239,7 +248,7 @@ enum __attribute__((packed)) State {
 	ST_WAIT_SELECT_RELEASE_FOR_EXIT,	//!< Wait for releact to be released to go back to joystick mode
 	
 	// States for factory reset
-#ifdef ENABLE_FACTORY_RESET
+#ifndef DISABLE_FACTORY_RESET
 	ST_FACTORY_RESET_WAIT_1,
 	ST_FACTORY_RESET_WAIT_2,
 	ST_FACTORY_RESET_PERFORM
@@ -1606,7 +1615,7 @@ void stateMachine () {
 			break;
 		case ST_FIRST_READ:
 			if (ps2x.Button (PSB_SELECT)) {
-#ifdef ENABLE_FACTORY_RESET
+#ifndef DISABLE_FACTORY_RESET
 				/* The controller was plugged in (or the adapter was powered on)
 				 * with SELECT held, so the user wants to do a factory reset
 				 */
@@ -1835,7 +1844,7 @@ void stateMachine () {
 		/**********************************************************************
 		 * FACTORY_RESET
 		 **********************************************************************/
-#ifdef ENABLE_FACTORY_RESET
+#ifndef DISABLE_FACTORY_RESET
 		case ST_FACTORY_RESET_WAIT_1:
 			if (stateEnteredTime == 0) {
 				stateEnteredTime = millis ();
@@ -1895,7 +1904,7 @@ void updateLeds () {
 	switch (*state) {
 		case ST_NO_CONTROLLER:
 		case ST_FIRST_READ:
-#ifdef ENABLE_FACTORY_RESET
+#ifndef DISABLE_FACTORY_RESET
 		case ST_FACTORY_RESET_PERFORM:	// Led for this state is handled in SM
 #endif
 			fastDigitalWrite (PIN_LED_MODE, LOW);
@@ -1925,7 +1934,7 @@ void updateLeds () {
 			// Programming mode, blink fast
 			fastDigitalWrite (PIN_LED_MODE, (millis () / 250) % 2 == 0);
 			break;
-#ifdef ENABLE_FACTORY_RESET
+#ifndef DISABLE_FACTORY_RESET
 		case ST_FACTORY_RESET_WAIT_1:
 			fastDigitalWrite (PIN_LED_MODE, (millis () / 333) % 2 == 0);
 			break;
