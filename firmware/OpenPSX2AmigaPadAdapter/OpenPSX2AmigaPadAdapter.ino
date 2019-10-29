@@ -68,7 +68,7 @@
  * here is to save some flash, for ATmega88 targets. EEPROM can be cleared with
  * the \a eeprom_clear Arduino example.
  * 
- * At the moment we fit on all supported targets with this enables, so just
+ * At the moment we fit on all supported targets with this enabled, so just
  * ignore it.
  */
 #define DISABLE_FACTORY_RESET
