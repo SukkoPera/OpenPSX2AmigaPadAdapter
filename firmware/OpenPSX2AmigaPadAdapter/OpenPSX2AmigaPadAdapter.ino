@@ -17,8 +17,8 @@
  * along with OpenPSX2AmigaPadAdapter. If not, see http://www.gnu.org/licenses.*
  *******************************************************************************
  *
- * OpenPSX2AmigaPadAdapter - Playstation/Playstation 2 to Commodore Amiga/CD32
- * controller adapter
+ * OpenPSX2AmigaPadAdapter - Playstation to Commodore Amiga/CD32 controller
+ * adapter
  *
  * Please refer to the GitHub page and wiki for any information:
  * https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter
@@ -28,11 +28,10 @@
  */
 
 /**
- * sss
  * \file psx.ino
  * \author SukkoPera <software@sukkology.net>
  * \date 29 Oct 2019
- * \brief  Playstation/Playstation 2 to Commodore Amiga/CD32 controller adapter
+ * \brief Playstation to Commodore Amiga/CD32 controller adapter
  */
 
 #include <EEPROM.h>
