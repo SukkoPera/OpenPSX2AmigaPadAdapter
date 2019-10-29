@@ -50,6 +50,11 @@ This is just for reference, don't care about it if you don't know what it means:
 | L        | INPUT (5V)     | INPUT + PULL-UP (5V)|
 | H        | OUTPUT LOW (0V)| OUTPUT HIGH (5V)    |
 
+## Logic Analyzer Plugin
+The [LogicAnalyzer](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/tree/master/firmware/LogicAnalyzer) directory contains a plug-in for the [Saleae Logic](https://www.saleae.com/downloads/) software that is capable of decoding the CD<sup>32</sup> controller protocol. It is not perfect but it's usable.
+
+Please refer to the [Saleae documentation](https://github.com/saleae/SampleAnalyzer/tree/master/docs) for information on how to build the analyzer. Note that the directory contains a submodule, be sure to check it as well.
+
 ## License
 The OpenPSX2AmigaPadAdapter firmware is Copyright &copy; 2019 by SukkoPera.
 
