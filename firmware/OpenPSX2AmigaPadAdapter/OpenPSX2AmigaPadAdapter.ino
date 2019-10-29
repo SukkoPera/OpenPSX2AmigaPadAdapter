@@ -1,6 +1,6 @@
 /** \file psx.ino
  * \author SukkoPera <software@sukkology.net>
- * \date 25 Sep 2019
+ * \date 29 Oct 2019
  * \brief  Playstation/Playstation 2 to Commodore Amiga/CD32 controller adapter
  */
 
@@ -43,7 +43,7 @@
 //~ #define ENABLE_INSTRUMENTATION
 
 #ifdef ENABLE_FAST_IO
-#include "DigitalIO.h"		// https://github.com/greiman/DigitalIO
+#include <DigitalIO.h>		// https://github.com/greiman/DigitalIO
 #else
 #define fastDigitalRead(x) digitalRead(x)
 #define fastDigitalWrite(x, y) digitalWrite(x, y)
@@ -55,24 +55,32 @@
 #define PIN_CD32MODE A4
 #endif
 
+/* This disables the factory reset for joystick configurations. The only point
+ * here is to save some flash, for ATmega88 targets. EEPROM can be cleared with
+ * the \a eeprom_clear Arduino example.
+ * 
+ * At the moment we fit on all supported targets with this enables, so just
+ * ignore it.
+ */
 #define ENABLE_FACTORY_RESET
 
-// INPUT pins, connected to PS2 controller
-const byte PS2_CLK = 13;
-const byte PS2_DAT = 12;
-const byte PS2_CMD = 11;
-const byte PS2_SEL = 10;
+//! \name INPUT pins, connected to PS2 controller
+//! @{
+const byte PS2_CLK = 13;	//!< Clock, blue wire
+const byte PS2_DAT = 12;	//!< Data, brown wire
+const byte PS2_CMD = 11;	//!< Command, orange wire
+const byte PS2_SEL = 10;	//!< Attention, yellow wire
+//! @}
 
-// PS2 Controller Class
-PS2X ps2x;
-
-// OUTPUT pins, connected to Amiga port
-const byte PIN_UP = 4;    // Amiga Pin 1
-const byte PIN_DOWN = 5;  // Amiga Pin 2
-const byte PIN_LEFT = 6;  // Amiga Pin 3
-const byte PIN_RIGHT = 7; // Amiga Pin 4
-const byte PIN_BTN1 = 3;  // Amiga Pin 6
-const byte PIN_BTN2 = 8;  // Amiga Pin 9
+//! \name OUTPUT pins, connected to Amiga port
+//! @{
+const byte PIN_UP = 4;    //!< Amiga Pin 1
+const byte PIN_DOWN = 5;  //!< Amiga Pin 2
+const byte PIN_LEFT = 6;  //!< Amiga Pin 3
+const byte PIN_RIGHT = 7; //!< Amiga Pin 4
+const byte PIN_BTN1 = 3;  //!< Amiga Pin 6
+const byte PIN_BTN2 = 8;  //!< Amiga Pin 9
+//! @}
 
 /** \brief Controller mode input pin
  *  
@@ -99,7 +107,7 @@ const byte PIN_BTNREGCLK = PIN_BTN1;
  * 
  * Value reported when the analog stick is in the (ideal) center position.
  */
-const byte ANALOG_IDLE_VALUE = 128;
+const byte ANALOG_IDLE_VALUE = 128U;
 
 /** \brief Dead zone for analog sticks
  *  
@@ -108,7 +116,7 @@ const byte ANALOG_IDLE_VALUE = 128;
  * 
  * \sa ANALOG_IDLE_VALUE
  */
-const uint8_t ANALOG_DEAD_ZONE = 50;
+const byte ANALOG_DEAD_ZONE = 50U;
 
 /** \brief Controller polling frequency
  *
@@ -122,12 +130,12 @@ const byte PAD_POLLING_FREQ = 60U;
 /** \brief Delay of the quadrature square waves when mouse is moving at the
  * \a slowest speed
  */
-const byte MOUSE_SLOW_DELTA	= 250;
+const byte MOUSE_SLOW_DELTA	= 250U;
 
 /** \brief Delay of the quadrature square waves when mouse is moving at the
  * \a fastest speed.
  */
-const byte MOUSE_FAST_DELTA = 10;
+const byte MOUSE_FAST_DELTA = 10U;
 
 /** \brief LED2 pin
  * 
@@ -145,8 +153,11 @@ const byte PIN_LED_MODE = A0;
  * 
  * Normal joystick mode will be entered if PIN_PADMODE is not toggled for this
  * amount of milliseconds.
+ * 
+ * Keep in mind that in normal conditions it is toggled once per frame (i.e.
+ * every ~20 ms).
  */
-const byte TIMEOUT_CD32_MODE = 100;
+const byte TIMEOUT_CD32_MODE = 100U;
 
 /** \brief Single-button debounce time
  * 
@@ -155,16 +166,18 @@ const byte TIMEOUT_CD32_MODE = 100;
  * 
  * \sa debounceButtons()
  */
-const unsigned long DEBOUNCE_TIME_BUTTON = 30;
+const unsigned long DEBOUNCE_TIME_BUTTON = 30U;
 
 /** \brief Combo debounce time
  * 
  * A combo will be considered valid only after it has been stable for this
- * amount of milliseconds
+ * amount of milliseconds. This needs to be greater than #DEBOUNCE_TIME_BUTTON
+ * to allow combos to be entered correctly, as it's hard to press several
+ * buttons at exactly the same moment.
  * 
  * \sa debounceButtons()
  */
-const unsigned long DEBOUNCE_TIME_COMBO = 150;
+const unsigned long DEBOUNCE_TIME_COMBO = 150U;
 
 
 /*******************************************************************************
@@ -185,9 +198,22 @@ const unsigned long DEBOUNCE_TIME_COMBO = 150;
  * END OF SETTINGS
  ******************************************************************************/
 
+//! \name Button bits for CD32 mode
+//! @{
+const byte BTN_BLUE =		1U << 0U;	//!< \a Blue Button
+const byte BTN_RED =		1U << 1U;	//!< \a Red Button
+const byte BTN_YELLOW =		1U << 2U;	//!< \a Yellow Button
+const byte BTN_GREEN =		1U << 3U;	//!< \a Green Button
+const byte BTN_FRONT_R =	1U << 4U;	//!< \a Front \a Right Button
+const byte BTN_FRONT_L =	1U << 5U;	//!< \a Front \a Left Button
+const byte BTN_START =		1U << 6U;	//!< \a Start/Pause Button
+//! @}
+
 /** \brief State machine states
  * 
  * Possible states for the internal state machine that drives the whole thing.
+ * 
+ * Note that we make this \a packed so that it fits in a single byte.
  */
 enum __attribute__((packed)) State {
 	ST_NO_CONTROLLER,			//!< No controller connected
@@ -220,24 +246,10 @@ enum __attribute__((packed)) State {
 #endif
 };
 
-/** \brief Current state of the internal state machine
+/** \brief All possible button mappings
  * 
- * We start out as a simple joystick.
+ * This is only used for blinking the led when mapping is changed
  */
-volatile State *state = reinterpret_cast<volatile State *> (&GPIOR2);
-
-//! \name Button bits for CD32 mode
-//! @{
-const byte BTN_BLUE =		1U << 0U;	//!< \a Blue Button
-const byte BTN_RED =		1U << 1U;	//!< \a Red Button
-const byte BTN_YELLOW =		1U << 2U;	//!< \a Yellow Button
-const byte BTN_GREEN =		1U << 3U;	//!< \a Green Button
-const byte BTN_FRONT_R =	1U << 4U;	//!< \a Front \a Right Button
-const byte BTN_FRONT_L =	1U << 5U;	//!< \a Front \a Left Button
-const byte BTN_START =		1U << 6U;	//!< \a Start/Pause Button
-//! @}
-
-// This is only used for blinking the led when mapping is changed
 enum __attribute__((packed)) JoyButtonMapping {
 	JMAP_NORMAL = 1,
 	JMAP_RACING1,
@@ -248,10 +260,12 @@ enum __attribute__((packed)) JoyButtonMapping {
 
 /** \brief Structure representing a standard 2-button Atari-style joystick
  * 
- * This used for gathering button presses according to different button
+ * This is used for gathering button presses according to different button
  * mappings.
  * 
  * True means pressed.
+ * 
+ * We use bitfields so that it all fits in a single byte.
  */
 struct TwoButtonJoystick {
 	boolean up: 1;			//!< Up/Forward direction
@@ -278,7 +292,8 @@ JoyMappingFunc joyMappingFunc = mapJoystickNormal;
 
 /** \brief Number of buttons on a PSX controller
  *
- * Includes *everything*.
+ * Includes \a everything, i.e.: 4 directions, Square, Cross, Circle, Triangle,
+ * L1/2/3, R1/2/3, Select and Start.
  */
 const byte PSX_BUTTONS_NO = 16;
 
@@ -298,6 +313,32 @@ struct ControllerConfiguration {
 	TwoButtonJoystick buttonMappings[PSX_BUTTONS_NO];
 };
 
+/** \brief Type that is used to report button presses
+ *
+ * This can be used with the PSB_* values from PS2X_lib, and cast from/to
+ * values of that type.
+ */
+typedef unsigned int Buttons;
+
+//! Value of #Buttons when it reports no buttons pressed
+const Buttons NO_BUTTON = 0x00;
+
+//! \name Global variables
+//! @{
+
+//! PS2 Controller Class
+PS2X ps2x;
+
+/** \brief Current state of the internal state machine
+ * 
+ * We start out as a simple joystick.
+ * 
+ * We keep this in \a GPIOR2 for faster access and slimmer code.
+ * 
+ * \hideinitializer
+ */
+volatile State *state = reinterpret_cast<volatile State *> (&GPIOR2);
+
 /** \brief All possible controller configurations
  * 
  * Since these are activated with SELECT + a button, ideally there can be as
@@ -314,7 +355,14 @@ ControllerConfiguration *currentCustomConfig = NULL;
  * This shall be updated as often as possible, and is what gets sampled when we
  * get a falling edge on #PIN_PADMODE.
  * 
- * 0 means pressed, MSB must be 1 for the ID sequence
+ * 0 means pressed, MSB must be 1 for the ID sequence.
+ * 
+ * We keep this in \a GPIOR0 for faster ISR code. Note that GPIOR0 is one of the
+ * lowest 64 registers on ATmega88/168/328's, thus it can be used with
+ * SBI/CBI/SBIC/SBIS. I don't know if GCC takes advantage of this, but we do in
+ * the \a asm_isr branch.
+ * 
+ * \hideinitializer
  */
 volatile byte *buttonsLive = &GPIOR0;
 
@@ -323,18 +371,20 @@ volatile byte *buttonsLive = &GPIOR0;
  * This is where #buttonsLive gets copied when it is sampled.
  * 
  * 0 means pressed, etc.
+ * 
+ * We keep this in \a GPIOR1 for faster ISR code.
+ * 
+ * \hideinitializer
  */
 volatile byte *isrButtons = &GPIOR1;
 
-/** \brief Type that is used to report button presses
- *
- * This can be used with the PSB_* values from PS2X_lib, and cast from/to
- * values of that type.
- */
-typedef unsigned int Buttons;
+// Default button mapping function prototype for initialization of the following
+void mapJoystickNormal (TwoButtonJoystick& j);
 
-//! Value of #Buttons when it reports no buttons pressed
-const Buttons NO_BUTTON = 0x00;
+//! \brief Joystick mapping function currently in effect
+JoyMappingFunc joyMappingFunc = mapJoystickNormal;
+
+//! @}		// End of global variables
 
 #ifdef ENABLE_SERIAL_DEBUG
 	#include <avr/pgmspace.h>
@@ -351,6 +401,12 @@ const Buttons NO_BUTTON = 0x00;
 	#define debugln(...)
 #endif
 
+/** \brief Initialize the Playstation controller
+ * 
+ * Note that this function takes a considerable amount of time.
+ * 
+ * \return True if a supported controller was found, false otherwise.
+ */
 boolean initPad () {
 	boolean ret = false;
 
@@ -397,6 +453,13 @@ boolean initPad () {
 	return ret;
 }
 
+
+/** \name Button name strings
+ * 
+ * These are only used for debugging and will not show up in the executable if
+ * it is not enabled
+ */
+//! @{
 const char buttonSelectName[] PROGMEM = "Select";
 const char buttonL3Name[] PROGMEM = "L3";
 const char buttonR3Name[] PROGMEM = "R3";
@@ -432,12 +495,16 @@ const char* const psxButtonNames[PSX_BUTTONS_NO] PROGMEM = {
 	buttonCrossName,
 	buttonSquareName
 };
+//! @}
 
 /** \brief Convert a button on the PSX controller to a small integer
  * 
  * Output will always be in the range [0, #PSX_BUTTONS_NO - 1] and is not
  * guaranteed to be valid, so it should be checked to be < PSX_BUTTONS_NO before
  * use.
+ * 
+ * \param[in] psxButtons Button to be converted
+ * \return A small integer corresponding to the "first" button pressed
  */
 byte psxButtonToIndex (Buttons psxButtons) {
 	byte i;
@@ -454,6 +521,11 @@ byte psxButtonToIndex (Buttons psxButtons) {
 }
 
 #ifdef ENABLE_SERIAL_DEBUG
+/** \brief Return the name of a PSX button
+ * 
+ * \param[in] psxButtons Button to be converted
+ * \return A string (in flash) containing the name of the "first" buton pressed
+ */
 FlashStr getButtonName (Buttons psxButton) {
 	FlashStr ret = F("");
 	
@@ -467,6 +539,10 @@ FlashStr getButtonName (Buttons psxButton) {
 }
 #endif
 
+/** \brief Print the names of all PSX buttons being pressed
+ * 
+ * \param[in] psxButtons Buttons to be printed
+ */
 void dumpButtons (Buttons psxButtons) {
 #ifdef DEBUG_PAD
 	static Buttons lastB = 0;
@@ -497,16 +573,29 @@ void dumpButtons (Buttons psxButtons) {
 #endif
 }
 
+/** \brief Disable the ISR servicing rising clock edges
+ * 
+ * This shall be called when CD32 mode is exited.
+ */
 inline void suspendClockInterrupt () {
 	EIMSK &= ~(1 << INT1);
 }
 
+/** \brief Enable the ISR servicing rising clock edges
+ * 
+ * This shall be called when CD32 mode is entered.
+ */
 inline void restoreClockInterrupt () {
 	EIFR |= (1 << INTF1);		// Clear any pending interrupts
 	EIMSK |= (1 << INT1);
 }
 
-// ISR
+/** \brief ISR servicing edges on #PIN_PADMODE
+ *
+ * Called on PIN_PADMODE changing, this function shall set things up for CD32
+ * mode, sample buttons and shift out the first bit on FALLING edges, and
+ * restore Atari-style signals on RISING edges.
+ */
 #ifndef SUPER_OPTIMIZE
 void onPadModeChange () {
 #else
@@ -606,7 +695,10 @@ ISR (INT0_vect) {
 #endif
 }
 
-// ISR
+/** \brief ISR servicing rising edges on #PIN_BTNREGCLK
+ * 
+ * Called on clock pin rising, this function shall shift out next bit.
+ */
 #ifndef SUPER_OPTIMIZE
 void onClockEdge () {
 #else
@@ -670,7 +762,7 @@ inline void enableCD32Trigger () {
 
 /** \brief Disable CD32 controller support
  * 
- * CD32 mode will no longer be entered automatically, after this function has
+ * CD32 mode will no longer be entered automatically after this function has
  * been called.
  */
 inline void disableCD32Trigger () {
@@ -705,6 +797,13 @@ void clearConfigurations () {
 	}
 }
 
+/** \brief Calculate a CRC of controller configurations
+ * 
+ * Used to validate the controller configurations after they have been loaded
+ * from EEPROM.
+ * 
+ * \return The calculated CRC
+ */
 uint16_t calculateConfigCrc () {
 	uint16_t crc = 0x4242;
 	uint8_t *data = (uint8_t *) controllerConfigs;
@@ -719,7 +818,7 @@ uint16_t calculateConfigCrc () {
  * 
  * If the loaded configurations are not valid, they are cleared.
  * 
- * \return True if the loaded configurations are valid
+ * \return True if the loaded configurations are valid, false otherwise
  */
 boolean loadConfigurations () {
 	boolean ret = false;
@@ -803,8 +902,13 @@ void setup () {
 	delay (300);
 }
 
-
-
+/** \brief Switch from Mouse mode to Joystick mode
+ * 
+ * This function set pins directions and does whatever else is necessary to
+ * switch from Mouse mode to Joystick mode.
+ * 
+ * It is also used at startup to enter Joystick mode for the first time.
+ */
 void mouseToJoystick () {
 	debugln (F("Mouse -> Joystick"));
 	
@@ -830,6 +934,11 @@ void mouseToJoystick () {
 	enableCD32Trigger ();
 }
 
+/** \brief Switch from Joystick mode to Mouse mode
+ * 
+ * This function set pins directions and does whatever else is necessary to
+ * switch from Joystick mode to Mouse mode.
+ */
 void joystickToMouse () {
 	debugln (F("Joystick -> Mouse"));
 	
@@ -843,13 +952,23 @@ void joystickToMouse () {
 	disableCD32Trigger ();
 }
 
-
+/** \brief Report a button as pressed on the DB-9 port
+ * 
+ * Output pins on the DB-9 port are driven in open-collector style, so that we
+ * are compatible with the C64 too.
+ *
+ * Note that LOW is implicit when switching over from INPUT without pull-ups.
+ * 
+ * This function might look a bit silly, but it is written this way so that it
+ * is translated to very efficient code (basically a single ASM instruction!) by
+ * using the \a DigitalIO library and with the switched pin being known at
+ * compile time.
+ * 
+ * \sa buttonRelease()
+ * 
+ * \param[in] pin Pin corresponding to the button to be pressed
+ */
 inline void buttonPress (byte pin) {
-	/* Drive pins in open-collector style, so that we are compatible with the
-	 * C64 too
-	 *
-	 * Low is implicit when switching over from INPUT without pull-ups
-	 */
 	switch (pin) {
 		case PIN_UP:
 			fastPinMode (PIN_UP, OUTPUT);
@@ -872,6 +991,12 @@ inline void buttonPress (byte pin) {
 	}
 }
 
+/** \brief Report a button as released on the DB-9 port
+ * 
+ * \sa buttonPress()
+ * 
+ * \param[in] pin Pin corresponding to the button to be pressed
+ */
 inline void buttonRelease (byte pin) {
 	// Switch to Hi-Z
 	switch (pin) {
@@ -1396,9 +1521,12 @@ void dumpJoy (TwoButtonJoystick& j) {
 	debugln (F(""));
 }
 
-/** \brief Get number of set bits in binary representation of passed number
+/** \brief Get number of set bits in the binary representation of a number
  * 
  * All hail to Brian Kernighan.
+ * 
+ * \param[in] n The number
+ * \return The number of bits set
  */
 unsigned int countSetBits (int n) { 
 	unsigned int count = 0; 
@@ -1415,6 +1543,9 @@ unsigned int countSetBits (int n) {
  * 
  * That means it contains a single button which is not \a SELECT neither one
  * from the D-Pad.
+ * 
+ * \param[in] b The button to be checked
+ * \return True if \b can be mapped, false otherwise
  */
 boolean isButtonMappable (Buttons b) {
 	return countSetBits (b) == 1 &&
@@ -1425,11 +1556,17 @@ boolean isButtonMappable (Buttons b) {
 	       !ps2x.Button (b, PSB_PAD_RIGHT);
 }
 
+/** \brief Check if a PSX button is programmable
+ * 
+ * \param[in] b The button to be checked
+ * \return True if \b is programmable, false otherwise
+ */
 boolean isButtonProgrammable (Buttons b) {
 	return ps2x.Button (b, PSB_L1) || ps2x.Button (b, PSB_L2) ||
 	       ps2x.Button (b, PSB_R1) || ps2x.Button (b, PSB_R2);
 }
 
+//! \brief Handle the internal state machine
 void stateMachine () {
 	static unsigned long stateEnteredTime = 0;
 	static unsigned long lastPoll = 0;
