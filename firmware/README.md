@@ -1,4 +1,4 @@
-# Firmware
+# OpenPSX2AmigaPadAdapter Firmware
 
 This is the firmware for the OpenPSX2AmigaPadAdapter project.
 
