@@ -2,7 +2,7 @@
 
 This is the firmware for the OpenPSX2AmigaPadAdapter project.
 
-It it based on the Arduino platform, since the OpenPSX2AmigaPadAdapter PCB is basically a customized Arduino Uno board. Hence you will need [the Arduino software](https://www.arduino.cc/en/Main/Software) to build and flash it to the board, so download and install it. Version 1.8.10 is the latest at the time of writing, and all testing has been done with this version, although any later version should work as well.
+It it based on the [Arduino](https://www.arduino.cc) platform, since the OpenPSX2AmigaPadAdapter PCB is basically a customized *Arduino Uno* board. Hence you will need [the Arduino software](https://www.arduino.cc/en/Main/Software) to build and flash it to the board, so download and install it. Version 1.8.10 is the latest at the time of writing, and all testing has been done with this version, although any later version should work as well.
 
 ## Core
 The OpenPSX2AmigaPadAdapter firmware was tested using the default Arduino core on ATmega328P microcontrollers. You can also use ATmega88/A/P/PA or ATmega168/P microcontrollers, they are pin-compatible and slightly cheaper. In this case you will need [MiniCore](https://github.com/MCUdude/MiniCore).
@@ -19,7 +19,7 @@ Please refer to the Arduino documentation for how to install them.
 ## Bootloader
 You can either use a bootloader or not. There's not much difference from the functional point of view, as you will need some specialized hardware anyway:
 - If you don't want to use a bootloader, you will need an AVR programmer every time you want to update the firmware. There are cheap clones everywhere, just look for *usbasp* or *tinyisp*. Use the *Upload Using Programmer* function. Note that you will need to set the microcontroller fuses correctly, this is up to you.
-- If you want to use a bootloader, you will still need an AVR programmer to flash the bootloader (and set the fuses) the first time (*Burn Bootloader*), unless someone else did it for you. From then on you can just use a USB to Serial adapter (*Upload*). These are cheap too, just search for them. You can use the stock Arduino/MiniCore bootloaders, or have a look at the *bootloaders* directory, where you will find some versions of Optiboot that have been customized to flash LD2 when they startup. Not that useful unless you want to do some development/debugging, anyway.
+- If you want to use a bootloader, you will still need an AVR programmer to flash the bootloader (and set the fuses) the first time (*Burn Bootloader*), unless someone else did it for you. From then on you can just use a USB to Serial adapter (*Upload*). These are cheap too, just search for them. You can use the stock Arduino/MiniCore bootloaders, or have a look at the [bootloaders](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/tree/master/firmware/bootloaders) directory, where you will find some versions of Optiboot that have been customized to flash LD2 when they startup. Not that useful unless you want to do some development/debugging, anyway.
 - If you want to help with the debugging, you will need the USB to Serial adapter, so the only bonus in using a bootloader is that you can debug and reflash using it alone.
 
 ## Pin Mapping
@@ -45,10 +45,10 @@ Notes:
 ## AVR I/O Control
 This is just for reference, don't care about it if you don't know what it means:
 
-|DDR \ PORT| L            | H                   |   |
-|----------|--------------|---------------------|---|
-| L        | INPUT (5V)   | INPUT + PULL-UP (5V)|   |
-| H        | OUTPUT L (0V)| OUTPUT H (5V)       |   |
+|DDR \ PORT| L              | H                   |
+|----------|----------------|---------------------|
+| L        | INPUT (5V)     | INPUT + PULL-UP (5V)|
+| H        | OUTPUT LOW (0V)| OUTPUT HIGH (5V)    |
 
 ## License
 The OpenPSX2AmigaPadAdapter firmware is Copyright &copy; 2019 by SukkoPera.
