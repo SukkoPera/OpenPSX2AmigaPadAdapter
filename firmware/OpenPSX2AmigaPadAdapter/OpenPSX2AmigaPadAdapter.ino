@@ -72,7 +72,9 @@
  */
 //~ #define ENABLE_INSTRUMENTATION
 
-/** \brief Disable factory reset
+/** \def DISABLE_FACTORY_RESET
+ *
+ * \brief Disable factory reset
  * 
  * This disables the factory reset for joystick configurations. The only point
  * here is to save some flash, for ATmega88 targets. EEPROM can be cleared with
@@ -81,7 +83,7 @@
  * At the moment we fit on all supported targets with this enables, so just
  * ignore it.
  */
-#define DISABLE_FACTORY_RESET
+//~ #define DISABLE_FACTORY_RESET
 
 //! \name INPUT pins, connected to PS2 controller
 //! @{

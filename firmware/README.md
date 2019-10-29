@@ -1,4 +1,29 @@
-# Pin Mapping
+# Firmware
+
+This is the firmware for the OpenPSX2AmigaPadAdapter project.
+
+It it based on the Arduino platform, since the OpenPSX2AmigaPadAdapter PCB is basically a customized Arduino Uno board. Hence you will need [the Arduino software](https://www.arduino.cc/en/Main/Software) to build and flash it to the board, so download and install it. Version 1.8.10 is the latest at the time of writing, and all testing has been done with this version, although any later version should work as well.
+
+## Core
+The OpenPSX2AmigaPadAdapter firmware was tested using the default Arduino core on ATmega328P microcontrollers. You can also use ATmega88/A/P/PA or ATmega168/P microcontrollers, they are pin-compatible and slightly cheaper. In this case you will need [MiniCore](https://github.com/MCUdude/MiniCore).
+
+The ATmega328P**B** is supported by MiniCore but it is NOT pin-compatible. Nevertheless, it MIGHT just work as well. It might also destroy whatever you connect the adapter to, so do it at your own risk.
+
+## Libraries
+You will need to install the following libraries:
+- [Arduino-PS2X](https://github.com/SukkoPera/Arduino-PS2X): You need exactly this version, other versions won't do.
+- [DigitalIO](https://github.com/SukkoPera/DigitalIO): You need this fork if your board has an ATmega88/A/P/PA microcontroller, otherwise you can also use [the original version](https://github.com/greiman/DigitalIO).
+
+Please refer to the Arduino documentation for how to install them.
+
+## Bootloader
+You can either use a bootloader or not. There's not much difference from the functional point of view, as you will need some specialized hardware anyway:
+- If you don't want to use a bootloader, you will need an AVR programmer every time you want to update the firmware. There are cheap clones everywhere, just look for *usbasp* or *tinyisp*. Use the *Upload Using Programmer* function. Note that you will need to set the microcontroller fuses correctly, this is up to you.
+- If you want to use a bootloader, you will still need an AVR programmer to flash the bootloader (and set the fuses) the first time (*Burn Bootloader*), unless someone else did it for you. From then on you can just use a USB to Serial adapter (*Upload*). These are cheap too, just search for them. You can use the stock Arduino/MiniCore bootloaders, or have a look at the *bootloaders* directory, where you will find some versions of Optiboot that have been customized to flash LD2 when they startup. Not that useful unless you want to do some development/debugging, anyway.
+- If you want to help with the debugging, you will need the USB to Serial adapter, so the only bonus in using a bootloader is that you can debug and reflash using it alone.
+
+## Pin Mapping
+Pins of the DB-9 connector are connected as follows on the OpenPSX2AmigaPadAdapter PCB:
 
 |Pin#|Joystick  |CD32       |Mouse      |Arduino Pin#|Arduino Pin Mode (Joystick Mode)|Arduino Pin Mode (CD32 Mode)|Arduino Pin Mode (Mouse Mode)|
 |----|----------|-----------|-----------|------------|--------------------------------|----------------------------|-----------------------------|
@@ -12,16 +37,24 @@
 |8   |GND       |GND        |GND        |-           |-                               |-                           |-                            |
 |9   |Button 2  |SR Output  |RMB        |8           |INPUT (HIGH)/OUTPUT (LOW)       |OUTPUT                      |INPUT (HIGH)/OUTPUT (LOW)    |
 
+Notes:
 - All signals are active-low.
-- Direction signals are actually driven in an open-collector fashion, which
-  means they are toggled between INPUT (to make them HIGH) and OUTPUT mode (to
-  make them LOW).
-- This needs external pull-up resistors: Those for the direction pins are
-  built-in into the computer, while those for the buttons are on the board.
+- Direction signals are actually driven in an open-collector fashion, which means they are toggled between INPUT (to make them HIGH) and OUTPUT mode (to make them LOW).
+- This way of working requires external pull-up resistors: Those for the direction pins are built-in into the computer, while those for the buttons are on the board.
 
-# AVR I/O Control
+## AVR I/O Control
+This is just for reference, don't care about it if you don't know what it means:
 
 |DDR \ PORT| L            | H                   |   |
 |----------|--------------|---------------------|---|
 | L        | INPUT (5V)   | INPUT + PULL-UP (5V)|   |
 | H        | OUTPUT L (0V)| OUTPUT H (5V)       |   |
+
+## License
+The OpenPSX2AmigaPadAdapter firmware is Copyright &copy; 2019 by SukkoPera.
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program. If not, see <http://www.gnu.org/licenses/>.
