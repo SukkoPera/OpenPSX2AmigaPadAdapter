@@ -83,10 +83,14 @@ Buttons are mapped as follows:
 
 Both the D-Pad and Left Analog work as direction buttons.
 
+## Firmware
+Before you can use the adapter, you will need to load some firmware on it. This is based on the [Arduino](https://www.arduino.cc) platform and can be found under the [firmware](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/tree/master/firmware) directory, along with instructions.
+
 ## Compatibility
 OpenPSX2AmigaPadAdapter has currently been tested with the following Sony controllers:
 - PlayStation Dual Shock Analog Controller (SCPH-1200)
 - PlayStation 2 Dual Shock 2 Analog Controller (SCPH-10010)
+- EastVita Wireless Controller (Chinese knock-off, cheap but with surprising quality, probably goes under other names, too)
 
 Most controllers should work, please report (by [opening an issue](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/issues/new)) if you find out working or non-working models.
 
