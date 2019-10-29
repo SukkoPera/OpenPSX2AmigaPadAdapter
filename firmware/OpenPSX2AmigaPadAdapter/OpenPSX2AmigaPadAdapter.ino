@@ -802,7 +802,7 @@ inline void disableCD32Trigger () {
 	detachInterrupt (digitalPinToInterrupt (PIN_BTNREGCLK));
 	interrupts ();
 #else
-	EIMSK &= ~(1 << INT1) | ~(1 << INT0);
+	EIMSK &= ~((1 << INT1) | (1 << INT0));
 #endif
 }
 
@@ -970,6 +970,26 @@ void mouseToJoystick () {
  */
 void joystickToMouse () {
 	debugln (F("Joystick -> Mouse"));
+
+	// When in mouse mode, we can't switch to CD32 mode
+	disableCD32Trigger ();
+	
+	// Direction pins must be outputs
+	fastPinMode (PIN_UP, OUTPUT);
+	fastPinMode (PIN_DOWN, OUTPUT);
+	fastPinMode (PIN_LEFT, OUTPUT);
+	fastPinMode (PIN_RIGHT, OUTPUT);
+}
+
+/** \brief Switch from CD32 mode to Mouse mode
+ * 
+ * This function set pins directions and does whatever else is necessary to
+ * switch from CD32 mode to Mouse mode.
+ */
+void cd32ToMouse () {
+	debugln (F("CD32 -> Mouse"));
+
+	disableCD32Trigger ();	// Stops both interrupts
 	
 	// Direction pins must be outputs
 	fastPinMode (PIN_UP, OUTPUT);
@@ -977,8 +997,11 @@ void joystickToMouse () {
 	fastPinMode (PIN_LEFT, OUTPUT);
 	fastPinMode (PIN_RIGHT, OUTPUT);
 
-	// When in mouse mode, we can't switch to CD32 mode
-	disableCD32Trigger ();
+	// Buttons must be ready for open-collector emulation
+	fastDigitalWrite (PIN_BTN1, LOW);
+	fastPinMode (PIN_BTN1, INPUT);
+	fastDigitalWrite (PIN_BTN2, LOW);
+	fastPinMode (PIN_BTN2, INPUT);
 }
 
 /** \brief Report a button as pressed on the DB-9 port
@@ -1747,11 +1770,19 @@ void stateMachine () {
 				handleMouse ();
 			}
 			break;
-		case ST_CD32:
-			handleJoystickDirections (j);
+		case ST_CD32: {
+			int8_t x, y;
+			
+			if (rightAnalogMoved (x, y)) {
+				// Right analog stick moved, switch to Mouse mode
+				cd32ToMouse ();
+				*state = ST_MOUSE;
+			} else {
+				handleJoystickDirections (j);
+			}
 			stateEnteredTime = 0;
 			break;
-		case ST_JOYSTICK_TEMP: {
+		} case ST_JOYSTICK_TEMP: {
 			handleJoystickDirections (j);
 			handleJoystickButtons (j);
 
