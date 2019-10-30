@@ -18,12 +18,14 @@ When the adapter is powered on, it defaults to Atari-style Two-Button Mode, whic
 
 This mode has been throughly tested on several Amiga models, but it **should** work wherever an Atari-style joystick is supported, including the Commodore VIC-20, Commodore 16 (through an [adapter](https://github.com/SukkoPera/OpenC16JoyAdapter)), Commodore 64, Sega Master System (but NOT MegaDrive/Genesis), etc. Although **these platforms have NOT been tested** yet, so use at your own risk.
 
-[Here is a list](http://eab.abime.net/showthread.php?t=57540) of games that somehow support two buttons, if it can be any useful.
+**NOTE:** B2 will be reported as always pressed on the C64 at the moment (See #4).
 
 While in this mode, the adapter supports different button mappings, which have been carefully designed and tailored to different game genres. The mappings can be switched by pressing <kbd>Select</kbd> in combination with other buttons. LD1 will blink quickly a few times to indicate what mapping has been activated.
 
 #### Standard Mapping: <kbd>Select</kbd> + <kbd>&square;</kbd>
-Standard Mapping is the simplest mapping possible: both the D-Pad and Left Analog work as direction buttons. <kbd>&square;</kbd> is <kbd>B1</kbd> and <kbd>&cross;</kbd> is <kbd>B2</kbd>. This is the default mapping as it should be usable just about in every game out there. It might not be the most natural these days, but it's the way the game was meant to be played by the developers, thus it should never fail you. Note that very few games were originally made to take advantage of two buttons, as even fewer controllers had that many (!) those days.
+Standard Mapping is the simplest mapping possible: both the D-Pad and Left Analog work as direction buttons. <kbd>&square;</kbd> is <kbd>B1</kbd> and <kbd>&cross;</kbd> is <kbd>B2</kbd>. This is the default mapping as it should be usable just about in every game out there. It might not be the most natural these days, but it's the way the game was meant to be played by the developers, thus it should never fail you.
+
+Note that very few games were originally made to take advantage of two buttons, as even fewer controllers had that many (!) those days. [Here is a list](http://eab.abime.net/showthread.php?t=57540) of Amiga games that somehow support two buttons, if it can be any useful.
 
 LD1 will blink once when this mapping is activated.
 
@@ -63,11 +65,11 @@ Note that a mapping you have just programmed is not activated automatically, so 
 The Custom Mappings **cannot** be configured so that <kbd>&darr;</kbd> overrides <kbd>&uarr;</kbd> or so that the vertical axis of Left Analog is ignored, still they might be useful here and there. For instance, having <kbd>B1</kbd> + <kbd>&uarr;</kbd> on <kbd>&cross;</kbd> and <kbd>B1</kbd> + <kbd>&darr;</kbd> on <kbd>&triangle;</kbd> makes the Amiga version of *Golden Axe* much more playable.
 
 ### Mouse Mode
-If the right analog stick is moved, the adapter switches to Amiga Mouse Mode. In this mode, the right stick emulates the movements of a mouse. Movement speed is somewhat proportional to how far the stick is moved.
+Whenever the right analog stick is moved, the adapter switches to Amiga Mouse Mode. In this mode, the right stick emulates the movements of a mouse. Movement speed is somewhat proportional to how far the stick is moved.
 
 This mode is handy if you have the adapter connected to port 1 of an Amiga computer and you need to use a mouse for short while (maybe to do some settings in a cracktro). Instead of unplugging the adapter, plugging in a mouse, and then the adapter again, you can take advantage of this feature. It can also be useful as an emergency mouse. 
 
-Mouse mode is indicated by LD1 blinking. Press any direction on the D-Pad to go back to Joystick Mode.
+Mouse mode is indicated by LD1 blinking. Press any direction on the D-Pad to go back to Joystick or CD32 Mode.
 
 ### CD<sup>32</sup> Controller Mode
 When the adapter is connected to a CD<sup>32</sup> console, it will automatically switch into this mode, which will emulate all 7 buttons of the original CD<sup>32</sup> controller. LD1 will light up steadily.
