@@ -413,6 +413,15 @@ void mapJoystickNormal (TwoButtonJoystick& j);
 //! \brief Joystick mapping function currently in effect
 JoyMappingFunc joyMappingFunc = mapJoystickNormal;
 
+/** \brief Commodore 64 mode
+ *
+ * Button 2 on the C64 is usually expected to behave differently from the other
+ * buttons, so that it is HIGH when pressed and LOW when released.
+ *
+ * If this flag is true, we'll do exactly that.
+ */
+boolean c64Mode = false;
+
 //! @}		// End of global variables
 
 #ifdef ENABLE_SERIAL_DEBUG
@@ -1459,10 +1468,19 @@ void handleJoystickButtons (const TwoButtonJoystick& j) {
 			buttonRelease (PIN_BTN1);
 		}
 
-		if (j.b2) {
-			buttonPress (PIN_BTN2);
+		if (!c64Mode) {
+			if (j.b2) {
+				buttonPress (PIN_BTN2);
+			} else {
+				buttonRelease (PIN_BTN2);
+			}
 		} else {
-			buttonRelease (PIN_BTN2);
+			// C64 works the opposite way
+			if (j.b2) {
+				buttonRelease (PIN_BTN2);
+			} else {
+				buttonPress (PIN_BTN2);
+			}
 		}
 	}
 	
@@ -1746,9 +1764,9 @@ void stateMachine () {
 		 * MAIN MODES
 		 **********************************************************************/
 		case ST_JOYSTICK: {
-			int8_t x, y;
+			int8_t dummy;
 			
-			if (rightAnalogMoved (x, y)) {
+			if (rightAnalogMoved (dummy, dummy)) {
 				// Right analog stick moved, switch to Mouse mode
 				joystickToMouse ();
 				*state = ST_MOUSE;
@@ -1771,9 +1789,9 @@ void stateMachine () {
 			}
 			break;
 		case ST_CD32: {
-			int8_t x, y;
+			int8_t dummy;
 			
-			if (rightAnalogMoved (x, y)) {
+			if (rightAnalogMoved (dummy, dummy)) {
 				// Right analog stick moved, switch to Mouse mode
 				cd32ToMouse ();
 				*state = ST_MOUSE;
@@ -1828,6 +1846,14 @@ void stateMachine () {
 			} else if (ps2x.Button (PSB_R2)) {
 				selectComboButton = PSB_R2;
 				*state = ST_SELECT_AND_BTN_HELD;
+			} else if (ps2x.Button (PSB_START)) {
+				if (c64Mode) {
+					flashLed (2);
+				} else {
+					flashLed (1);
+				}
+				c64Mode = !c64Mode;
+				*state = ST_WAIT_SELECT_RELEASE_FOR_EXIT;
 			}
 			break;
 		case ST_SELECT_AND_BTN_HELD:
@@ -1969,7 +1995,7 @@ void stateMachine () {
 		case ST_FACTORY_RESET_WAIT_1:
 			if (stateEnteredTime == 0) {
 				stateEnteredTime = millis ();
-			} else if (millis () - stateEnteredTime > 2000) {
+			} else if (millis () - stateEnteredTime > 2000UL) {
 				stateEnteredTime = 0;
 				*state = ST_FACTORY_RESET_WAIT_2;
 			} else if (!ps2x.Button (PSB_SELECT)) {
@@ -1980,7 +2006,7 @@ void stateMachine () {
 		case ST_FACTORY_RESET_WAIT_2:
 			if (stateEnteredTime == 0) {
 				stateEnteredTime = millis ();
-			} else if (millis () - stateEnteredTime > 2000) {
+			} else if (millis () - stateEnteredTime > 2000UL) {
 				stateEnteredTime = 0;
 				*state = ST_FACTORY_RESET_PERFORM;
 			} else if (!ps2x.Button (PSB_SELECT)) {
@@ -2017,6 +2043,7 @@ void updateLeds () {
 	switch (*state) {
 		case ST_NO_CONTROLLER:
 		case ST_FIRST_READ:
+		case ST_WAIT_SELECT_RELEASE_FOR_EXIT:
 #ifndef DISABLE_FACTORY_RESET
 		case ST_FACTORY_RESET_PERFORM:	// Led for this state is handled in SM
 #endif
@@ -2043,7 +2070,6 @@ void updateLeds () {
 		case ST_WAIT_BUTTON_RELEASE:
 		case ST_WAIT_COMBO_PRESS:
 		case ST_WAIT_COMBO_RELEASE:
-		case ST_WAIT_SELECT_RELEASE_FOR_EXIT:
 			// Programming mode, blink fast
 			fastDigitalWrite (PIN_LED_MODE, (millis () / 250) % 2 == 0);
 			break;
