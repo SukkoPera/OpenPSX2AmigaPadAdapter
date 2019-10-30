@@ -68,5 +68,5 @@ avrdude -C$HOME/.arduino15/packages/MiniCore/hardware/avr/2.0.3/avrdude.conf -v 
 
 #### Application
 ```
-avrdude -C$HOME/.arduino15/packages/MiniCore/hardware/avr/2.0.3/avrdude.conf -v -V -patmega88p -carduino -P/dev/ttyUSB0 -b115200 -D -Uflash:w:OpenPSX2AmigaPadAdapter.hex:i 
+avrdude -C$HOME/.arduino15/packages/MiniCore/hardware/avr/2.0.3/avrdude.conf -v -V -patmega88p -carduino -P/dev/ttyUSB0 -b115200 -D -Uflash:w:OpenPSX2AmigaPadAdapter.ino.hex:i 
 ```
