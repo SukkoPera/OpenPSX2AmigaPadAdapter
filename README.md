@@ -18,7 +18,7 @@ When the adapter is powered on, it defaults to Atari-style Two-Button Mode, whic
 
 This mode has been throughly tested on several Amiga models, but it **should** work wherever an Atari-style joystick is supported, including the Commodore VIC-20, Commodore 16 (through an [adapter](https://github.com/SukkoPera/OpenC16JoyAdapter)), Commodore 64, Sega Master System (but NOT MegaDrive/Genesis), etc. Although **these platforms have NOT been tested** yet, so use at your own risk.
 
-**NOTE:** B2 will be reported as always pressed on the C64 at the moment (See #4).
+**NOTE:** B2 will be reported as always pressed on the C64 at the moment (See [#4](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/issues/4)).
 
 While in this mode, the adapter supports different button mappings, which have been carefully designed and tailored to different game genres. The mappings can be switched by pressing <kbd>Select</kbd> in combination with other buttons. LD1 will blink quickly a few times to indicate what mapping has been activated.
 
@@ -67,7 +67,7 @@ The Custom Mappings **cannot** be configured so that <kbd>&darr;</kbd> overrides
 ### Mouse Mode
 Whenever the right analog stick is moved, the adapter switches to Amiga Mouse Mode. In this mode, the right stick emulates the movements of a mouse. Movement speed is somewhat proportional to how far the stick is moved.
 
-This mode is handy if you have the adapter connected to port 1 of an Amiga computer and you need to use a mouse for short while (maybe to do some settings in a cracktro). Instead of unplugging the adapter, plugging in a mouse, and then the adapter again, you can take advantage of this feature. It can also be useful as an emergency mouse. 
+This mode can be useful as an emergency mouse, and it will be particularly handy if you have the adapter connected to port 1 of an Amiga computer and you need to use a mouse for short while (maybe to do some settings in a cracktro). Instead of unplugging the adapter, plugging in a mouse, and then the adapter again, you can take advantage of this feature.
 
 Mouse mode is indicated by LD1 blinking. Press any direction on the D-Pad to go back to Joystick or CD32 Mode.
 
