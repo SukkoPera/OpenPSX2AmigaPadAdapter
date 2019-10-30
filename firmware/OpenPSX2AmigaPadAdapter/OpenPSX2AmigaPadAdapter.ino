@@ -1990,15 +1990,6 @@ void stateMachine () {
 			break;
 		case ST_FACTORY_RESET_PERFORM:
 			// OK, user has convinced us to actually perform the reset
-			//~ for (byte i = 0; i < 2; ++i) {
-				//~ digitalWrite (PIN_LED_MODE, HIGH);
-				//~ delay (500);
-				//~ digitalWrite (PIN_LED_MODE, LOW);
-				//~ delay (500);
-			//~ }
-			//~ digitalWrite (PIN_LED_MODE, HIGH);
-			//~ delay (2000);
-			//~ digitalWrite (PIN_LED_MODE, LOW);
 			clearConfigurations ();
 			saveConfigurations ();
 			*state = ST_JOYSTICK;
