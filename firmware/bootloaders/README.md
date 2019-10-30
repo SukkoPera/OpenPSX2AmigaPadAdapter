@@ -1,14 +1,13 @@
 # OpenPSX2AmigaPadAdapter Bootloaders
 
-Here are some [Optiboot](https://github.com/Optiboot/optiboot) binaries compiled and customized for the OpenPSX2AmigaPadAdapter PCB.
+Here are some [Optiboot](https://github.com/Optiboot/optiboot) binaries customized for the OpenPSX2AmigaPadAdapter PCB.
 
-They are compiled from the unmodified sources with the following commands:
+They are compiled from the unmodified sources, the only difference versus the binaries included with Arduino and MiniCore are the LED pin, which is C1 on the OpenPSX2AmigaPadAdapter PCB.
 
+For the commands below to work, you will need to add the AVR-GCC binaries directory to the PATH, i.e.:
 ```
-export PATH=$PATH:/opt/arduino-1.8.9/hardware/tools/avr/bin
+export PATH=$PATH:/opt/arduino-1.8.10/hardware/tools/avr/bin
 ```
-
-So the only difference versus the binaries included with Arduino and MiniCore are the LED pin, which is C1 on the OpenPSX2AmigaPadAdapter PCB.
 
 ## Flashing
 You can flash these binaries with the Arduino software or simply with the avrduded tool as follows:
@@ -28,6 +27,14 @@ make atmega328 LED=C1
 ```
 avrdude -C$HOME/.arduino15/packages/arduino/tools/avrdude/6.3.0-arduino14/etc/avrdude.conf -v -patmega328p -cusbasp -Pusb -Uflash:w:optiboot_atmega328.hex:i -Ulock:w:0x0f:m
 ```
+
+### ATmega328PB (Untested)
+
+#### Bootloader Build
+```
+make atmega328pb LED=C1 UART=0 BAUD_RATE=115200 AVR_FREQ=16000000
+```
+
 
 ### ATmega88/A:
 #### Fuses
