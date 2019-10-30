@@ -22,7 +22,7 @@ digraph {
 
 	INIT -> NO_CONTROLLER;
 	NO_CONTROLLER -> FIRST_READ [label = "Supported controller plugged-in"];
-	FIRST_READ -> FACTORY_RESET_WAIT_0 [label = "SELECT pressed"];
+	FIRST_READ -> FACTORY_RESET_WAIT_1 [label = "SELECT pressed"];
 	FIRST_READ -> MODE_JOYSTICK [label = "SELECT not pressed"]
 
 	# Main Mode Transitions
@@ -109,12 +109,10 @@ digraph {
 		fontname = "Courier-bold";
 		fontsize = "20pt";
 		
-		FACTORY_RESET_WAIT_0;
 		FACTORY_RESET_WAIT_1;
 		FACTORY_RESET_WAIT_2;
 		FACTORY_RESET_PERFORM;
 		
-		FACTORY_RESET_WAIT_0 -> FACTORY_RESET_WAIT_1 [label = "1 Second Elapsed"];
 		FACTORY_RESET_WAIT_1 -> FACTORY_RESET_WAIT_2 [label = "2 Seconds Elapsed"];
 		FACTORY_RESET_WAIT_2 -> FACTORY_RESET_PERFORM [label = "2 Seconds Elapsed"];
 	}
@@ -122,5 +120,5 @@ digraph {
 	FACTORY_RESET_PERFORM -> MODE_JOYSTICK;
 	
 	# Valid for all nodes in the cluster
-	FACTORY_RESET_WAIT_0 -> MODE_JOYSTICK [label = "SELECT Released", ltail = cluster_reset];
+	FACTORY_RESET_WAIT_1 -> MODE_JOYSTICK [label = "SELECT Released", ltail = cluster_reset];
 }
