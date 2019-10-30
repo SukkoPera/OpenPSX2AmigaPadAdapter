@@ -30,7 +30,7 @@ LD1 will blink once when this mapping is activated.
 #### Racing Mapping 1: <kbd>Select</kbd> + <kbd>&triangle;</kbd>
 Racing Mapping 1 is useful for all those racing games that use <kbd>&uarr;</kbd> to accelerate and <kbd>&darr;</kbd> to brake. These have been mapped to <kbd>&square;</kbd> and <kbd>&cross;</kbd>, respectively, which should make them much more natural to play. When accelerating and braking at the same time, braking wins. Left Analog can be used to steer, but its vertical axis is ignored, to avoid accidental accelerating/braking. The D-Pad is fully functional and is handy when moving through menus. <kbd>B1</kbd> and <kbd>B2</kbd> can be found on <kbd>&triangle;</kbd> and <kbd>&cir;</kbd>.
 
-This mode is probably best suited to games that do not involve shifting gears, as downshifting is usually performed through <kbd>&darr;</kbd> + <kbd>B1</kbd> which is pretty hard to achieve (<kbd>&triangle;</kbd> + <kbd>&cir;</kbd>).
+This mode is probably best suited to games that do not involve shifting gears, as downshifting is usually performed through <kbd>&darr;</kbd> + <kbd>B1</kbd> which is pretty hard to achieve (<kbd>&triangle;</kbd> + <kbd>&cross;</kbd>).
 
 LD1 will blink twice when this mapping is activated.
 
@@ -63,11 +63,11 @@ Note that a mapping you have just programmed is not activated automatically, so 
 The Custom Mappings **cannot** be configured so that <kbd>&darr;</kbd> overrides <kbd>&uarr;</kbd> or so that the vertical axis of Left Analog is ignored, still they might be useful here and there. For instance, having <kbd>B1</kbd> + <kbd>&uarr;</kbd> on <kbd>&cross;</kbd> and <kbd>B1</kbd> + <kbd>&darr;</kbd> on <kbd>&triangle;</kbd> makes the Amiga version of *Golden Axe* much more playable.
 
 ### Mouse Mode
-If the right analog stick is moved, the adapter switches to Amiga Mouse Mode. This is indicated by LD1 blinking.
+If the right analog stick is moved, the adapter switches to Amiga Mouse Mode. In this mode, the right stick emulates the movements of a mouse. Movement speed is somewhat proportional to how far the stick is moved.
 
-This mode is handy if you have the adapter connected to port 1 of an Amiga computer and you need to use a mouse for short while (maybe to do some settings in a cracktro). Instead of unplugging the adapter, plugging in a mouse, and then the adapter again, you can take advantage of this feature. It can also be useful as an emergency mouse. Movement is somewhat proportional to how far the stick is moved.
+This mode is handy if you have the adapter connected to port 1 of an Amiga computer and you need to use a mouse for short while (maybe to do some settings in a cracktro). Instead of unplugging the adapter, plugging in a mouse, and then the adapter again, you can take advantage of this feature. It can also be useful as an emergency mouse. 
 
-Press any direction on the D-Pad to go back to Joystick Mode.
+Mouse mode is indicated by LD1 blinking. Press any direction on the D-Pad to go back to Joystick Mode.
 
 ### CD<sup>32</sup> Controller Mode
 When the adapter is connected to a CD<sup>32</sup> console, it will automatically switch into this mode, which will emulate all 7 buttons of the original CD<sup>32</sup> controller. LD1 will light up steadily.
@@ -87,9 +87,9 @@ Both the D-Pad and Left Analog work as direction buttons.
 Before you can use the adapter, you will need to load some firmware on it. This is based on the [Arduino](https://www.arduino.cc) platform and can be found under the [firmware](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/tree/master/firmware) directory, along with instructions.
 
 ## Compatibility
-OpenPSX2AmigaPadAdapter has currently been tested with the following Sony controllers:
-- PlayStation Dual Shock Analog Controller (SCPH-1200)
-- PlayStation 2 Dual Shock 2 Analog Controller (SCPH-10010)
+OpenPSX2AmigaPadAdapter has currently been tested with the following controllers:
+- Sony Dual Shock Analog Controller (SCPH-1200)
+- Sony Dual Shock 2 Analog Controller (SCPH-10010)
 - EastVita Wireless Controller (Chinese knock-off, cheap but with surprising quality, probably goes under other names, too)
 
 Most controllers should work, please report (by [opening an issue](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/issues/new)) if you find out working or non-working models.
