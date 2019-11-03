@@ -1740,7 +1740,11 @@ void stateMachine () {
 			 * and will basically time itself just fine
 			 */
 			if (initPad ()) {
-				// Got a controller
+				/* Got a controller! We'll default to joystick mode, so let's
+				 * set everything up now. Let's abuse the mouseToJoystick()
+				 * function, hope she won't mind :).
+				 */
+				mouseToJoystick ();
 				*state = ST_FIRST_READ;
 			}
 			break;
@@ -1754,8 +1758,6 @@ void stateMachine () {
 				*state = ST_FACTORY_RESET_WAIT_1;
 #endif
 			} else {
-				// Default to joystick mode
-				mouseToJoystick ();
 				*state = ST_JOYSTICK;
 			}
 			break;
@@ -1907,8 +1909,9 @@ void stateMachine () {
 						joyMappingFunc = mapJoystickCustom;
 						flashLed (JMAP_CUSTOM);
 					} else {
-						// Something went wrong, just pretend it never happened
-						*state = ST_JOYSTICK;
+						/* Something went wrong, just ignore it and pretend
+						 * nothing ever happened
+						 */
 					}
 					break;
 				} default:
