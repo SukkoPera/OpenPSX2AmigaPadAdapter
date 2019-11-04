@@ -40,7 +40,6 @@ Just select *Burn Bootloader* from the *Tools* menu.
 ### Atmega88/A/P/PA or ATmega328PB
 Set the following values under the *Tools* menu:
 - Clock: 16 MHz external
-- LTO: Enabled
 - BOD: 2.7V
 - Serial: UART0 (if applicable)
 - Bootloader: Yes or No according to your choice
