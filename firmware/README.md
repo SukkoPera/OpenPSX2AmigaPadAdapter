@@ -22,8 +22,8 @@ Note that they are not available in the Arduino Library Manager, so you will nee
 
 ## Bootloader
 You can either use a bootloader or not. There's not much difference from the functional point of view, as you will need some specialized hardware anyway:
-- If you don't want to use a bootloader, you will need an AVR I(C)SP programmer every time you want to update the firmware. There are cheap clones everywhere, just look for *usbasp* or *tinyisp*. Use the *Upload Using Programmer* function. Note that you will need to set the microcontroller fuses correctly, this is up to you.
-- If you want to use a bootloader, you will still need an AVR programmer to flash the bootloader (and set the fuses) the first time (*Burn Bootloader*), unless someone else did it for you. From then on you can just use a USB to Serial adapter (*Upload*). These are cheap too, just search for them. Not that useful unless you want to do some development/debugging, anyway.
+- If you don't want to use a bootloader, you will need an AVR I(C)SP programmer every time you want to update the firmware. There are cheap clones everywhere, just look for *usbasp* or *tinyisp*.
+- If you want to use a bootloader, you will still need an AVR programmer to flash the bootloader (and set the fuses) the first time, unless someone else did it for you. From then on you can just use a USB to Serial adapter. These are cheap too, just search for them. Not that useful unless you want to do some development/debugging, anyway.
 - If you want to help with the debugging, you will need the USB to Serial adapter, so the only bonus in using a bootloader is that you can debug and reflash using it alone.
 - Note that you can use an Arduino Uno (or similar) board as an AVR ISP programmer, if you already have one: follow [these instructions](https://www.arduino.cc/en/Tutorial/ArduinoISP).
 
@@ -37,6 +37,8 @@ In alternative, the ```bootloaders``` directory contains commands to set the fus
 ### ATmega328/P
 Just select *Burn Bootloader* from the *Tools* menu.
 
+Note that this will set the fuses so that the board actually expects a bootloader to be installed, but programs seem to run anyway even if you flash them later through a programmer. You will lose 256 bytes of flash but it won't be a problem in this case, since this firmware is much smaller. To fix this properly you will need to set the fuses manually and use value ```0xDF``` for the High fuse.
+
 ### Atmega88/A/P/PA or ATmega328PB
 Set the following values under the *Tools* menu:
 - Clock: 16 MHz external
@@ -45,6 +47,9 @@ Set the following values under the *Tools* menu:
 - Bootloader: Yes or No according to your choice
 
 Finally select *Burn Bootloader* from the *Tools* menu.
+
+## Compiling and Flashing
+Just open the sketch located in the ```OpenPSX2AmigaPadAdapter``` in the Arduino software, connect the board and either use the ```Upload``` or ```Upload Using Programmer``` menu option, according to whether you are using the bootloader or not.
 
 ## Pin Mapping
 Pins of the DB-9 connector are connected as follows on the OpenPSX2AmigaPadAdapter PCB:
