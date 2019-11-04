@@ -55,8 +55,8 @@ Pins of the DB-9 connector are connected as follows on the OpenPSX2AmigaPadAdapt
 |2   |Down      |Down       |H-pulse    |5           |INPUT (HIGH)/OUTPUT (LOW)       |INPUT (HIGH)/OUTPUT (LOW)   |OUTPUT                       |
 |3   |Left      |Left       |VQ-pulse   |6           |INPUT (HIGH)/OUTPUT (LOW)       |INPUT (HIGH)/OUTPUT (LOW)   |OUTPUT                       |
 |4   |Right     |Right      |HQ-pulse   |7           |INPUT (HIGH)/OUTPUT (LOW)       |INPUT (HIGH)/OUTPUT (LOW)   |OUTPUT                       |
-|5   |(Button 3)|Load/Shift*|MMB        |2 (INT0)    |INPUT                           |INPUT                       |INPUT                        |
-|6   |Button 1  |SR Clock*  |LMB        |3 (INT1)    |INPUT (HIGH)/OUTPUT (LOW)       |INPUT                       |INPUT (HIGH)/OUTPUT (LOW)    |
+|5   |(Button 3)|Load/Shift |MMB        |2 (INT0)    |INPUT                           |INPUT                       |INPUT                        |
+|6   |Button 1  |SR Clock   |LMB        |3 (INT1)    |INPUT (HIGH)/OUTPUT (LOW)       |INPUT                       |INPUT (HIGH)/OUTPUT (LOW)    |
 |7   |+5V       |+5V        |+5V        |-           |-                               |-                           |-                            |
 |8   |GND       |GND        |GND        |-           |-                               |-                           |-                            |
 |9   |Button 2  |SR Output  |RMB        |8           |INPUT (HIGH)/OUTPUT (LOW)       |OUTPUT                      |INPUT (HIGH)/OUTPUT (LOW)    |
