@@ -32,12 +32,12 @@ If you go for the bootloader, you can either use the stock Arduino/MiniCore ones
 ## Fuses
 Even if you don't want to use a bootloader, you will need to burn it once in order to set some fuses that are internal to the microcontroller to the right values. Then, if you don't want to use a bootloader, just pretend it never happened.
 
-In alternative, the ```bootloaders``` directory contains commands to set the fuses without using the Arduino software.
+This is necessary because the Arduino software has no option dedicated to setting the fuses, but only does so contextually with burning the bootloader. In alternative, the ```bootloaders``` directory contains commands to set the fuses without using the Arduino software.
 
 ### ATmega328/P
 Just select *Burn Bootloader* from the *Tools* menu.
 
-Note that this will set the fuses so that the board actually expects a bootloader to be installed, but programs seem to run anyway even if you flash them later through a programmer. You will lose 256 bytes of flash but it won't be a problem in this case, since this firmware is much smaller. To fix this properly you will need to set the fuses manually and use value ```0xDF``` for the High fuse.
+Note that this will set the fuses so that the board actually expects a bootloader to be installed, but programs seem to run correctly anyway if you flash them later through a programmer. You will lose 256 bytes of flash but it won't be a problem in this case, since this firmware is much smaller. To fix this properly you will need to set the fuses manually and use value ```0xDF``` for the High fuse.
 
 ### Atmega88/A/P/PA or ATmega328PB
 Set the following values under the *Tools* menu:
