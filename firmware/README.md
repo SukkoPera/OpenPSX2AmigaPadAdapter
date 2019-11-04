@@ -31,18 +31,18 @@ Even if you don't want to use a bootloader, you will need to burn it once in ord
 This is necessary because the Arduino software has no option dedicated to setting the fuses, but only does so contextually with burning the bootloader. In alternative, the ```bootloaders``` directory contains commands to set the fuses without using the Arduino software.
 
 ### ATmega328/P
-Just select *Burn Bootloader* from the *Tools* menu.
+Make sure that *Board* is set to *Arduino/Genuino Uno* under the *Tools* menu and select *Burn Bootloader*.
 
 Note that this will set the fuses so that the board actually expects a bootloader to be installed, but programs seem to run correctly anyway if you flash them later through a programmer. You will lose 256 bytes of flash but it won't be a problem in this case, since this firmware is much smaller. To fix this properly you will need to set the fuses manually and use value ```0xDF``` for the High fuse.
 
 ### Atmega88/A/P/PA or ATmega328PB
-Set the following values under the *Tools* menu:
+Select the correct microcontroller type under *Tools* -> *Board* and set the other options in the same menu to the following values:
 - Clock: 16 MHz external
 - BOD: 2.7V
 - Serial: UART0 (if applicable)
 - Bootloader: Yes or No according to your choice
 
-Finally select *Burn Bootloader* from the *Tools* menu.
+Finally select *Burn Bootloader*.
 
 ## Compiling and Flashing
 1. Open the Arduino software
