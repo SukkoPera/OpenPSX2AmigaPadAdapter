@@ -63,7 +63,7 @@ Note that a mapping you have just programmed is not activated automatically, so 
 The Custom Mappings **cannot** be configured so that <kbd>&darr;</kbd> overrides <kbd>&uarr;</kbd> or so that the vertical axis of Left Analog is ignored, still they might be useful here and there. For instance, having <kbd>B1</kbd> + <kbd>&uarr;</kbd> on <kbd>&cross;</kbd> and <kbd>B1</kbd> + <kbd>&darr;</kbd> on <kbd>&triangle;</kbd> makes the Amiga version of *Golden Axe* much more playable.
 
 #### Commodore 64 Mode
-Button 2 on Commodore 64 usually behaves in the opposite way at the electrical level, with respect to the other buttons. So a tweak can be enabled to invert the behaviour of button 2, use it if you find that your game of choice always sees it pressed or if it triggers on release rather then on press.
+Button 2 on Commodore 64 usually behaves in the opposite way at the electrical level, with respect to the other buttons. So a tweak can be enabled to invert the behaviour of button 2, use it if you find that your game of choice always sees it pressed or if it triggers on release rather than on press.
 
 Just hold <kbd>Select</kbd> and press <kbd>Start</kbd> briefly. LD1 will flash once when this tweak is enabled and twice when it is disabled.
 
@@ -92,7 +92,7 @@ Both the D-Pad and Left Analog work as direction buttons.
 Before you can use the adapter, you will need to load some firmware (i.e.: an Arduino sketch) on it. This can be found under the [firmware](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/tree/master/firmware) directory, along with instructions.
 
 ## Enclosure
-The [enclosure] (https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/tree/master/enclosure) directory contains models for a 3D-printable enclosure/case. It was made by Petros Kokotis, who has all my gratitude for his great work and support.
+The [enclosure](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/tree/master/enclosure) directory contains models for a 3D-printable enclosure/case. It was made by Petros Kokotis, who has all my gratitude for his great work and support.
 
 ## Compatibility
 OpenPSX2AmigaPadAdapter has currently been tested with the following controllers:
