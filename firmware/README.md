@@ -7,7 +7,11 @@ It it based on the [Arduino](https://www.arduino.cc) platform, since the OpenPSX
 ## Core
 The OpenPSX2AmigaPadAdapter firmware was tested using the default Arduino core on ATmega328P microcontrollers. You can also use ATmega88/A/P/PA or ATmega168/P microcontrollers, they are pin-compatible and slightly cheaper. In this case you will need [MiniCore](https://github.com/MCUdude/MiniCore).
 
-The ATmega328P**B** is supported by MiniCore but it is NOT pin-compatible. Nevertheless, it MIGHT just work as well. It might also destroy whatever you connect the adapter to, so do it at your own risk.
+The ATmega328P**B** is also supported by MiniCore but it is NOT pin-compatible. Nevertheless, it MIGHT just work as well. It might also destroy whatever you connect the adapter to, so **do it at your own risk**.
+
+If using MiniCore, take care to the following values under the *Tools* menu before compiling the firmware:
+- Clock: 16 MHz external
+- LTO: Enabled
 
 ## Libraries
 You will need to install the following libraries:
@@ -19,12 +23,16 @@ Note that they are not available in the Arduino Library Manager, so you will nee
 ## Bootloader
 You can either use a bootloader or not. There's not much difference from the functional point of view, as you will need some specialized hardware anyway:
 - If you don't want to use a bootloader, you will need an AVR I(C)SP programmer every time you want to update the firmware. There are cheap clones everywhere, just look for *usbasp* or *tinyisp*. Use the *Upload Using Programmer* function. Note that you will need to set the microcontroller fuses correctly, this is up to you.
-- If you want to use a bootloader, you will still need an AVR programmer to flash the bootloader (and set the fuses) the first time (*Burn Bootloader*), unless someone else did it for you. From then on you can just use a USB to Serial adapter (*Upload*). These are cheap too, just search for them. You can use the stock Arduino/MiniCore bootloaders, or have a look at the [bootloaders](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/tree/master/firmware/bootloaders) directory, where you will find some versions of Optiboot that have been customized to flash LD2 when they startup. Not that useful unless you want to do some development/debugging, anyway.
+- If you want to use a bootloader, you will still need an AVR programmer to flash the bootloader (and set the fuses) the first time (*Burn Bootloader*), unless someone else did it for you. From then on you can just use a USB to Serial adapter (*Upload*). These are cheap too, just search for them. Not that useful unless you want to do some development/debugging, anyway.
 - If you want to help with the debugging, you will need the USB to Serial adapter, so the only bonus in using a bootloader is that you can debug and reflash using it alone.
 - Note that you can use an Arduino Uno (or similar) board as an AVR ISP programmer, if you already have one: follow [these instructions](https://www.arduino.cc/en/Tutorial/ArduinoISP).
 
+If you go for the bootloader, you can either use the stock Arduino/MiniCore ones or have a look at the [bootloaders](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/tree/master/firmware/bootloaders) directory, where you will find some versions of Optiboot that have been customized to flash LD2 when they startup (since there is no led connected to pin 13 as on most Arduino boards). Each of them is accompanied by the command line it was built with and by an ```avrdude``` command that can be used to flash it to the board without using the Arduino software.
+
 ## Fuses
-Even if you don't want to use a bootloader, you will need to burn it once in order to set some fuses that are internal to the microcontroller to the right values. Then,  if you don't want to use a bootloader, just pretend it never happened.
+Even if you don't want to use a bootloader, you will need to burn it once in order to set some fuses that are internal to the microcontroller to the right values. Then, if you don't want to use a bootloader, just pretend it never happened.
+
+In alternative, the ```bootloaders``` directory contains commands to set the fuses without using the Arduino software.
 
 ### ATmega328/P
 Just select *Burn Bootloader* from the *Tools* menu.
@@ -32,8 +40,9 @@ Just select *Burn Bootloader* from the *Tools* menu.
 ### Atmega88/A/P/PA or ATmega328PB
 Set the following values under the *Tools* menu:
 - Clock: 16 MHz external
+- LTO: Enabled
 - BOD: 2.7V
-- Serial: UART0
+- Serial: UART0 (if applicable)
 - Bootloader: Yes or No according to your choice
 
 Finally select *Burn Bootloader* from the *Tools* menu.
