@@ -12,9 +12,9 @@ The ATmega328P**B** is supported by MiniCore but it is NOT pin-compatible. Never
 ## Libraries
 You will need to install the following libraries:
 - [Arduino-PS2X](https://github.com/SukkoPera/Arduino-PS2X): You need exactly this version, other versions won't do.
-- [DigitalIO](https://github.com/SukkoPera/DigitalIO): You need this fork if your board has an ATmega88/A/P/PA microcontroller, otherwise you can also use [the original version](https://github.com/greiman/DigitalIO).
+- [DigitalIO](https://github.com/SukkoPera/DigitalIO): You need this fork if your board has an ATmega88/A/P/PA or 328P**B** microcontroller, otherwise you can also use [the original version](https://github.com/greiman/DigitalIO).
 
-Please refer to the Arduino documentation for how to install them.
+Note that they are not available in the Arduino Library Manager, so you will need to install them manually. In order to do so, just download the ZIP files and unpack them under ```libraries``` into your sketches directory. Please refer to the [Arduino documentation](https://www.arduino.cc/en/Guide/Libraries#toc5) for more information.
 
 ## Bootloader
 You can either use a bootloader or not. There's not much difference from the functional point of view, as you will need some specialized hardware anyway:
@@ -22,6 +22,21 @@ You can either use a bootloader or not. There's not much difference from the fun
 - If you want to use a bootloader, you will still need an AVR programmer to flash the bootloader (and set the fuses) the first time (*Burn Bootloader*), unless someone else did it for you. From then on you can just use a USB to Serial adapter (*Upload*). These are cheap too, just search for them. You can use the stock Arduino/MiniCore bootloaders, or have a look at the [bootloaders](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/tree/master/firmware/bootloaders) directory, where you will find some versions of Optiboot that have been customized to flash LD2 when they startup. Not that useful unless you want to do some development/debugging, anyway.
 - If you want to help with the debugging, you will need the USB to Serial adapter, so the only bonus in using a bootloader is that you can debug and reflash using it alone.
 - Note that you can use an Arduino Uno (or similar) board as an AVR ISP programmer, if you already have one: follow [these instructions](https://www.arduino.cc/en/Tutorial/ArduinoISP).
+
+## Fuses
+Even if you don't want to use a bootloader, you will need to burn it once in order to set some fuses that are internal to the microcontroller to the right values. Then,  if you don't want to use a bootloader, just pretend it never happened.
+
+### ATmega328/P
+Just select *Burn Bootloader* from the *Tools* menu.
+
+### Atmega88/A/P/PA or ATmega328PB
+Set the following values under the *Tools* menu:
+- Clock: 16 MHz external
+- BOD: 2.7V
+- Serial: UART0
+- Bootloader: Yes or No according to your choice
+
+Finally select *Burn Bootloader* from the *Tools* menu.
 
 ## Pin Mapping
 Pins of the DB-9 connector are connected as follows on the OpenPSX2AmigaPadAdapter PCB:
