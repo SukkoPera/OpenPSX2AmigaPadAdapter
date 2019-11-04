@@ -45,11 +45,13 @@ Set the following values under the *Tools* menu:
 Finally select *Burn Bootloader* from the *Tools* menu.
 
 ## Compiling and Flashing
-If using MiniCore, take care to set the following values under the *Tools* menu:
-- Clock: 16 MHz external
-- LTO: Enabled
-
-Just open the sketch located in the ```OpenPSX2AmigaPadAdapter``` in the Arduino software, connect the board and either use the *Upload* or *Upload Using Programmer* menu option, according to whether you are using the bootloader or not.
+1. Open the Arduino software
+2. From the *File* menu select *Open* and browse to the ```OpenPSX2AmigaPadAdapter``` directory.
+3. If using MiniCore, set the following values under the *Tools* menu:
+   - Clock: 16 MHz external
+   - LTO: Enabled
+4. If using the bootloader, connect the board through a Serial to USB adapter and use the *Upload* menu option.
+5. Otherwise, connect the board through an AVR programmer and use the *Upload Using Programmer* menu option.
 
 ## Pin Mapping
 Pins of the DB-9 connector are connected as follows on the OpenPSX2AmigaPadAdapter PCB:
