@@ -50,8 +50,8 @@ Finally select *Burn Bootloader* from the *Tools* menu.
 3. If using MiniCore, set the following values under the *Tools* menu:
    - Clock: 16 MHz external
    - LTO: Enabled
-4. If using the bootloader, connect the board through a Serial to USB adapter, make sure the correct serial port is selected in the *Tools* menu, then click on the *Upload* button (Second from left).
-5. Otherwise, connect the board through an AVR programmer and use the *Upload Using Programmer* menu option (Or hold <kbd>Shift</kbd> and click on the *Upload* button).
+4. If using the bootloader, connect the board through a Serial to USB adapter (It shall connect to the *FTDI* header on the board), make sure the correct serial port is selected in the *Tools* menu, then click on the *Upload* button (Second from left).
+5. Otherwise, connect the board through an AVR programmer (using the the *ICSP* header on the board) and use the *Upload Using Programmer* menu option (Or hold <kbd>Shift</kbd> and click on the *Upload* button).
 
 ## Pin Mapping
 Pins of the DB-9 connector are connected as follows on the OpenPSX2AmigaPadAdapter PCB:
