@@ -13,7 +13,7 @@ Note that your path might be different from the above. ```locate avrdude``` migh
 ## Flashing
 You can flash these binaries with the Arduino software or simply with the ```avrdude``` tool as follows:
 
-### ATmega328
+### ATmega328/P
 #### Fuses
 ```
 avrdude -C$HOME/.arduino15/packages/arduino/tools/avrdude/6.3.0-arduino14/etc/avrdude.conf -v -patmega328p -cusbasp -Pusb -e -Ulock:w:0x3F:m -Uefuse:w:0xFD:m -Uhfuse:w:0xDE:m -Ulfuse:w:0xFF:m
