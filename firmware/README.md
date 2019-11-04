@@ -9,10 +9,6 @@ The OpenPSX2AmigaPadAdapter firmware was tested using the default Arduino core o
 
 The ATmega328P**B** is also supported by MiniCore but it is NOT pin-compatible. Nevertheless, it MIGHT just work as well. It might also destroy whatever you connect the adapter to, so **do it at your own risk**.
 
-If using MiniCore, take care to the following values under the *Tools* menu before compiling the firmware:
-- Clock: 16 MHz external
-- LTO: Enabled
-
 ## Libraries
 You will need to install the following libraries:
 - [Arduino-PS2X](https://github.com/SukkoPera/Arduino-PS2X): You need exactly this version, other versions won't do.
@@ -49,7 +45,11 @@ Set the following values under the *Tools* menu:
 Finally select *Burn Bootloader* from the *Tools* menu.
 
 ## Compiling and Flashing
-Just open the sketch located in the ```OpenPSX2AmigaPadAdapter``` in the Arduino software, connect the board and either use the ```Upload``` or ```Upload Using Programmer``` menu option, according to whether you are using the bootloader or not.
+If using MiniCore, take care to set the following values under the *Tools* menu:
+- Clock: 16 MHz external
+- LTO: Enabled
+
+Just open the sketch located in the ```OpenPSX2AmigaPadAdapter``` in the Arduino software, connect the board and either use the *Upload* or *Upload Using Programmer* menu option, according to whether you are using the bootloader or not.
 
 ## Pin Mapping
 Pins of the DB-9 connector are connected as follows on the OpenPSX2AmigaPadAdapter PCB:
