@@ -6,7 +6,7 @@ OpenPSX2AmigaPadAdapter is an Open Hardware adapter that allows using a Sony Pla
 ## Summary
 The Commodore Amiga CD<sup>32</sup> came with cumbersome and fragile controllers, most of which did not survive the challenge of time. While many third-party replacements have surfaced in the meantime, most of them are not as solid and comfortable as the ubiquitous Sony PlayStation controllers. These have more than enough buttons, are cheap and most people are familiar with them, as the same basic design has been around for nearly 25 years. This means they would be a very good replacement, if they just didn't use a different connector and communication protocol.
 
-OpenPSX2AmigaPadAdapter is a simple board that adapts the connector and translates the protocol, allowing the use of many PlayStation controllers on Commodore computers. It can either behave as a simple 1/2-button Atari-style joystick or as a full-fledged 7-button CD<sup>32</sup> gamepad. It can also appear as an Amiga mouse, which is handy when it is connected to port 1 of an Amiga computer.
+OpenPSX2AmigaPadAdapter is a simple [Arduino](https://www.arduino.cc)-based board that adapts the connector and translates the protocol, allowing the use of many PlayStation controllers on Commodore computers. It can either behave as a simple 1/2-button Atari-style joystick or as a full-fledged 7-button CD<sup>32</sup> gamepad. It can also appear as an Amiga mouse.
 
 ## Operating Modes
 The adapter has two leds:
@@ -17,8 +17,6 @@ The adapter has two leds:
 When the adapter is powered on, it defaults to Atari-style Two-Button Mode, which is indicated by LD1 being off.
 
 This mode has been throughly tested on several Amiga models, but it **should** work wherever an Atari-style joystick is supported, including the Commodore VIC-20, Commodore 16 (through an [adapter](https://github.com/SukkoPera/OpenC16JoyAdapter)), Commodore 64, Sega Master System (but NOT MegaDrive/Genesis), etc. Although **these platforms have NOT been tested** yet, so use at your own risk.
-
-**NOTE:** B2 will be reported as always pressed on the C64 at the moment (See [#4](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/issues/4)).
 
 While in this mode, the adapter supports different button mappings, which have been carefully designed and tailored to different game genres. The mappings can be switched by pressing <kbd>Select</kbd> in combination with other buttons. LD1 will blink quickly a few times to indicate what mapping has been activated.
 
@@ -64,6 +62,11 @@ Note that a mapping you have just programmed is not activated automatically, so 
 
 The Custom Mappings **cannot** be configured so that <kbd>&darr;</kbd> overrides <kbd>&uarr;</kbd> or so that the vertical axis of Left Analog is ignored, still they might be useful here and there. For instance, having <kbd>B1</kbd> + <kbd>&uarr;</kbd> on <kbd>&cross;</kbd> and <kbd>B1</kbd> + <kbd>&darr;</kbd> on <kbd>&triangle;</kbd> makes the Amiga version of *Golden Axe* much more playable.
 
+#### Commodore 64 Mode
+Button 2 on Commodore 64 usually behaves in the opposite way at the electrical level, with respect to the other buttons. So a tweak can be enabled to invert the behaviour of button 2, use it if you find that your game of choice always sees it pressed or if it triggers on release rather then on press.
+
+Just hold <kbd>Select</kbd> and press <kbd>Start</kbd> briefly. LD1 will flash once when this tweak is enabled and twice when it is disabled.
+
 ### Mouse Mode
 Whenever the right analog stick is moved, the adapter switches to Amiga Mouse Mode. In this mode, the right stick emulates the movements of a mouse. Movement speed is somewhat proportional to how far the stick is moved.
 
@@ -86,7 +89,10 @@ Buttons are mapped as follows:
 Both the D-Pad and Left Analog work as direction buttons.
 
 ## Firmware
-Before you can use the adapter, you will need to load some firmware on it. This is based on the [Arduino](https://www.arduino.cc) platform and can be found under the [firmware](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/tree/master/firmware) directory, along with instructions.
+Before you can use the adapter, you will need to load some firmware (i.e.: an Arduino sketch) on it. This can be found under the [firmware](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/tree/master/firmware) directory, along with instructions.
+
+## Enclosure
+The [enclosure] (https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/tree/master/enclosure) directory contains models for a 3D-printable enclosure/case. It was made by Petros Kokotis, who has all my gratitude for his great work and support.
 
 ## Compatibility
 OpenPSX2AmigaPadAdapter has currently been tested with the following controllers:
@@ -130,3 +136,5 @@ If you need help or have questions, you can join [the official Telegram group](h
 ### Thanks
 - Gerd Kautzmann for information about the [CD32 controller protocol](http://gerdkautzmann.de/cd32gamepad/cd32gamepad.html)
 - CuriousInventor for informtation about the [PlayStation controller protocol](http://store.curiousinventor.com/guides/PS2)
+- majinga/screwbreaker for testing and bugfixes
+- Petros Kokotis for the 3D-printable enclosure and help with the PlayStation connector KiCad model.
