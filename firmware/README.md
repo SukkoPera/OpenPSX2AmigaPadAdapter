@@ -39,10 +39,10 @@ Note that this will set the fuses so that the board actually expects a bootloade
 
 ### Atmega88/A/P/PA or ATmega328PB
 Select the correct microcontroller type under *Tools* -> *Board* and set the other options in the same menu to the following values:
-- Clock: 16 MHz external
-- BOD: 2.7V
-- Serial: UART0 (if applicable)
-- Bootloader: Yes or No according to your choice
+- Clock: *16 MHz external*
+- BOD: *2.7V*
+- Serial: *UART0* (if applicable)
+- Bootloader: *Yes* or *No* at your choice
 
 Finally select *Burn Bootloader*.
 
