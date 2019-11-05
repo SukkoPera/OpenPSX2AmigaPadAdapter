@@ -7,6 +7,8 @@ It it based on the [Arduino](https://www.arduino.cc) platform, since the OpenPSX
 ## Core
 The OpenPSX2AmigaPadAdapter firmware was tested using the default Arduino core on ATmega328P microcontrollers. You can also use ATmega88/A/P/PA or ATmega168/P microcontrollers, they are pin-compatible and slightly cheaper. In this case you will need [MiniCore](https://github.com/MCUdude/MiniCore).
 
+Note that at the moment the firmware uses 99% of the flash space available on ATmega88s, so any possible future improvements and/or new features are likely to overflow that. So use an ATmega168 at least.
+
 The ATmega328P**B** is also supported by MiniCore but it is NOT pin-compatible. Nevertheless, it MIGHT just work as well. It might also destroy whatever you connect the adapter to, so **do it at your own risk**.
 
 ## Libraries
@@ -19,7 +21,7 @@ Note that they are not available in the Arduino Library Manager, so you will nee
 ## Bootloader
 You can either use a bootloader or not. There's not much difference from the functional point of view, as you will need some specialized hardware anyway:
 - If you don't want to use a bootloader, you will need an AVR I(C)SP programmer every time you want to update the firmware. There are cheap clones everywhere, just look for *usbasp* or *tinyisp*.
-- If you want to use a bootloader, you will still need an AVR programmer to flash the bootloader (and set the fuses) the first time, unless someone else did it for you. From then on you can just use a USB to Serial adapter. These are cheap too, just search for them. Not that useful unless you want to do some development/debugging, anyway.
+- If you want to use a bootloader, you will still need an AVR programmer to flash the bootloader (and set the fuses) the first time, unless someone else does it for you. From then on you can just use a USB to Serial adapter. These are cheap too, just search for them. Not that useful unless you want to do some development/debugging, anyway.
 - If you want to help with the debugging, you will need the USB to Serial adapter, so the only bonus in using a bootloader is that you can debug and reflash using it alone.
 - Note that you can use an Arduino Uno (or similar) board as an AVR ISP programmer, if you already have one: follow [these instructions](https://www.arduino.cc/en/Tutorial/ArduinoISP).
 
