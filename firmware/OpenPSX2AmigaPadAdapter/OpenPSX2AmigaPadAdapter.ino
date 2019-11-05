@@ -28,9 +28,9 @@
  */
 
 /**
- * \file psx.ino
+ * \file OpenPSX2AmigaPadAdapter.ino
  * \author SukkoPera <software@sukkology.net>
- * \date 29 Oct 2019
+ * \date 05 Nov 2019
  * \brief Playstation to Commodore Amiga/CD32 controller adapter
  */
 
@@ -49,7 +49,7 @@
 
 /** \brief Enable fast control of I/O pins
  *
- * This enabled very fast (2 clock cycles) control of I/O pins. The DigitalIO
+ * This enables very fast (2 clock cycles) control of I/O pins. The DigitalIO
  * library by greiman is needed for this: https://github.com/greiman/DigitalIO.
  * 
  * This is basically mandatory for all targets currently supported, where the
@@ -79,7 +79,7 @@
  * here is to save some flash, for ATmega88 targets. EEPROM can be cleared with
  * the \a eeprom_clear Arduino example.
  * 
- * At the moment we fit on all supported targets with this enables, so just
+ * At the moment we fit on all supported targets with this enabled, so just
  * ignore it.
  */
 //~ #define DISABLE_FACTORY_RESET
