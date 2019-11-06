@@ -88,7 +88,7 @@ Buttons are mapped as follows:
 
 Both the D-Pad and Left Analog work as direction buttons.
 
-## Assembly and Firmware
+## Components and Assembly
 You are recommended to solder the microcontroller first. The TQFP-32 package is easier to solder than it looks, watch some videos on YouTube and develop your own technique. Just make sure to orient it correctly.
 
 The board is basically a customized Arduino Uno, this means it was designed to work with an ATmega328P microcontroller, but you can also use ATmega88/A/P/PA or ATmega168/P microcontrollers, as they are pin-compatible and slightly cheaper. The A/P/PA suffixes usually identify somewhat minor chip revisions, the board should work with all of them. If you can, use P or PA versions, which consume less power.
@@ -101,6 +101,7 @@ Solder all the remaining parts in the order you prefer, just keep the controller
 
 Components that are somewhat optional are the RESET button, R13, C8 and C9. C10 can be skipped if you don't plan to program the board through the serial port. R1 can be skipped too, but then you might experience random resets of the board.
 
+## Firmware
 Before you can use the adapter, you will need to load some firmware (i.e.: an Arduino sketch) on it. This can be found under the [firmware](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/tree/master/firmware) directory, along with instructions.
 
 ## Compatibility
