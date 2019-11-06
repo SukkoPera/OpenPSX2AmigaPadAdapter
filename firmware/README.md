@@ -5,11 +5,7 @@ This is the firmware for the OpenPSX2AmigaPadAdapter project.
 It it based on the [Arduino](https://www.arduino.cc) platform, since the OpenPSX2AmigaPadAdapter PCB is basically a customized *Arduino Uno* board. Hence you will need [the Arduino software](https://www.arduino.cc/en/Main/Software) to build and flash it to the board, so download and install it. Version 1.8.10 is the latest at the time of writing, and all testing has been done with this version, although any later version should work as well.
 
 ## Core
-The OpenPSX2AmigaPadAdapter firmware was tested using the default Arduino core on ATmega328P microcontrollers. You can also use ATmega88/A/P/PA or ATmega168/P microcontrollers, they are pin-compatible and slightly cheaper. In this case you will need [MiniCore](https://github.com/MCUdude/MiniCore).
-
-Note that at the moment the firmware uses 99% of the flash space available on ATmega88s, thus any possible future improvements and/or new features are likely to overflow that. So use an ATmega168 at least.
-
-The ATmega328P**B** is also supported by MiniCore but it is NOT pin-compatible. Nevertheless, it MIGHT just work as well. It might also destroy whatever you connect the adapter to, so **do it at your own risk**.
+The OpenPSX2AmigaPadAdapter firmware was tested using the default Arduino core on ATmega328P microcontrollers. You can also use ATmega88/A/P/PA or ATmega168/P microcontrollers (or even ATmega328P**B** at your risk), they are pin-compatible and slightly cheaper: in this case you will need [MiniCore](https://github.com/MCUdude/MiniCore).
 
 ## Libraries
 You will need to install the following libraries:
