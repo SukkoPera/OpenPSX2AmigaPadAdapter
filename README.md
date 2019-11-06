@@ -102,6 +102,14 @@ OpenPSX2AmigaPadAdapter has currently been tested with the following controllers
 
 Most controllers should work, please report (by [opening an issue](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/issues/new)) if you find out working or non-working models.
 
+## Current Consumption
+Following are the results of some rough measurements:
+- An ATmega88PA-based OpenPSX2AmigaPadAdapter with an original Sony Dual Shock/Dual Shock 2 controller connected draws about 20 mA.
+- Consumption rises to 25 mA with the dongle of my EastVita wireless controller, when the controller is connected. It peaks to 35 mA while it is searching for the controller.
+- Using at ATmega328P bumps all consumptions by 5 mA.
+
+This means that the current absorbed by the adapter is "reasonable" and that it should be safe to use in all cases. It is well below the 100 mA maximum available from any Amiga controller ports, for instance.
+
 ## License
 The OpenPSX2AmigaPadAdapter documentation, including the design itself, is copyright &copy; SukkoPera 2019.
 
