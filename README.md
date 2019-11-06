@@ -16,7 +16,7 @@ The adapter has two leds:
 ### Two-Button Joystick Mode
 When the adapter is powered on, it defaults to Atari-style Two-Button Mode, which is indicated by LD1 being off.
 
-This mode has been throughly tested on several Amiga models, but it **should** work wherever an Atari-style joystick is supported, including the Commodore VIC-20, Commodore 16 (through an [adapter](https://github.com/SukkoPera/OpenC16JoyAdapter)), Commodore 64, Sega Master System (but NOT MegaDrive/Genesis), etc. Although **these platforms have NOT been tested** yet, so use at your own risk.
+This mode has been throughly tested on several Amiga models, but it **should** work wherever an Atari-style joystick is supported, including the Commodore VIC-20, Commodore 16 (through an [adapter](https://github.com/SukkoPera/OpenC16JoyAdapter)), Commodore 64, etc. See below for a compatibility table.
 
 While in this mode, the adapter supports different button mappings, which have been carefully designed and tailored to different game genres. The mappings can be switched by pressing <kbd>Select</kbd> in combination with other buttons. LD1 will blink quickly a few times to indicate what mapping has been activated.
 
@@ -95,6 +95,20 @@ Before you can use the adapter, you will need to load some firmware (i.e.: an Ar
 The [enclosure](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/tree/master/enclosure) directory contains models for a 3D-printable enclosure/case. It was made by Petros Kokotis, who has all my gratitude for his great work and support.
 
 ## Compatibility
+### Computers and Consoles
+|System                           |Compatible         |Notes                                                                                                                                                                 |
+|---------------------------------|-------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|Commodore Amiga (All models)     |![Yes](doc/yes.png)|Tested on A500+ and A1200, it is expected to be compatible with all models in both 2- and 7-button modes.                                                             |
+|Commodore Amiga CD<sup>32</sup>  |![Yes](doc/yes.png)|Both 2- and 7-button modes.                                                                                                                                           |
+|Commodore CDTV                   |                   |Not tested yet, but expected to work in 2-button mode.                                                                                                                |
+|Commodore 64                     |                   |Not tested yet, but expected to work in 2-button mode.                                                                                                                |
+|Commodore 16                     |                   |Not tested yet, but expected to work in 2-button mode through [OpenC16JoyAdapter](https://github.com/SukkoPera/OpenC16JoyAdapter). Only Button 1 will be available.   |
+|Commodore VIC-20                 |                   |Not tested yet, but expected to work in 2-button mode.                                                                                                                |
+|Sega Master System               |![No](doc/no.png)  |Would probably work in 2-button mode if power was routed from pin 5 on the SMS controller port to pin 7 of the adapter.                                               |
+|Sega Mega Drive/Genesis          |![No](doc/no.png)  |                                                                                                                                                                      |
+|MSX                              |![No](doc/no.png)  |Would probably work in 2-button mode by swapping a few pins on the controller port.                                                                                   |
+
+### Controllers
 OpenPSX2AmigaPadAdapter has currently been tested with the following controllers:
 - Sony Dual Shock Analog Controller (SCPH-1200)
 - Sony Dual Shock 2 Analog Controller (SCPH-10010)
