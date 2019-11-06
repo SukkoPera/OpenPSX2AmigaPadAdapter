@@ -91,7 +91,7 @@ Both the D-Pad and Left Analog work as direction buttons.
 ## Components and Assembly
 You are recommended to solder the microcontroller first. The TQFP-32 package is easier to solder than it looks, watch some videos on YouTube and develop your own technique. Just make sure to orient it correctly.
 
-The board is basically a customized Arduino Uno, this means it was designed to work with an ATmega328P microcontroller, but you can also use ATmega88/A/P/PA or ATmega168/P microcontrollers, as they are pin-compatible and slightly cheaper. The A/P/PA suffixes usually identify somewhat minor chip revisions, the board should work with all of them. If you can, use P or PA versions, which consume less power.
+The board is basically a customized Arduino Uno, this means it was designed to work with an ATmega328P microcontroller, but you can also use ATmega88/A/P/PA or ATmega168/P microcontrollers, as they are pin-compatible and slightly cheaper. The A/P/PA suffixes usually identify somewhat minor chip revisions, the board should work with all of them. If you can, use P or PA versions, which consume less power. Note that at the moment the firmware uses 99% of the flash space available on an ATmega88 and any possible future improvements and/or new features are likely to overflow that, so you'd better use an ATmega168 at least.
 
 A noteworthy exception to this rule is the ATmega328P**B**, which is NOT 100% pin-compatible with the 328P. Nevertheless, it MIGHT just work as well. It might also destroy whatever you connect the adapter to, so do it **at your own risk**.
 
