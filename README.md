@@ -88,25 +88,34 @@ Buttons are mapped as follows:
 
 Both the D-Pad and Left Analog work as direction buttons.
 
-## Firmware
-Before you can use the adapter, you will need to load some firmware (i.e.: an Arduino sketch) on it. This can be found under the [firmware](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/tree/master/firmware) directory, along with instructions.
+## Assembly and Firmware
+You are recommended to solder the microcontroller first. The TQFP-32 package is easier to solder than it looks, watch some videos on YouTube and develop your own technique. Just make sure to orient it correctly.
 
-## Enclosure
-The [enclosure](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/tree/master/enclosure) directory contains models for a 3D-printable enclosure/case. It was made by Petros Kokotis, who has all my gratitude for his great work and support.
+The board is basically a customized Arduino Uno, this means it was designed to work with an ATmega328P microcontroller, but you can also use ATmega88/A/P/PA or ATmega168/P microcontrollers, as they are pin-compatible and slightly cheaper. The A/P/PA suffixes usually identify somewhat minor chip revisions, the board should work with all of them. If you can, use P or PA versions, which consume less power.
+
+A noteworthy exception to this rule is the ATmega328P**B**, which is NOT 100% pin-compatible with the 328P. Nevertheless, it MIGHT just work as well. It might also destroy whatever you connect the adapter to, so do it **at your own risk**.
+
+Solder the oscillator then. You can either use a through-hole crystal with its caps (these will depend on the crystal, but usually 18-22pF are a good bet) or a 3-pin resonator. Whichever you choose, it shall have a frequency of 16 MHz. If you choose the crystal, you might want to put some insulation tape under it to avoid it touching against the pads for the resonator.
+
+Solder all the remaining parts in the order you prefer, just keep the controller connectors last.
+
+Components that are somewhat optional are the RESET button, R13, C8 and C9. C10 can be skipped if you don't plan to program the board through the serial port. R1 can be skipped too, but then you might experience random resets of the board.
+
+Before you can use the adapter, you will need to load some firmware (i.e.: an Arduino sketch) on it. This can be found under the [firmware](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/tree/master/firmware) directory, along with instructions.
 
 ## Compatibility
 ### Computers and Consoles
 |System                           |Compatible         |Notes                                                                                                                                                                 |
 |---------------------------------|-------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|Commodore Amiga (All models)     |![Yes](doc/yes.png)|Tested on A500+ and A1200, it is expected to be compatible with all models in both 2- and 7-button modes.                                                             |
-|Commodore Amiga CD<sup>32</sup>  |![Yes](doc/yes.png)|Both 2- and 7-button modes.                                                                                                                                           |
-|Commodore CDTV                   |                   |Not tested yet, but expected to work in 2-button mode.                                                                                                                |
-|Commodore 64                     |                   |Not tested yet, but expected to work in 2-button mode.                                                                                                                |
-|Commodore 16                     |                   |Not tested yet, but expected to work in 2-button mode through [OpenC16JoyAdapter](https://github.com/SukkoPera/OpenC16JoyAdapter). Only Button 1 will be available.   |
-|Commodore VIC-20                 |                   |Not tested yet, but expected to work in 2-button mode.                                                                                                                |
-|Sega Master System               |![No](doc/no.png)  |Would probably work in 2-button mode if power was routed from pin 5 on the SMS controller port to pin 7 of the adapter.                                               |
-|Sega Mega Drive/Genesis          |![No](doc/no.png)  |                                                                                                                                                                      |
-|MSX                              |![No](doc/no.png)  |Would probably work in 2-button mode by swapping a few pins on the controller port.                                                                                   |
+|Commodore Amiga (All models)     |![Yes](doc/yes.png)|Tested on A500+ and A1200, it is expected to be compatible with all models in both 2- and 7-button Joystick modes and in Mouse mode.                                  |
+|Commodore Amiga CD<sup>32</sup>  |![Yes](doc/yes.png)|Both 2- and 7-button Joystick modes and Mouse mode.                                                                                                                   |
+|Commodore CDTV                   |                   |Not tested yet, but expected to work in 2-button Joystick mode and Mouse mode through a connector adapter.                                                            |
+|Commodore 64                     |                   |Not tested yet, but expected to work in 2-button Joystick mode.                                                                                                                |
+|Commodore 16                     |                   |Not tested yet, but expected to work in 2-button Joystick mode through [OpenC16JoyAdapter](https://github.com/SukkoPera/OpenC16JoyAdapter). Only Button 1 will be available.   |
+|Commodore VIC-20                 |                   |Not tested yet, but expected to work in 2-button Joystick mode.                                                                                                                |
+|Sega Master System               |![No](doc/no.png)  |Would probably work in 2-button Joystick mode if power was routed from pin 5 on the SMS controller port to pin 7 of the adapter.                                               |
+|Sega Mega Drive/Genesis          |![No](doc/no.png)  |Would probably work as an SMS controller with the same mod as above. Some more pin rerouting AND a custom firmware could make it appear as a Mega Drive 6-button controller.   |
+|MSX                              |![No](doc/no.png)  |Would probably work in 2-button Joystick mode by swapping a few pins on the controller port.                                                                                   |
 
 ### Controllers
 OpenPSX2AmigaPadAdapter has currently been tested with the following controllers:
@@ -123,6 +132,9 @@ Following are the results of some rough measurements:
 - Using an ATmega328P bumps all consumptions by 5 mA.
 
 This means that the current absorbed by the adapter is "reasonable" and that it should be safe to use in all cases. It is well below the 100 mA maximum available from any Amiga controller ports, for instance.
+
+## Enclosure
+The [enclosure](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/tree/master/enclosure) directory contains models for a 3D-printable enclosure/case. It was made by Petros Kokotis, who has all my gratitude for his great work and support.
 
 ## License
 The OpenPSX2AmigaPadAdapter documentation, including the design itself, is copyright &copy; SukkoPera 2019.
