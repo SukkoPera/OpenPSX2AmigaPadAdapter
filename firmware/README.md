@@ -34,21 +34,20 @@ Make sure that *Board* is set to *Arduino/Genuino Uno* under the *Tools* menu an
 Note that this will set the fuses so that the board actually expects a bootloader to be installed, but programs seem to run correctly anyway if you flash them later through a programmer. You will lose 256 bytes of flash but it won't be a problem in this case, since this firmware is much smaller. To fix this properly you will need to set the fuses manually and use value ```0xDF``` for the High fuse.
 
 ### Atmega88/A/P/PA or ATmega328PB
-Select the correct microcontroller type under *Tools* -> *Board* and set the other options in the same menu to the following values:
+Select the correct microcontroller type under *Tools* -> *Board* and *Variant* and set the other options in the same menu to the following values:
 - Clock: *16 MHz external*
 - BOD: *2.7V*
-- Serial: *UART0* (if applicable)
-- Bootloader: *Yes* or *No* at your choice
+- Bootloader: *Yes* or *No* at your choice (Use the *UART0* option if applicable)
 
 Finally select *Burn Bootloader*.
 
 ## Compiling and Flashing
 1. Open the Arduino software
 2. From the *File* menu select *Open* and browse to the ```OpenPSX2AmigaPadAdapter``` directory.
-3. Select the correct *Board* under the *Tools* menu.
+3. Select the correct *Board* and *Variant* under the *Tools* menu.
 4. If using MiniCore, set the following values under the *Tools* menu:
    - Clock: *16 MHz external*
-   - LTO: *Enabled*
+   - Compiler LTO: *Enabled*
 5. If using the bootloader, connect the board through a Serial to USB adapter (It shall connect to the *FTDI* header on the board), make sure the correct serial port is selected in the *Tools* menu, then click on the *Upload* button (Second from left).
 6. Otherwise, connect the board through an AVR programmer (using the the *ICSP* header on the board) and use the *Upload Using Programmer* menu option (Or hold <kbd>Shift</kbd> and click on the *Upload* button).
 
