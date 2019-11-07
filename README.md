@@ -95,11 +95,11 @@ A noteworthy exception to this rule is the ATmega328P**B**, which is NOT 100% pi
 
 You are recommended to solder the microcontroller first. The TQFP-32 package is easier to solder than it looks, watch some videos on YouTube and develop your own technique. Just make sure to orient it correctly.
 
-Solder the oscillator then. You can either use a through-hole crystal with its caps (these will depend on the crystal, but usually 18-22pF are a good bet) or a 3-pin resonator. Whichever you choose, it shall have a frequency of 16 MHz. If you choose the crystal, you might want to put some insulation tape under it to avoid it touching against the pads for the resonator.
+Solder the oscillator then. You can either use a through-hole crystal with its caps (these will depend on the crystal, but usually 18-22pF are a good bet) or a 3-pin resonator. Whichever you choose, it shall have a frequency of 16 MHz. If you choose the crystal, you might want to put some insulation tape under it to avoid it touching the pads for the resonator.
 
 Solder all the remaining parts in the order you prefer, just keep the controller connectors last.
 
-The PlayStation controller connector can be found from many Chinese sellers as a spare part. Get one with 90° pins, otherwise the adapter will be pretty awkward to use. The pins will be pretty short, but you should manage to solder it in place. Make sure it sits level on the board, otherwise it might not fit in the [3D-printable case](#enclosure), which you are recommended to use in order to make the adapter more mechanically solid. In alternative, some hot glue behind the connector (where the pins are) seem to do the same job, but it won't look as pretty.
+The PlayStation controller connector can be found from many Chinese sellers as a spare part. Get one with 90° pins, otherwise the adapter will be pretty awkward to use. The pins will be pretty short, but you should manage to solder it in place. Make sure it sits level on the board, otherwise it might not fit in the [3D-printable case](#enclosure), which you are recommended to use in order to make the adapter more mechanically solid. In alternative, some hot glue behind the connector (where the pins are) seems to do the same job, but it won't look as pretty.
 
 Components that are somewhat optional are the RESET button, R13, C8 and C9. C10 can be skipped if you don't plan to program the board through the serial port. R1 can be skipped too, but then you might experience random resets of the board.
 
