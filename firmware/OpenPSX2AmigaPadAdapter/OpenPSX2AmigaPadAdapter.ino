@@ -826,10 +826,10 @@ inline void disableCD32Trigger () {
  */
 void clearConfigurations () {
 	debugln (F("Clearing controllerConfigs"));
-	//~ memset (controllerConfigs, 0x00, sizeof (controllerConfigs));
+	memset (controllerConfigs, 0x00, sizeof (controllerConfigs));
 	for (byte i = 0; i < PSX_BUTTONS_NO; ++i) {
 		ControllerConfiguration& config = controllerConfigs[i];
-		memset (&config, 0x00, sizeof (TwoButtonJoystick));
+		//~ memset (&config, 0x00, sizeof (ControllerConfiguration));
 		config.buttonMappings[psxButtonToIndex (PSB_SQUARE)].b1 = true;
 		config.buttonMappings[psxButtonToIndex (PSB_CROSS)].b2 = true;
 	}
