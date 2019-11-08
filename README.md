@@ -103,6 +103,8 @@ The PlayStation controller connector can be found from many Chinese sellers as a
 
 Components that are somewhat optional are the RESET button, R13, C8 and C9. C10 can be skipped if you don't plan to program the board through the serial port. R1 can be skipped too, but then you might experience random resets of the board.
 
+**Hint:** If you don't have the PCB, you can build a full adapter with an Arduino Uno/Nano/Whatever board. This is not supported though, so you are on your own, but all the information you need is in the schematics or in the firmware code :).
+
 ## Firmware
 Before you can use the adapter, you will need to load some firmware (i.e.: an Arduino sketch) on it. This can be found under the [firmware](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/tree/master/firmware) directory, along with instructions.
 
