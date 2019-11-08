@@ -71,7 +71,7 @@ make atmega88pa LED=C1 UART=0 BAUD_RATE=115200 AVR_FREQ=16000000
 
 #### Bootloader Flash
 ```
-avrdude -C$HOME/.arduino15/packages/MiniCore/hardware/avr/2.0.3/avrdude.conf -v -patmega88p -cusbasp -Pusb -Uflash:w:optiboot_flash_atmega88p_UART0_115200_16000000L.hex:i -Ulock:w:0x0f:m
+avrdude -C$HOME/.arduino15/packages/MiniCore/hardware/avr/2.0.3/avrdude.conf -v -patmega88p -cusbasp -Pusb -Uflash:w:optiboot_atmega88p_UART0_115200_16000000.hex:i -Ulock:w:0x0f:m
 ```
 
 #### Application
