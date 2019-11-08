@@ -18,6 +18,8 @@ When the adapter is powered on, it defaults to Atari-style Two-Button Mode, whic
 
 This mode has been throughly tested on several Amiga models, but it **should** work wherever an Atari-style joystick is supported, including the Commodore VIC-20, Commodore 16 (through an [adapter](https://github.com/SukkoPera/OpenC16JoyAdapter)), Commodore 64, etc. See [below](#computers-and-consoles) for a compatibility table.
 
+## NOTE: The adapter has only been tested on Amiga and CD32 at the moment. Use at your risk on other platforms.
+
 While in this mode, the adapter supports different button mappings, which have been carefully designed and tailored to different game genres. The mappings can be switched by pressing <kbd>Select</kbd> in combination with other buttons. LD1 will blink quickly a few times to indicate what mapping has been activated.
 
 #### Standard Mapping: <kbd>Select</kbd> + <kbd>&square;</kbd>
