@@ -1,7 +1,7 @@
 # OpenPSX2AmigaPadAdapter
 OpenPSX2AmigaPadAdapter is an Open Hardware adapter that allows using a Sony PlayStation controller on Commodore computers, including the Commodore 64, Amiga and CD<sup>32</sup>.
 
-![Board](https://raw.githubusercontent.com/SukkoPera/OpenPSX2AmigaPadAdapter/master/doc/render-top.png)
+![Board](https://raw.githubusercontent.com/SukkoPera/OpenPSX2AmigaPadAdapter/master/img/render-top.png)
 
 ## Summary
 The Commodore Amiga CD<sup>32</sup> came with cumbersome and fragile controllers, most of which did not survive the challenge of time. While many third-party replacements have surfaced in the meantime, most of them are not as solid and comfortable as the ubiquitous Sony PlayStation controllers. These have more than enough buttons, are cheap and most people are familiar with them, as the same basic design has been around for nearly 25 years. This means they would be a very good replacement, if they just didn't use a different connector and communication protocol.
