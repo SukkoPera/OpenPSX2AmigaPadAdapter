@@ -271,7 +271,7 @@ enum ATTR_PACKED State {
 	ST_WAIT_BUTTON_RELEASE,		//!< Programmable button released
 	ST_WAIT_COMBO_PRESS,		//!< Combo pressed
 	ST_WAIT_COMBO_RELEASE,		//!< Combo released
-	ST_WAIT_SELECT_RELEASE_FOR_EXIT,	//!< Wait for releact to be released to go back to joystick mode
+	ST_WAIT_SELECT_RELEASE_FOR_EXIT,	//!< Wait for select to be released to go back to joystick mode
 	
 	// States for factory reset
 #ifndef DISABLE_FACTORY_RESET
