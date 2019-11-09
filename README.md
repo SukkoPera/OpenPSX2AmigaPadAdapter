@@ -10,55 +10,53 @@ OpenPSX2AmigaPadAdapter is a simple [Arduino](https://www.arduino.cc)-based boar
 
 ## Operating Modes
 The adapter has two leds:
-- LD2 lights up steadily when a supported controller is plugged in. It blinks when no controller - or an unsupported one - is connected.
-- LD1 indicates the current operating mode, to be interpreted as follows.
+- LD1 lights up steadily when a supported controller is plugged in. It blinks when no controller - or an unsupported one - is connected.
+- LD2 indicates the current operating mode, to be interpreted as follows.
 
 ### Two-Button Joystick Mode
-When the adapter is powered on, it defaults to Atari-style Two-Button Mode, which is indicated by LD1 being off.
+When the adapter is powered on, it defaults to Atari-style Two-Button Mode, which is indicated by LD2 being off.
 
 This mode has been throughly tested on several Amiga models, but it **should** work wherever an Atari-style joystick is supported, including the Commodore VIC-20, Commodore 16 (through an [adapter](https://github.com/SukkoPera/OpenC16JoyAdapter)), Commodore 64, etc. See [below](#computers-and-consoles) for a compatibility table.
 
-## NOTE: The adapter has only been tested on Amiga and CD32 at the moment. Use at your risk on other platforms.
-
-While in this mode, the adapter supports different button mappings, which have been carefully designed and tailored to different game genres. The mappings can be switched by pressing <kbd>Select</kbd> in combination with other buttons. LD1 will blink quickly a few times to indicate what mapping has been activated.
+While in this mode, the adapter supports different button mappings, which have been carefully designed and tailored to different game genres. The mappings can be switched by pressing <kbd>Select</kbd> in combination with other buttons. LD2 will blink quickly a few times to indicate what mapping has been activated.
 
 #### Standard Mapping: <kbd>Select</kbd> + <kbd>&square;</kbd>
 Standard Mapping is the simplest mapping possible: both the D-Pad and Left Analog work as direction buttons. <kbd>&square;</kbd> is <kbd>B1</kbd> and <kbd>&cross;</kbd> is <kbd>B2</kbd>. This is the default mapping as it should be usable just about in every game out there. It might not be the most natural these days, but it's the way the game was meant to be played by the developers, thus it should never fail you.
 
 Note that very few games were originally made to take advantage of two buttons, as even fewer controllers had that many (!) those days. [Here is a list](http://eab.abime.net/showthread.php?t=57540) of Amiga games that somehow support two buttons, if it can be any useful.
 
-LD1 will blink once when this mapping is activated.
+LD2 will blink once when this mapping is activated.
 
 #### Racing Mapping 1: <kbd>Select</kbd> + <kbd>&triangle;</kbd>
 Racing Mapping 1 is useful for all those racing games that use <kbd>&uarr;</kbd> to accelerate and <kbd>&darr;</kbd> to brake. These have been mapped to <kbd>&square;</kbd> and <kbd>&cross;</kbd>, respectively, which should make them much more natural to play. When accelerating and braking at the same time, braking wins. Left Analog can be used to steer, but its vertical axis is ignored, to avoid accidental accelerating/braking. The D-Pad is fully functional and is handy when moving through menus. <kbd>B1</kbd> and <kbd>B2</kbd> can be found on <kbd>&triangle;</kbd> and <kbd>&cir;</kbd>.
 
 This mode is probably best suited to games that do not involve shifting gears, as downshifting is usually performed through <kbd>&darr;</kbd> + <kbd>B1</kbd> which is pretty hard to achieve (<kbd>&triangle;</kbd> + <kbd>&cross;</kbd>).
 
-LD1 will blink twice when this mapping is activated.
+LD2 will blink twice when this mapping is activated.
 
 #### Racing Mapping 2: <kbd>Select</kbd> + <kbd>&cir;</kbd>
 Racing Mapping 2 is an alternative mapping for racing games that was inspired by GTA V. It lets you use <kbd>R2</kbd> (or <kbd>R1</kbd>) to accelerate and <kbd>L2</kbd> (or <kbd>L1</kbd>) to brake (which means they map to <kbd>&uarr;</kbd> and <kbd>&darr;</kbd>, respectively). <kbd>B1</kbd> is mapped to its natural <kbd>&square;</kbd> position. Steering and the D-Pad work as in Racing Mode 1.
 
 Accidentally, this control scheme was found out to be very comfortable with games that use <kbd>B1</kbd> to accelerate and <kbd>&uarr;</kbd> and <kbd>&darr;</kbd> to shift gears. Since <kbd>&darr;</kbd> is probably used for braking as well, it has also been mapped to <kbd>&cross;</kbd>, while <kbd>B2</kbd> has been moved to <kbd>&triangle;</kbd>.
 
-LD1 will blink three times when this mapping is activated.
+LD2 will blink three times when this mapping is activated.
 
 #### Platform Mapping: <kbd>Select</kbd> + <kbd>&cross;</kbd>
 Platform Mapping is very similar to Standard Mapping, it just makes jumping way easier on a joypad and more natural to all the Mario players out there, by replicating <kbd>&uarr;</kbd> on <kbd>&cross;</kbd>. Consequently, <kbd>B2</kbd> has been moved to <kbd>&triangle;</kbd>.
 
-LD1 will blink four times when this mapping is activated.
+LD2 will blink four times when this mapping is activated.
 
 #### Custom Mappings: <kbd>Select</kbd> + <kbd>R1</kbd>/<kbd>R2</kbd>/<kbd>L1</kbd>/<kbd>L2</kbd>
 What if the built-in mappings are not enough? OpenPSX2AmigaPadAdapter allows you to make your own! And you can have up to four different ones, which are stored internally so that they can be recalled at any time. By default they behave similarly to the Standard Mapping, but they can be customized so that any button produces either the press of a single button or even of a button combo!
 
 The programming procedure is as follows:
 
-1. Press and hold <kbd>Select</kbd>, then press and hold one of <kbd>R1</kbd>/<kbd>R2</kbd>/<kbd>L1</kbd>/<kbd>L2</kbd> until LD1 starts blinking, finally release both buttons. You are now in Programming Mode.
-2. Press the button you want to configure. LD1 will flash quickly a few times.
-3. Press and hold the single button or button combo you want to be assigned to the button you pressed before. At this stage the D-Pad directions have their obvious meaning, while <kbd>&square;</kbd> represents <kbd>B1</kbd> and <kbd>&cross;</kbd> represents <kbd>B2</kbd>. LD1 will again flash quickly a few times.
+1. Press and hold <kbd>Select</kbd>, then press and hold one of <kbd>R1</kbd>/<kbd>R2</kbd>/<kbd>L1</kbd>/<kbd>L2</kbd> until LD2 starts blinking, finally release both buttons. You are now in Programming Mode.
+2. Press the button you want to configure. LD2 will flash quickly a few times.
+3. Press and hold the single button or button combo you want to be assigned to the button you pressed before. At this stage the D-Pad directions have their obvious meaning, while <kbd>&square;</kbd> represents <kbd>B1</kbd> and <kbd>&cross;</kbd> represents <kbd>B2</kbd>. LD2 will again flash quickly a few times.
 4. Release the button or combo you were holding.
 5. Repeat steps 2-4 for every button you want to customize.
-6. When you are done, press <kbd>Select</kbd> to store the mapping and leave Programming Mode. LD1 will stop blinking and you will be back to Two-Button Joystick Mode.
+6. When you are done, press <kbd>Select</kbd> to store the mapping and leave Programming Mode. LD2 will stop blinking and you will be back to Two-Button Joystick Mode.
 
 Note that a mapping you have just programmed is not activated automatically, so you will have to press <kbd>Select</kbd> and one of <kbd>R1</kbd>/<kbd>R2</kbd>/<kbd>L1</kbd>/<kbd>L2</kbd> (and release them quickly) to switch to it.
 
@@ -67,17 +65,17 @@ The Custom Mappings **cannot** be configured so that <kbd>&darr;</kbd> overrides
 #### Commodore 64 Mode
 Button 2 on Commodore 64 usually behaves in the opposite way at the electrical level, with respect to the other buttons. So a tweak can be enabled to invert the behaviour of button 2, use it if you find that your game of choice always sees it pressed or if it triggers on release rather than on press.
 
-Just hold <kbd>Select</kbd> and press <kbd>Start</kbd> briefly. LD1 will flash once when this tweak is enabled and twice when it is disabled.
+Just hold <kbd>Select</kbd> and press <kbd>Start</kbd> briefly. LD2 will flash once when this tweak is enabled and twice when it is disabled.
 
 ### Mouse Mode
 Whenever the right analog stick is moved, the adapter switches to Amiga Mouse Mode. In this mode, the right stick emulates the movements of a mouse. Movement speed is somewhat proportional to how far the stick is moved.
 
 This mode can be useful as an emergency mouse, and it will be particularly handy if you have the adapter connected to port 1 of an Amiga computer and you need to use a mouse for short while (maybe to do some settings in a cracktro). Instead of unplugging the adapter, plugging in a mouse, and then the adapter again, you can take advantage of this feature.
 
-Mouse mode is indicated by LD1 blinking. Press any direction on the D-Pad to go back to Joystick or CD32 Mode.
+Mouse mode is indicated by LD2 blinking. Press any direction on the D-Pad to go back to Joystick or CD32 Mode.
 
 ### CD<sup>32</sup> Controller Mode
-When the adapter is connected to a CD<sup>32</sup> console, it will automatically switch into this mode, which will emulate all 7 buttons of the original CD<sup>32</sup> controller. LD1 will light up steadily.
+When the adapter is connected to a CD<sup>32</sup> console, it will automatically switch into this mode, which will emulate all 7 buttons of the original CD<sup>32</sup> controller. LD2 will light up steadily.
 
 Buttons are mapped as follows:
 - <kbd>&square;</kbd>: Red
@@ -117,7 +115,7 @@ Before you can use the adapter, you will need to load some firmware (i.e.: an Ar
 |Commodore Amiga (All models)     |![Yes](doc/yes.png)|Tested on A500+ and A1200, it is expected to be compatible with all models in both 2- and 7-button Joystick modes and in Mouse mode.                                  |
 |Commodore Amiga CD<sup>32</sup>  |![Yes](doc/yes.png)|Both 2- and 7-button Joystick modes and Mouse mode.                                                                                                                   |
 |Commodore CDTV                   |                   |**Not tested yet**, but expected to work in 2-button Joystick mode and Mouse mode through a connector adapter.                                                            |
-|Commodore 64                     |                   |**Not tested yet**, but expected to work in 2-button Joystick mode. Mouse mode might damage CIA chips though, be careful not to turn it on!                                       |
+|Commodore 64                     |                   |Tested in 2-button Joystick mode, but second button untested. Mouse mode might damage CIA chips though, be careful not to turn it on!                                          |
 |Commodore 16                     |                   |**Not tested yet**, but expected to work in 2-button Joystick mode through [OpenC16JoyAdapter](https://github.com/SukkoPera/OpenC16JoyAdapter). C16 only supports Button 1 though. |
 |Commodore VIC-20                 |                   |**Not tested yet**, but expected to work in 2-button Joystick mode. Be careful with Mouse mode.                                                                                |
 |Sega Master System               |![No](doc/no.png)  |Would probably work in 2-button Joystick mode if power was routed from pin 5 on the SMS controller port to pin 7 of the adapter.                                               |
