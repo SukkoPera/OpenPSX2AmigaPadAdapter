@@ -206,7 +206,7 @@
       (net 8 /ps_cmd_3v3))
     (pad 1 thru_hole rect (at -14 -16 180) (size 1.7 1.7) (drill 1) (layers *.Cu *.Mask)
       (net 7 /ps_data_3v3))
-    (model "${KIPRJMOD}/3dmodels/ps-connector-female-1.snapshot.2 (1)/pritesh.stp"
+    (model ${KIPRJMOD}/3dmodels/ps-connector-female/pritesh.stp
       (offset (xyz 3.3 0 3.5))
       (scale (xyz 1 1 1.2))
       (rotate (xyz 90 180 90))

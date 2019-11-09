@@ -176,4 +176,5 @@ If you need help or have questions, you can join [the official Telegram group](h
 - Gerd Kautzmann for information about the [CD32 controller protocol](http://gerdkautzmann.de/cd32gamepad/cd32gamepad.html)
 - CuriousInventor for informtation about the [PlayStation controller protocol](http://store.curiousinventor.com/guides/PS2)
 - majinga/screwbreaker for testing and bugfixes
-- Petros Kokotis for the 3D-printable enclosure.
+- Petros Kokotis for the 3D-printable enclosure
+- Sarang Dumbre for the [3D model of the PlayStation connector](https://grabcad.com/library/ps-connector-female-1)
