@@ -179,6 +179,13 @@ const byte PIN_LED_MODE = A0;
  */
 const byte TIMEOUT_CD32_MODE = 100U;
 
+/** \brief Programming mode timeout
+ * 
+ * Programming mode will be entered if SELECT + a button are held for this
+ * amount of milliseconds.
+ */
+const unsigned long TIMEOUT_PROGRAMMING_MODE = 1000U;
+
 /** \brief Single-button debounce time
  * 
  * A combo will be considered valid only after it has been stable for this
@@ -1857,7 +1864,7 @@ void stateMachine () {
 			if (stateEnteredTime == 0) {
 				// State was just entered
 				stateEnteredTime = millis ();
-			} else if (isButtonProgrammable (selectComboButton) && millis () - stateEnteredTime > 1000) {
+			} else if (isButtonProgrammable (selectComboButton) && millis () - stateEnteredTime > TIMEOUT_PROGRAMMING_MODE) {
 				// Combo kept pressed, enter programming mode
 				debug (F("Entering programming mode for "));
 				debugln (getButtonName (selectComboButton));
