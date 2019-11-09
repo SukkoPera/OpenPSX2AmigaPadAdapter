@@ -30,6 +30,8 @@ avrdude -C$HOME/.arduino15/packages/arduino/tools/avrdude/6.3.0-arduino14/etc/av
 ```
 
 ### ATmega328PB (Untested + TBD)
+#### Fuses
+avrdude -C$HOME/.arduino15/packages/arduino/tools/avrdude/6.3.0-arduino14/etc/avrdude.conf -v -patmega328pb -cusbasp -Pusb -e -Ulock:w:0x3f:m -Uefuse:w:0b11110101:m -Uhfuse:w:0xd6:m -Ulfuse:w:0b11111111:m 
 
 #### Bootloader Build
 ```
