@@ -1849,13 +1849,8 @@ void stateMachine () {
 				selectComboButton = PSB_R2;
 				*state = ST_SELECT_AND_BTN_HELD;
 			} else if (ps2x.Button (PSB_START)) {
-				if (c64Mode) {
-					flashLed (2);
-				} else {
-					flashLed (1);
-				}
-				c64Mode = !c64Mode;
-				*state = ST_WAIT_SELECT_RELEASE_FOR_EXIT;
+				selectComboButton = PSB_START;
+				*state = ST_SELECT_AND_BTN_HELD;
 			}
 			break;
 		case ST_SELECT_AND_BTN_HELD:
@@ -1914,11 +1909,20 @@ void stateMachine () {
 						 */
 					}
 					break;
-				} default:
+				} case PSB_START:
+					//~ if (c64Mode) {
+						//~ flashLed (2);
+					//~ } else {
+						//~ flashLed (1);
+					//~ }
+					flashLed (((byte) c64Mode) + 1);	// Flash-saving hack
+					c64Mode = !c64Mode;
+					break;
+				default:
 					// Shouldn't be reached
 					break;
 			}
-			*state = ST_JOYSTICK;		// Exit immediately
+			*state = ST_JOYSTICK;
 			break;
 		
 		/**********************************************************************
