@@ -346,10 +346,10 @@ struct ControllerConfiguration {
  * This can be used with the PSB_* values from PS2X_lib, and cast from/to
  * values of that type.
  */
-typedef unsigned int Buttons;
+typedef unsigned int PsxButtons;
 
-//! Value of #Buttons when it reports no buttons pressed
-const Buttons NO_BUTTON = 0x00;
+//! Value of #PsxButtons when it reports no buttons pressed
+const PsxButtons NO_BUTTON = 0x00;
 
 //! \name Global variables
 //! @{
@@ -551,7 +551,7 @@ const char* const psxButtonNames[PSX_BUTTONS_NO] PROGMEM = {
  * \param[in] psxButtons Button to be converted
  * \return A small integer corresponding to the "first" button pressed
  */
-byte psxButtonToIndex (Buttons psxButtons) {
+byte psxButtonToIndex (PsxButtons psxButtons) {
 	byte i;
 
 	for (i = 0; i < PSX_BUTTONS_NO; ++i) {
@@ -571,7 +571,7 @@ byte psxButtonToIndex (Buttons psxButtons) {
  * \param[in] psxButtons Button to be converted
  * \return A string (in flash) containing the name of the "first" buton pressed
  */
-FlashStr getButtonName (Buttons psxButton) {
+FlashStr getButtonName (PsxButtons psxButton) {
 	FlashStr ret = F("");
 	
 	byte b = psxButtonToIndex (psxButton);
@@ -588,9 +588,9 @@ FlashStr getButtonName (Buttons psxButton) {
  * 
  * \param[in] psxButtons Buttons to be printed
  */
-void dumpButtons (Buttons psxButtons) {
+void dumpButtons (PsxButtons psxButtons) {
 #ifdef DEBUG_PAD
-	static Buttons lastB = 0;
+	static PsxButtons lastB = 0;
 
 	if (psxButtons != lastB) {
 		lastB = psxButtons;			// Save it before we alter it
@@ -1261,7 +1261,7 @@ void mapJoystickCustom (TwoButtonJoystick& j) {
 	j.right |= ps2x.Button (PSB_PAD_RIGHT);
 
 	for (byte i = 0; i < PSX_BUTTONS_NO; ++i) {
-		Buttons button = 1 << i;
+		PsxButtons button = 1 << i;
 		if (isButtonMappable (button) && ps2x.Button (button)) {
 			byte buttonIdx = psxButtonToIndex (button);
 			mergeButtons (j, currentCustomConfig -> buttonMappings[buttonIdx]);
@@ -1595,13 +1595,13 @@ void handleMouse () {
  * 
  * \param[in] holdTime Time the button/combo must be stable for
  */
-Buttons debounceButtons (unsigned long holdTime) {
-	static Buttons oldButtons = NO_BUTTON;
+PsxButtons debounceButtons (unsigned long holdTime) {
+	static PsxButtons oldButtons = NO_BUTTON;
 	static unsigned long pressedOn = 0;
 
-	Buttons ret = NO_BUTTON;
+	PsxButtons ret = NO_BUTTON;
 
-	Buttons buttons = (Buttons) ps2x.ButtonDataByte ();
+	PsxButtons buttons = (PsxButtons) ps2x.ButtonDataByte ();
 	if (buttons == oldButtons) {
 		if (millis () - pressedOn > holdTime) {
 			// Same combo held long enough
@@ -1627,7 +1627,7 @@ Buttons debounceButtons (unsigned long holdTime) {
  * \param[out] j Two-button joystick configuration corresponding to input
  * \return True if the output contains at least one pressed button
  */
-boolean psxButton2Amiga (Buttons psxButtons, TwoButtonJoystick& j) {
+boolean psxButton2Amiga (PsxButtons psxButtons, TwoButtonJoystick& j) {
 	memset (&j, 0x00, sizeof (j));
 	
 	j.up = ps2x.Button (psxButtons, PSB_PAD_UP);
@@ -1694,7 +1694,7 @@ unsigned int countSetBits (int n) {
  * \param[in] b The button to be checked
  * \return True if \b can be mapped, false otherwise
  */
-boolean isButtonMappable (Buttons b) {
+boolean isButtonMappable (PsxButtons b) {
 	return countSetBits (b) == 1 &&
 	       !ps2x.Button (b, PSB_SELECT) &&
 	       !ps2x.Button (b, PSB_PAD_UP) &&
@@ -1708,7 +1708,7 @@ boolean isButtonMappable (Buttons b) {
  * \param[in] b The button to be checked
  * \return True if \b is programmable, false otherwise
  */
-boolean isButtonProgrammable (Buttons b) {
+boolean isButtonProgrammable (PsxButtons b) {
 	return ps2x.Button (b, PSB_L1) || ps2x.Button (b, PSB_L2) ||
 	       ps2x.Button (b, PSB_R1) || ps2x.Button (b, PSB_R2);
 }
@@ -1717,9 +1717,9 @@ boolean isButtonProgrammable (Buttons b) {
 void stateMachine () {
 	static unsigned long stateEnteredTime = 0;
 	static unsigned long lastPoll = 0;
-	static Buttons selectComboButton = NO_BUTTON;
-	static Buttons programmedButton = NO_BUTTON;
-	Buttons buttons = NO_BUTTON;
+	static PsxButtons selectComboButton = NO_BUTTON;
+	static PsxButtons programmedButton = NO_BUTTON;
+	PsxButtons buttons = NO_BUTTON;
 	TwoButtonJoystick j = {false, false, false, false, false, false};
 
 	/* This is done first since ALL states except NO_CONTROLLER need to poll the
