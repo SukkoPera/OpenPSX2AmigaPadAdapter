@@ -1137,6 +1137,12 @@ void mapAnalogStickVertical (TwoButtonJoystick& j) {
 
 /** \brief Map PSX controller buttons to two-button joystick according to the
  *         standard mapping
+ *
+ * This is the default mapping and must be as "simple" as possible, as it will
+ * be used when in CD32 mode. Some CD32 games seem to be reading B1/B2 in Atari
+ * mode, and the rest of the buttons in CD32 mode. So if we map, for instance,
+ * R1 to B1, when you press R1 to achieve Front Right, you'll also get B1, which
+ * you don't probably want.
  * 
  * \param[out] j Mapped joystick status
  */
@@ -1151,11 +1157,11 @@ void mapJoystickNormal (TwoButtonJoystick& j) {
 	j.left |= ps2x.Button (PSB_PAD_LEFT);
 	j.right |= ps2x.Button (PSB_PAD_RIGHT);
 
-	// Square/Rx are button 1
-	j.b1 = ps2x.Button (PSB_SQUARE) || ps2x.Button (PSB_R1) || ps2x.Button (PSB_R2) || ps2x.Button (PSB_R3);
+	// Square is button 1
+	j.b1 = ps2x.Button (PSB_SQUARE);
 
-	// Cross/Lx are button 1
-	j.b2 = ps2x.Button (PSB_CROSS) || ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2) || ps2x.Button (PSB_L3);
+	// Cross is button 2
+	j.b2 = ps2x.Button (PSB_CROSS);
 }
 
 /** \brief Map PSX controller buttons to two-button joystick according to Racing
