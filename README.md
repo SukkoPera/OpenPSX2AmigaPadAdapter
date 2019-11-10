@@ -112,17 +112,17 @@ Before you can use the adapter, you will need to load some firmware (i.e.: an Ar
 
 ## Compatibility
 ### Computers and Consoles
-|System                           |Compatible             |Notes                                                                                                                                                                 |
-|---------------------------------|-----------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|Commodore Amiga (All models)     |![Yes](img/yes.png)    |Tested on A500+ and A1200, it is expected to be compatible with all models in both 2- and 7-button Joystick modes and in Mouse mode.                                  |
-|Commodore Amiga CD<sup>32</sup>  |![Yes](img/yes.png)    |Both 2- and 7-button Joystick modes and Mouse mode.                                                                                                                   |
-|Commodore CDTV                   |![Maybe](img/maybe.png)|**Not tested yet**, but expected to work in 2-button Joystick mode and Mouse mode through a connector adapter.                                                            |
-|Commodore 64                     |![Yes](img/yes.png)    |Tested in 2-button Joystick mode, but second button untested. Mouse mode might damage CIA chips though, be careful not to turn it on!                                          |
-|Commodore 16                     |![Maybe](img/maybe.png)|**Not tested yet**, but expected to work in 2-button Joystick mode through [OpenC16JoyAdapter](https://github.com/SukkoPera/OpenC16JoyAdapter). C16 only supports Button 1 though. |
-|Commodore VIC-20                 |![Maybe](img/maybe.png)|**Not tested yet**, but expected to work in 2-button Joystick mode. Be careful with Mouse mode.                                                                                |
-|Sega Master System               |![No](img/no.png)      |Would probably work in 2-button Joystick mode if power was routed from pin 5 on the SMS controller port to pin 7 of the adapter.                                               |
-|Sega Mega Drive/Genesis          |![No](img/no.png)      |Would probably work as an SMS controller with the same mod as above. Some more pin rerouting AND a custom firmware could make it appear as a Mega Drive 6-button controller.   |
-|MSX                              |![No](img/no.png)      |Would probably work in 2-button Joystick mode by swapping a few pins on the controller port.                                                                                   |
+|System                           |Compatible             |Notes                                                                                                                                                                                |
+|---------------------------------|-----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|Commodore Amiga (All models)     |![Yes](img/yes.png)    |Tested on A500+ and A1200 (1.D3), it is expected to be compatible with all models in both 2- and 7-button Joystick modes (when using `lowlevel.library` at least) and in Mouse mode. |
+|Commodore Amiga CD<sup>32</sup>  |![Yes](img/yes.png)    |Both 2- and 7-button Joystick modes and Mouse mode.                                                                                                                                  |
+|Commodore CDTV                   |![Maybe](img/maybe.png)|**Not tested yet**, but expected to work in 2-button Joystick mode and Mouse mode through a connector adapter.                                                                       |
+|Commodore 64                     |![Yes](img/yes.png)    |Tested in 2-button Joystick mode, but second button untested. Mouse mode might damage CIA chips though, be careful not to turn it on!                                                |
+|Commodore 16                     |![Maybe](img/maybe.png)|**Not tested yet**, but expected to work in 2-button Joystick mode through [OpenC16JoyAdapter](https://github.com/SukkoPera/OpenC16JoyAdapter). C16 only supports Button 1 though.   |
+|Commodore VIC-20                 |![Maybe](img/maybe.png)|**Not tested yet**, but expected to work in 2-button Joystick mode. Be careful with Mouse mode.                                                                                      |
+|Sega Master System               |![No](img/no.png)      |Would probably work in 2-button Joystick mode if power was routed from pin 5 on the SMS controller port to pin 7 of the adapter.                                                     |
+|Sega Mega Drive/Genesis          |![No](img/no.png)      |Would probably work as an SMS controller with the same mod as above. Some more pin rerouting AND a custom firmware could make it appear as a Mega Drive 6-button controller.         |
+|MSX                              |![No](img/no.png)      |Would probably work in 2-button Joystick mode by swapping a few pins on the controller port.                                                                                         |
 
 ### Controllers
 OpenPSX2AmigaPadAdapter has currently been tested with the following controllers:
