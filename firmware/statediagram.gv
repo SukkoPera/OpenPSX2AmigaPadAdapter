@@ -49,7 +49,7 @@ digraph {
 
 	MODE_CD32 -> MODE_JOYSTICK_TEMP [label = "Pin 5 Set HIGH"];
 	MODE_JOYSTICK_TEMP -> MODE_CD32 [label = "Pin 5 Set LOW"];
-	MODE_JOYSTICK_TEMP -> MODE_JOYSTICK [label = "TIMEOUT_CD32_MODE elapsed"];
+	MODE_JOYSTICK_TEMP -> MODE_JOYSTICK [label = "<TIMEOUT_CD32_MODE> elapsed"];
 
 	# This actually represents a transitions valid for all nodes in the cluster
 	MODE_JOYSTICK -> NO_CONTROLLER [label = "Controller Read Error", ltail = cluster_main];
@@ -64,15 +64,15 @@ digraph {
 		SELECT_AND_BTN_HELD;
 		ENABLE_MAPPING;
 
-		SELECT_HELD -> SELECT_AND_BTN_HELD [label = "X/O/^/[] Pressed"]
-		SELECT_AND_BTN_HELD -> ENABLE_MAPPING [label = "X/O/^/[] Released"]
+		SELECT_HELD -> SELECT_AND_BTN_HELD [label = "X/O/^/[]/R1/R2/L1/L2/Start Pressed"]
+		SELECT_AND_BTN_HELD -> ENABLE_MAPPING [label = "X/O/^/[]/R1/R2/L1/L2/Start Released"]
 		SELECT_AND_BTN_HELD -> ENABLE_MAPPING [label = "SELECT Released"]
 	}
 
 	MODE_JOYSTICK -> SELECT_HELD [label = "SELECT Pressed"]
 	SELECT_HELD -> MODE_JOYSTICK [label = "SELECT Released"]
 	ENABLE_MAPPING -> MODE_JOYSTICK [label = "Mapping enabled"]
-	SELECT_AND_BTN_HELD -> WAIT_SELECT_RELEASE [label = "<PROGTIME> Elapsed"]
+	SELECT_AND_BTN_HELD -> WAIT_SELECT_RELEASE [label = "<TIMEOUT_PROGRAMMING_MODE> Elapsed"]
 
 	# Again, valid for all nodes in the cluster
 	SELECT_HELD -> NO_CONTROLLER [label = "Controller Read Error", ltail = cluster_progswitch];
