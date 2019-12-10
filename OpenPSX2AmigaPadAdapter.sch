@@ -1,13 +1,12 @@
 EESchema Schematic File Version 4
-LIBS:OpenPSX2AmigaPadAdapter-cache
-EELAYER 29 0
+EELAYER 30 0
 EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
 Sheet 1 1
 Title "OpenPSX2AmigaPadAdapter"
-Date "2019-10-29"
-Rev "2"
+Date "2019-12-10"
+Rev "3"
 Comp "SukkoPera"
 Comment1 "Licensed under CERN OHL v.1.2"
 Comment2 ""
@@ -460,16 +459,13 @@ F 3 "" H 6600 6900 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	4100 6750 4700 6750
-Wire Wire Line
-	4100 6950 4700 6950
+	4100 6750 4575 6750
 Wire Wire Line
 	4100 7050 4450 7050
 Wire Wire Line
 	4100 7150 4450 7150
 Wire Wire Line
 	4100 7250 4450 7250
-NoConn ~ 4100 6850
 $Comp
 L power:+5V #PWR023
 U 1 1 5D19A6B9
@@ -484,18 +480,16 @@ $EndComp
 $Comp
 L power:GND #PWR024
 U 1 1 5D19A809
-P 4700 6950
-F 0 "#PWR024" H 4700 6700 50  0001 C CNN
-F 1 "GND" H 4700 6800 50  0000 C CNN
-F 2 "" H 4700 6950 50  0000 C CNN
-F 3 "" H 4700 6950 50  0000 C CNN
-	1    4700 6950
+P 4575 7010
+F 0 "#PWR024" H 4575 6760 50  0001 C CNN
+F 1 "GND" H 4575 6860 50  0000 C CNN
+F 2 "" H 4575 7010 50  0000 C CNN
+F 3 "" H 4575 7010 50  0000 C CNN
+	1    4575 7010
 	1    0    0    -1  
 $EndComp
-Text Label 4200 7050 0    60   ~ 0
-tx
 Text Label 4200 7150 0    60   ~ 0
-rx
+tx
 Text Label 4200 7250 0    60   ~ 0
 dtr
 $Comp
@@ -718,7 +712,7 @@ U 1 1 5D219FE6
 P 6750 1850
 F 0 "Q1" V 7001 1850 50  0000 C CNN
 F 1 "BSS138" V 7092 1850 50  0000 C CNN
-F 2 "Package_TO_SOT_SMD:SOT-23" H 6950 1775 50  0001 L CIN
+F 2 "Package_TO_SOT_SMD:SOT-23_Handsoldering" H 6950 1775 50  0001 L CIN
 F 3 "https://www.fairchildsemi.com/datasheets/BS/BSS138.pdf" H 6750 1850 50  0001 L CNN
 	1    6750 1850
 	0    -1   1    0   
@@ -732,7 +726,7 @@ U 1 1 5D24FA51
 P 6750 3100
 F 0 "Q2" V 7001 3100 50  0000 C CNN
 F 1 "BSS138" V 7092 3100 50  0000 C CNN
-F 2 "Package_TO_SOT_SMD:SOT-23" H 6950 3025 50  0001 L CIN
+F 2 "Package_TO_SOT_SMD:SOT-23_Handsoldering" H 6950 3025 50  0001 L CIN
 F 3 "https://www.fairchildsemi.com/datasheets/BS/BSS138.pdf" H 6750 3100 50  0001 L CNN
 	1    6750 3100
 	0    -1   1    0   
@@ -743,7 +737,7 @@ U 1 1 5D253CD6
 P 6750 4300
 F 0 "Q3" V 7001 4300 50  0000 C CNN
 F 1 "BSS138" V 7092 4300 50  0000 C CNN
-F 2 "Package_TO_SOT_SMD:SOT-23" H 6950 4225 50  0001 L CIN
+F 2 "Package_TO_SOT_SMD:SOT-23_Handsoldering" H 6950 4225 50  0001 L CIN
 F 3 "https://www.fairchildsemi.com/datasheets/BS/BSS138.pdf" H 6750 4300 50  0001 L CNN
 	1    6750 4300
 	0    -1   1    0   
@@ -754,7 +748,7 @@ U 1 1 5D25783F
 P 6750 5550
 F 0 "Q4" V 7001 5550 50  0000 C CNN
 F 1 "BSS138" V 7092 5550 50  0000 C CNN
-F 2 "Package_TO_SOT_SMD:SOT-23" H 6950 5475 50  0001 L CIN
+F 2 "Package_TO_SOT_SMD:SOT-23_Handsoldering" H 6950 5475 50  0001 L CIN
 F 3 "https://www.fairchildsemi.com/datasheets/BS/BSS138.pdf" H 6750 5550 50  0001 L CNN
 	1    6750 5550
 	0    -1   1    0   
@@ -1238,7 +1232,7 @@ U 1 1 5D7A8F65
 P 4030 3090
 F 0 "SW1" H 4030 3375 50  0000 C CNN
 F 1 "RESET" H 4030 3284 50  0000 C CNN
-F 2 "Button_Switch_SMD:SW_SPST_EVPBF" H 4030 3290 50  0001 C CNN
+F 2 "Button_Switch_SMD:SW_SPST_EVQQ2" H 4030 3290 50  0001 C CNN
 F 3 "~" H 4030 3290 50  0001 C CNN
 	1    4030 3090
 	1    0    0    -1  
@@ -1398,4 +1392,19 @@ Text Label 3920 5575 0    50   ~ 0
 led1
 Text Label 3920 5375 0    50   ~ 0
 led2
+Wire Wire Line
+	4700 6950 4700 6750
+Wire Wire Line
+	4575 6750 4575 6850
+Wire Wire Line
+	4100 6950 4700 6950
+Wire Wire Line
+	4100 6850 4575 6850
+Connection ~ 4575 6850
+Wire Wire Line
+	4575 6850 4575 7010
+Text Notes 4200 6850 0    50   ~ 0
+cts
+Text Label 4200 7050 0    60   ~ 0
+rx
 $EndSCHEMATC
