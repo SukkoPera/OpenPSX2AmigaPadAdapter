@@ -483,9 +483,9 @@ boolean initPad () {
 				break;
 			}
 
-			// Try to enable analog mode
-			if (!psx.setAnalogMode ()) {
-				debugln (F("Cannot enable analog mode"));
+			// Try to enable analog sticks
+			if (!psx.enableAnalogSticks ()) {
+				debugln (F("Cannot enable analog sticks"));
 			}
 							
 			if (!psx.exitConfigMode ()) {
