@@ -420,6 +420,15 @@ JoyMappingFunc joyMappingFunc = mapJoystickNormal;
  */
 boolean c64Mode = false;
 
+/** \brief Use alternative CD32 mapping
+ * 
+ * To me the Red button maps naturally to Square, Blue to Cross and so on. Some
+ * people feel this way buttons are "rotated" with regard to the original CD32
+ * controller, so let's give them the possibility to "rotate" the mapping so
+ * that Cross is Red, Circle is Blue and so on.
+ */
+boolean useAlternativeCd32Mapping = false;
+
 //! @}		// End of global variables
 
 #ifdef ENABLE_SERIAL_DEBUG
@@ -1434,20 +1443,39 @@ void handleJoystickDirections (TwoButtonJoystick& j) {
 	 */
 	byte buttonsTmp = 0xFF;
 
+	if (psx.buttonJustPressed (PSB_SELECT)) {
+		useAlternativeCd32Mapping = !useAlternativeCd32Mapping;
+		flashLed (((byte) useAlternativeCd32Mapping) + 1);	// Flash-saving hack
+	}
+
+	if (useAlternativeCd32Mapping) {
+		if (psx.buttonPressed (PSB_SQUARE))
+			buttonsTmp &= ~BTN_GREEN;
+
+		if (psx.buttonPressed (PSB_CROSS))
+			buttonsTmp &= ~BTN_RED;
+
+		if (psx.buttonPressed (PSB_CIRCLE))
+			buttonsTmp &= ~BTN_BLUE;
+
+		if (psx.buttonPressed (PSB_TRIANGLE))
+			buttonsTmp &= ~BTN_YELLOW;
+	} else {
+		if (psx.buttonPressed (PSB_TRIANGLE))
+			buttonsTmp &= ~BTN_GREEN;
+
+		if (psx.buttonPressed (PSB_SQUARE))
+			buttonsTmp &= ~BTN_RED;
+
+		if (psx.buttonPressed (PSB_CROSS))
+			buttonsTmp &= ~BTN_BLUE;
+
+		if (psx.buttonPressed (PSB_CIRCLE))
+			buttonsTmp &= ~BTN_YELLOW;
+	}		
+
 	if (psx.buttonPressed (PSB_START))
 		buttonsTmp &= ~BTN_START;
-
-	if (psx.buttonPressed (PSB_TRIANGLE))
-		buttonsTmp &= ~BTN_GREEN;
-
-	if (psx.buttonPressed (PSB_SQUARE))
-		buttonsTmp &= ~BTN_RED;
-
-	if (psx.buttonPressed (PSB_CROSS))
-		buttonsTmp &= ~BTN_BLUE;
-
-	if (psx.buttonPressed (PSB_CIRCLE))
-		buttonsTmp &= ~BTN_YELLOW;
 
 	if (psx.buttonPressed (PSB_L1) || psx.buttonPressed (PSB_L2) || psx.buttonPressed (PSB_L3))
 		buttonsTmp &= ~BTN_FRONT_L;
