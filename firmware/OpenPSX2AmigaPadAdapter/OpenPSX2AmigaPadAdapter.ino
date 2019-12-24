@@ -1487,11 +1487,10 @@ void handleJoystickDirections (TwoButtonJoystick& j) {
 	*buttonsLive = buttonsTmp;
 }
 
-/** \brief Update the output fire button pins
+/** \brief Update the output fire button pins when in joystick mode
  * 
  * This functions updates the status of the 2 fire button pins of the DB-9 port.
- * It shall only be called when state is ST_JOYSTICK or ST_JOYSTICK_TEMP, as
- * when in ST_CD32, buttons are handled by the ISRs.
+ * It shall only be called when state is ST_JOYSTICK.
  *
  * \param[in] j Mapped joystick status, as returned by
  *              handleJoystickDirections().
@@ -1510,7 +1509,7 @@ void handleJoystickButtons (const TwoButtonJoystick& j) {
 	 * interrupts, and we absolutely have to avoid modifying pin
 	 * directions/states if the ISR has already been called.
 	 */
-	if (*state == ST_JOYSTICK || *state == ST_JOYSTICK_TEMP) {
+	if (*state == ST_JOYSTICK) {
 		if (j.b1) {
 			buttonPress (PIN_BTN1);
 		} else {
@@ -1530,6 +1529,45 @@ void handleJoystickButtons (const TwoButtonJoystick& j) {
 			} else {
 				buttonPress (PIN_BTN2);
 			}
+		}
+	}
+	
+	interrupts ();
+}
+
+/** \brief Update the primary output fire button pins when in CD32 mode
+ * 
+ * This functions updates the status of the 2 main fire buttons inbetween two
+ * consecutive CD32-style readings. It might seem counter-intuitive, but many
+ * games (including lowlevel.library, I think!) read the state of the two main
+ * buttons this way, rather than extracting them from the full 7-button reply,
+ * don't ask me why. See \a Banshee, for instance.
+ * 
+ * So we need a different function that does not perform button mapping as when
+ * in 2-button joystick mode, but that rather uses the current CD32 mapping.
+ * This means it shall also be coherent with what onPadModeChange() is doing
+ * when PIN_PADMODE goes high.
+ * 
+ * Of course, this function shall only be called when state is ST_CD32.
+ */
+void handleJoystickButtonsTemp () {
+	// Use the same logic as in handleJoystickButtons()
+	noInterrupts ();
+
+	if (*state == ST_JOYSTICK_TEMP) {
+		/* Relying on buttonsLive guarantees we do the right thing even when
+		 * useAlternativeCd32Mapping is true
+		 */
+		if (!(*buttonsLive & BTN_RED)) {
+			buttonPress (PIN_BTN1);
+		} else {
+			buttonRelease (PIN_BTN1);
+		}
+
+		if (!(*buttonsLive & BTN_BLUE)) {
+			buttonPress (PIN_BTN2);
+		} else {
+			buttonRelease (PIN_BTN2);
 		}
 	}
 	
@@ -1853,7 +1891,7 @@ void stateMachine () {
 			break;
 		} case ST_JOYSTICK_TEMP: {
 			handleJoystickDirections (j);
-			handleJoystickButtons (j);
+			handleJoystickButtonsTemp ();
 
 			if (stateEnteredTime == 0) {
 				// State was just entered
