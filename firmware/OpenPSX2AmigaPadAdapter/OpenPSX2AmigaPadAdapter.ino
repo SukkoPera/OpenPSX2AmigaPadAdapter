@@ -433,8 +433,8 @@ boolean c64Mode = false;
  * 
  * To me the Red button maps naturally to Square, Blue to Cross and so on. Some
  * people feel this way buttons are "rotated" with regard to the original CD32
- * controller, so let's give them the possibility to "rotate" the mapping so
- * that Cross is Red, Circle is Blue and so on.
+ * controller, hence let's give them the possibility to "counter-rotate" the
+ * mapping so that Cross is Red, Circle is Blue and so on.
  */
 boolean useAlternativeCd32Mapping = false;
 
@@ -695,8 +695,6 @@ ISR (INT0_vect) {
 
 		// Set state to ST_CD32
 		*state = ST_CD32;
-
-		// TODO: Evaluate if joystick mapping should be reset to default
 
 #ifdef ENABLE_INSTRUMENTATION
 		fastDigitalToggle (PIN_CD32MODE);
