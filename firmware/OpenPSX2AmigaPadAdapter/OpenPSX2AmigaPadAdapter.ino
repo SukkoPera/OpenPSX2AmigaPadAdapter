@@ -15,23 +15,15 @@
  *                                                                             *
  * You should have received a copy of the GNU General Public License           *
  * along with OpenPSX2AmigaPadAdapter. If not, see http://www.gnu.org/licenses.*
- *******************************************************************************
- *
- * OpenPSX2AmigaPadAdapter - Playstation to Commodore Amiga/CD32 controller
- * adapter
- *
- * Please refer to the GitHub page and wiki for any information:
- * https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter
- *
- * CD32 pad protocol information found at:
- * http://gerdkautzmann.de/cd32gamepad/cd32gamepad.html
- */
-
+ ******************************************************************************/
 /**
  * \file OpenPSX2AmigaPadAdapter.ino
  * \author SukkoPera <software@sukkology.net>
- * \date 05 Nov 2019
+ * \date 25 Dic 2019
  * \brief Playstation to Commodore Amiga/CD32 controller adapter
+ *
+ * Please refer to the GitHub page and wiki for any information:
+ * https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter
  */
 
 #include <EEPROM.h>
@@ -85,14 +77,6 @@
  */
 //~ #define DISABLE_FACTORY_RESET
 
-//! \name INPUT pins, connected to PS2 controller
-//! @{
-//~ const byte PS2_CLK = 13;	//!< Clock, blue wire
-//~ const byte PS2_DAT = 12;	//!< Data, brown wire
-//~ const byte PS2_CMD = 11;	//!< Command, orange wire
-//~ const byte PS2_SEL = 10;	//!< Attention, yellow wire
-//! @}
-
 //! \name OUTPUT pins, connected to Amiga port
 //! @{
 const byte PIN_UP = 4;    //!< Amiga Pin 1
@@ -123,12 +107,6 @@ const byte PIN_BTNREGOUT = PIN_BTN2;
  * The shifting is clocked by rising edges on this pin.
  */
 const byte PIN_BTNREGCLK = PIN_BTN1;
-
-/** \brief Analog sticks idle value
- * 
- * Value reported when the analog stick is in the (ideal) center position.
- */
-const byte ANALOG_IDLE_VALUE = 128U;
 
 /** \brief Dead zone for analog sticks
  *  
@@ -319,13 +297,6 @@ struct TwoButtonJoystick {
 	boolean b2: 1;			//!< Button 2
 };
 
-/** \brief Number of buttons on a PSX controller
- *
- * Includes \a everything, i.e.: 4 directions, Square, Cross, Circle, Triangle,
- * L1/2/3, R1/2/3, Select and Start.
- */
-const byte PSX_BUTTONS_NO = 16;
-
 /** \brief Map a PSX button to a two-button-joystick combo
  * 
  * There's an entry for every button, even those that cannot be mapped, for
@@ -361,7 +332,7 @@ volatile State *state = reinterpret_cast<volatile State *> (&GPIOR2);
 /** \brief All possible controller configurations
  * 
  * Since these are activated with SELECT + a button, ideally there can be as
- * many different ones as other buttons we have (i.e.: #PSX_BUTTONS_NO). In
+ * many different ones as other buttons we have (i.e.: PSX_BUTTONS_NO). In
  * practice, we will start handling only a handful.
  */
 ControllerConfiguration controllerConfigs[PSX_BUTTONS_NO];
@@ -554,7 +525,7 @@ const char* const psxButtonNames[PSX_BUTTONS_NO] PROGMEM = {
 
 /** \brief Convert a button on the PSX controller to a small integer
  * 
- * Output will always be in the range [0, #PSX_BUTTONS_NO - 1] and is not
+ * Output will always be in the range [0, PSX_BUTTONS_NO - 1] and is not
  * guaranteed to be valid, so it should be checked to be < PSX_BUTTONS_NO before
  * use.
  * 
