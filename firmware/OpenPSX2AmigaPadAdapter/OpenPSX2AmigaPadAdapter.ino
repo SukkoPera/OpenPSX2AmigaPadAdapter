@@ -148,6 +148,12 @@ const byte PIN_LED_PAD_OK = A1;
  */
 const byte PIN_LED_MODE = A0;
 
+/** \brief Pin used for Controller Attention (ATTN)
+ *
+ * Pin that makes the controller pay attention to what we're saying.
+ */
+const byte PIN_CONTROLLER_ATTN = 10;
+
 /** \brief CD32 mode timeout
  * 
  * Normal joystick mode will be entered if PIN_PADMODE is not toggled for this
@@ -317,7 +323,7 @@ struct ControllerConfiguration {
 //! @{
 
 //! PS2 Controller Class
-PsxControllerHwSpi psx;
+PsxControllerHwSpi<PIN_CONTROLLER_ATTN> psx;
 
 /** \brief Current state of the internal state machine
  * 
