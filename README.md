@@ -77,7 +77,7 @@ Mouse mode is indicated by LD2 blinking. Press any direction on the D-Pad to go 
 ### CD<sup>32</sup> Controller Mode
 When the adapter is connected to a CD<sup>32</sup> console, it will automatically switch into this mode, which will emulate all 7 buttons of the original CD<sup>32</sup> controller. LD2 will light up steadily.
 
-Buttons are mapped as follows:
+By default, buttons are mapped as follows:
 - <kbd>&square;</kbd>: Red
 - <kbd>&cross;</kbd>: Blue
 - <kbd>&cir;</kbd>: Yellow
@@ -86,7 +86,13 @@ Buttons are mapped as follows:
 - <kbd>R1</kbd>/<kbd>R2</kbd>/<kbd>R3</kbd>: R
 - <kbd>Start</kbd>: Start/Pause
 
-Both the D-Pad and Left Analog work as direction buttons.
+If you press <kbd>Select</kbd>, the 4 main buttons get "rotated":
+- <kbd>&cross;</kbd>: Red
+- <kbd>&cir;</kbd>: Blue
+- <kbd>&triangle;</kbd>: Yellow
+- <kbd>&square;</kbd>: Green
+
+Both the D-Pad and Left Analog always work as direction buttons.
 
 ## Components and Assembly
 The board is basically a customized Arduino Uno, this means it was designed to work with an ATmega328P microcontroller, but you can also use ATmega88/A/P/PA or ATmega168/P microcontrollers, as they are pin-compatible and slightly cheaper. The A/P/PA suffixes usually identify somewhat minor chip revisions, the board should work with all of them. If you can, use P or PA versions, which consume less power. Note that at the moment the firmware uses 99% of the flash space available on an ATmega88 and any possible future improvements and/or new features are likely to overflow that, so you'd better use an ATmega168 at least.
@@ -102,8 +108,6 @@ Solder all the remaining parts in the order you prefer, just keep the controller
 Note that the PlayStation controller is powered at 3.3V and the interface signals use the same voltage. Due to the particular circuit used for level shifting (the microcontroller works at 5V), the MOSFETs [should really be BSS138](https://electronics.stackexchange.com/questions/367052/replace-bss138-with-ao3400a-in-level-shifter-circuit).
 
 The PlayStation controller connector can be found from many Chinese sellers as a spare part. Get one with 90° pins, otherwise the adapter will be pretty awkward to use. The pins will be pretty short, but you should manage to solder it in place. Make sure it sits level on the board, otherwise it might not fit in the [3D-printable case](#enclosure), which you are recommended to use in order to make the adapter more mechanically solid. In alternative, some hot glue behind the connector (where the pins are) seems to do the same job, but it won't look as pretty.
-
-Components that are somewhat optional are the RESET button, R13, C8 and C9. C10 can be skipped if you don't plan to program the board through the serial port. R1 can be skipped too, but then you might experience random resets of the board.
 
 **Hint:** If you don't have the PCB, you can build a full adapter with an Arduino Uno/Nano/Whatever board. This is not supported though, so you are on your own, but all the information you need is in the schematics or in the firmware code :).
 
