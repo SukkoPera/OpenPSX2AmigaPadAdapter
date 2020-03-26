@@ -125,12 +125,9 @@ Before you can use the adapter, you will need to load some firmware (i.e.: an Ar
 |MSX                              |![No](img/no.png)      |Would probably work in 2-button Joystick mode by swapping a few pins on the controller port.                                                                                         |
 
 ### Controllers
-OpenPSX2AmigaPadAdapter has currently been tested with the following controllers:
-- Sony Dual Shock Analog Controller (SCPH-1200)
-- Sony Dual Shock 2 Analog Controller (SCPH-10010)
-- EastVita Wireless Controller (Chinese knock-off, cheap but with surprising quality, probably goes under other names, too)
+The latest versions of the OpenPSX2AmigaPadAdapter firmware use [PsxNewLib](https://github.com/SukkoPera/PsxNewLib) to read the PlayStation controller. This makes it compatible with (almost) all controllers.
 
-Most controllers should work, please report (by [opening an issue](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/issues/new)) if you find out working or non-working models.
+Please refer to the [PsxNewLib Compatibility List](https://github.com/SukkoPera/PsxNewLib#compatibility-list) for details.
 
 ## Current Consumption
 Following are the results of some rough measurements:
@@ -141,7 +138,12 @@ Following are the results of some rough measurements:
 This means that the current absorbed by the adapter is "reasonable" and that it should be safe to use in all cases. It is well below the 100 mA maximum available from any Amiga controller ports, for instance.
 
 ## Enclosure
-The [enclosure](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/tree/master/enclosure) directory contains models for a 3D-printable enclosure/case. It was made by Petros Kokotis, who has all my gratitude for his great work and support.
+The [enclosure](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/tree/master/enclosure) directory contains models for a 3D-printable enclosure/case. It was kindly contributed by Petros Kokotis, who has all my gratitude for his great work and support.
+
+### Releases
+If you want to get this board produced, you are recommended to get [the latest release](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/releases) rather than the current git version, as the latter might be under development and is not guaranteed to be working.
+
+Every release is accompanied by its Bill Of Materials (BOM) file and any relevant notes about it, which you are recommended to read carefully.
 
 ## License
 The OpenPSX2AmigaPadAdapter documentation, including the design itself, is copyright &copy; SukkoPera 2019.
