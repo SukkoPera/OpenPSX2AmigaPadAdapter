@@ -1,7 +1,7 @@
 /*******************************************************************************
  * This file is part of OpenPSX2AmigaPadAdapter.                               *
  *                                                                             *
- * Copyright (C) 2019 by SukkoPera <software@sukkology.net>                    *
+ * Copyright (C) 2019-2020 by SukkoPera <software@sukkology.net>               *
  *                                                                             *
  * OpenPSX2AmigaPadAdapter is free software: you can redistribute it and/or    *
  * modify it under the terms of the GNU General Public License as published by *
@@ -19,7 +19,7 @@
 /**
  * \file OpenPSX2AmigaPadAdapter.ino
  * \author SukkoPera <software@sukkology.net>
- * \date 25 Dic 2019
+ * \date 26 Mar 2020
  * \brief Playstation to Commodore Amiga/CD32 controller adapter
  *
  * Please refer to the GitHub page and wiki for any information:

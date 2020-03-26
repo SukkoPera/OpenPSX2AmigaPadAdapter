@@ -150,7 +150,7 @@ If you want to get this board produced, you are recommended to get [the latest r
 Every release is accompanied by its Bill Of Materials (BOM) file and any relevant notes about it, which you are recommended to read carefully.
 
 ## License
-The OpenPSX2AmigaPadAdapter documentation, including the design itself, is copyright &copy; SukkoPera 2019.
+The OpenPSX2AmigaPadAdapter documentation, including the design itself, is copyright &copy; SukkoPera 2019-2020.
 
 OpenPSX2AmigaPadAdapter is Open Hardware licensed under the [CERN OHL v. 1.2](http://ohwr.org/cernohl).
 
