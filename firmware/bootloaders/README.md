@@ -40,6 +40,10 @@ avrdude -C$HOME/.arduino15/packages/arduino/tools/avrdude/6.3.0-arduino14/etc/av
 make atmega328pb LED=C1 UART=0 BAUD_RATE=115200 AVR_FREQ=16000000
 ```
 
+#### Bootloader Flash
+```
+avrdude -C$HOME/.arduino15/packages/arduino/tools/avrdude/6.3.0-arduino14/etc/avrdude.conf -v -patmega328pb -cusbasp -Pusb -Uflash:w:optiboot_atmega328pb_UART0_115200_16000000.hex:i -Ulock:w:0x0f:m
+```
 
 ### ATmega88/A:
 #### Fuses
