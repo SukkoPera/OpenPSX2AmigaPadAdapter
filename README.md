@@ -77,7 +77,7 @@ Mouse mode is indicated by LD2 blinking. Press any direction on the D-Pad to go 
 ### CD<sup>32</sup> Controller Mode
 When the adapter is connected to a CD<sup>32</sup> console, it will automatically switch into this mode, which will emulate all 7 buttons of the original CD<sup>32</sup> controller. LD2 will light up steadily.
 
-Buttons are mapped as follows:
+By default, buttons are mapped as follows:
 - <kbd>&square;</kbd>: Red
 - <kbd>&cross;</kbd>: Blue
 - <kbd>&cir;</kbd>: Yellow
@@ -86,7 +86,13 @@ Buttons are mapped as follows:
 - <kbd>R1</kbd>/<kbd>R2</kbd>/<kbd>R3</kbd>: R
 - <kbd>Start</kbd>: Start/Pause
 
-Both the D-Pad and Left Analog work as direction buttons.
+If you press <kbd>Select</kbd>, the 4 main buttons get "rotated":
+- <kbd>&cross;</kbd>: Red
+- <kbd>&cir;</kbd>: Blue
+- <kbd>&triangle;</kbd>: Yellow
+- <kbd>&square;</kbd>: Green
+
+Both the D-Pad and Left Analog always work as direction buttons.
 
 ## Components and Assembly
 The board is basically a customized Arduino Uno, this means it was designed to work with an ATmega328P microcontroller, but you can also use ATmega88/A/P/PA or ATmega168/P microcontrollers, as they are pin-compatible and slightly cheaper. The A/P/PA suffixes usually identify somewhat minor chip revisions, the board should work with all of them. If you can, use P or PA versions, which consume less power. Note that at the moment the firmware uses 99% of the flash space available on an ATmega88 and any possible future improvements and/or new features are likely to overflow that, so you'd better use an ATmega168 at least.
@@ -102,8 +108,6 @@ Solder all the remaining parts in the order you prefer, just keep the controller
 Note that the PlayStation controller is powered at 3.3V and the interface signals use the same voltage. Due to the particular circuit used for level shifting (the microcontroller works at 5V), the MOSFETs [should really be BSS138](https://electronics.stackexchange.com/questions/367052/replace-bss138-with-ao3400a-in-level-shifter-circuit).
 
 The PlayStation controller connector can be found from many Chinese sellers as a spare part. Get one with 90° pins, otherwise the adapter will be pretty awkward to use. The pins will be pretty short, but you should manage to solder it in place. Make sure it sits level on the board, otherwise it might not fit in the [3D-printable case](#enclosure), which you are recommended to use in order to make the adapter more mechanically solid. In alternative, some hot glue behind the connector (where the pins are) seems to do the same job, but it won't look as pretty.
-
-Components that are somewhat optional are the RESET button, R13, C8 and C9. C10 can be skipped if you don't plan to program the board through the serial port. R1 can be skipped too, but then you might experience random resets of the board.
 
 **Hint:** If you don't have the PCB, you can build a full adapter with an Arduino Uno/Nano/Whatever board. This is not supported though, so you are on your own, but all the information you need is in the schematics or in the firmware code :).
 
@@ -125,12 +129,9 @@ Before you can use the adapter, you will need to load some firmware (i.e.: an Ar
 |MSX                              |![No](img/no.png)      |Would probably work in 2-button Joystick mode by swapping a few pins on the controller port.                                                                                         |
 
 ### Controllers
-OpenPSX2AmigaPadAdapter has currently been tested with the following controllers:
-- Sony Dual Shock Analog Controller (SCPH-1200)
-- Sony Dual Shock 2 Analog Controller (SCPH-10010)
-- EastVita Wireless Controller (Chinese knock-off, cheap but with surprising quality, probably goes under other names, too)
+The latest versions of the OpenPSX2AmigaPadAdapter firmware use [PsxNewLib](https://github.com/SukkoPera/PsxNewLib) to read the PlayStation controller. This makes it compatible with (almost) all controllers.
 
-Most controllers should work, please report (by [opening an issue](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/issues/new)) if you find out working or non-working models.
+Please refer to the [PsxNewLib Compatibility List](https://github.com/SukkoPera/PsxNewLib#compatibility-list) for details.
 
 ## Current Consumption
 Following are the results of some rough measurements:
@@ -141,10 +142,15 @@ Following are the results of some rough measurements:
 This means that the current absorbed by the adapter is "reasonable" and that it should be safe to use in all cases. It is well below the 100 mA maximum available from any Amiga controller ports, for instance.
 
 ## Enclosure
-The [enclosure](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/tree/master/enclosure) directory contains models for a 3D-printable enclosure/case. It was made by Petros Kokotis, who has all my gratitude for his great work and support.
+The [enclosure](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/tree/master/enclosure) directory contains models for a 3D-printable enclosure/case. It was kindly contributed by Petros Kokotis, who has all my gratitude for his great work and support.
+
+### Releases
+If you want to get this board produced, you are recommended to get [the latest release](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/releases) rather than the current git version, as the latter might be under development and is not guaranteed to be working.
+
+Every release is accompanied by its Bill Of Materials (BOM) file and any relevant notes about it, which you are recommended to read carefully.
 
 ## License
-The OpenPSX2AmigaPadAdapter documentation, including the design itself, is copyright &copy; SukkoPera 2019.
+The OpenPSX2AmigaPadAdapter documentation, including the design itself, is copyright &copy; SukkoPera 2019-2020.
 
 OpenPSX2AmigaPadAdapter is Open Hardware licensed under the [CERN OHL v. 1.2](http://ohwr.org/cernohl).
 
@@ -161,7 +167,7 @@ The Documentation Location of the original project is https://github.com/SukkoPe
 ## Support the Project
 Since the project is open you are free to get the PCBs made by your preferred manufacturer, however in case you want to support the development, you can order them from PCBWay through this link:
 
-[![PCB from PCBWay](https://www.pcbway.com/project/img/images/frompcbway.png)](https://www.pcbway.com/project/shareproject/OpenPSX2AmigaPadAdapter_V2.html)
+[![PCB from PCBWay](https://www.pcbway.com/project/img/images/frompcbway.png)](https://www.pcbway.com/project/shareproject/OpenPSX2AmigaPadAdapter_V3.html)
 
 You get my gratitude and cheap, professionally-made and good quality PCBs, I get some credit that will help with this and [other projects](https://www.pcbway.com/project/member/shareproject/?bmbid=41100). You won't even have to worry about the various PCB options, it's all pre-configured for you!
 

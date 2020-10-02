@@ -1,7 +1,7 @@
 /*******************************************************************************
  * This file is part of OpenPSX2AmigaPadAdapter.                               *
  *                                                                             *
- * Copyright (C) 2019 by SukkoPera <software@sukkology.net>                    *
+ * Copyright (C) 2019-2020 by SukkoPera <software@sukkology.net>               *
  *                                                                             *
  * OpenPSX2AmigaPadAdapter is free software: you can redistribute it and/or    *
  * modify it under the terms of the GNU General Public License as published by *
@@ -15,28 +15,21 @@
  *                                                                             *
  * You should have received a copy of the GNU General Public License           *
  * along with OpenPSX2AmigaPadAdapter. If not, see http://www.gnu.org/licenses.*
- *******************************************************************************
- *
- * OpenPSX2AmigaPadAdapter - Playstation to Commodore Amiga/CD32 controller
- * adapter
- *
- * Please refer to the GitHub page and wiki for any information:
- * https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter
- *
- * CD32 pad protocol information found at:
- * http://gerdkautzmann.de/cd32gamepad/cd32gamepad.html
- */
-
+ ******************************************************************************/
 /**
  * \file OpenPSX2AmigaPadAdapter.ino
  * \author SukkoPera <software@sukkology.net>
- * \date 05 Nov 2019
+ * \date 26 Mar 2020
  * \brief Playstation to Commodore Amiga/CD32 controller adapter
+ *
+ * Please refer to the GitHub page and wiki for any information:
+ * https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter
  */
 
 #include <EEPROM.h>
 #include <util/crc16.h>
-#include <PS2X_lib.h>
+#include <PsxNewLib.h>
+#include <PsxControllerHwSpi.h>
 
 /** \brief Enable heavy optimization
  * 
@@ -84,14 +77,6 @@
  */
 //~ #define DISABLE_FACTORY_RESET
 
-//! \name INPUT pins, connected to PS2 controller
-//! @{
-const byte PS2_CLK = 13;	//!< Clock, blue wire
-const byte PS2_DAT = 12;	//!< Data, brown wire
-const byte PS2_CMD = 11;	//!< Command, orange wire
-const byte PS2_SEL = 10;	//!< Attention, yellow wire
-//! @}
-
 //! \name OUTPUT pins, connected to Amiga port
 //! @{
 const byte PIN_UP = 4;    //!< Amiga Pin 1
@@ -122,12 +107,6 @@ const byte PIN_BTNREGOUT = PIN_BTN2;
  * The shifting is clocked by rising edges on this pin.
  */
 const byte PIN_BTNREGCLK = PIN_BTN1;
-
-/** \brief Analog sticks idle value
- * 
- * Value reported when the analog stick is in the (ideal) center position.
- */
-const byte ANALOG_IDLE_VALUE = 128U;
 
 /** \brief Dead zone for analog sticks
  *  
@@ -168,6 +147,12 @@ const byte PIN_LED_PAD_OK = A1;
  * Pin for led that lights up whenever the adapter is in CD32 mode.
  */
 const byte PIN_LED_MODE = A0;
+
+/** \brief Pin used for Controller Attention (ATTN)
+ *
+ * Pin that makes the controller pay attention to what we're saying.
+ */
+const byte PIN_CONTROLLER_ATTN = 10;
 
 /** \brief CD32 mode timeout
  * 
@@ -318,13 +303,6 @@ struct TwoButtonJoystick {
 	boolean b2: 1;			//!< Button 2
 };
 
-/** \brief Number of buttons on a PSX controller
- *
- * Includes \a everything, i.e.: 4 directions, Square, Cross, Circle, Triangle,
- * L1/2/3, R1/2/3, Select and Start.
- */
-const byte PSX_BUTTONS_NO = 16;
-
 /** \brief Map a PSX button to a two-button-joystick combo
  * 
  * There's an entry for every button, even those that cannot be mapped, for
@@ -341,21 +319,11 @@ struct ControllerConfiguration {
 	TwoButtonJoystick buttonMappings[PSX_BUTTONS_NO];
 };
 
-/** \brief Type that is used to report button presses
- *
- * This can be used with the PSB_* values from PS2X_lib, and cast from/to
- * values of that type.
- */
-typedef unsigned int PsxButtons;
-
-//! Value of #PsxButtons when it reports no buttons pressed
-const PsxButtons NO_BUTTON = 0x00;
-
 //! \name Global variables
 //! @{
 
 //! PS2 Controller Class
-PS2X ps2x;
+PsxControllerHwSpi<PIN_CONTROLLER_ATTN> psx;
 
 /** \brief Current state of the internal state machine
  * 
@@ -370,7 +338,7 @@ volatile State *state = reinterpret_cast<volatile State *> (&GPIOR2);
 /** \brief All possible controller configurations
  * 
  * Since these are activated with SELECT + a button, ideally there can be as
- * many different ones as other buttons we have (i.e.: #PSX_BUTTONS_NO). In
+ * many different ones as other buttons we have (i.e.: PSX_BUTTONS_NO). In
  * practice, we will start handling only a handful.
  */
 ControllerConfiguration controllerConfigs[PSX_BUTTONS_NO];
@@ -429,6 +397,15 @@ JoyMappingFunc joyMappingFunc = mapJoystickNormal;
  */
 boolean c64Mode = false;
 
+/** \brief Use alternative CD32 mapping
+ * 
+ * To me the Red button maps naturally to Square, Blue to Cross and so on. Some
+ * people feel this way buttons are "rotated" with regard to the original CD32
+ * controller, hence let's give them the possibility to "counter-rotate" the
+ * mapping so that Cross is Red, Circle is Blue and so on.
+ */
+boolean useAlternativeCd32Mapping = false;
+
 //! @}		// End of global variables
 
 #ifdef ENABLE_SERIAL_DEBUG
@@ -456,43 +433,53 @@ boolean initPad () {
 	boolean ret = false;
 
 	// clock, command, attention, data, Pressures?, Rumble?
-	int error = ps2x.config_gamepad (PS2_CLK, PS2_CMD, PS2_SEL, PS2_DAT, false, false);
-	switch (error) {
-	case 0:
-		// Controller is ready
-		switch (ps2x.readType ()) {
-		case 0:
-			/* The Dual Shock controller gets recognized as this sometimes, or
-			 * anyway, whatever controller it is, it might work
+	if (psx.begin ()) {
+		// Controller seems ready
+		if (!psx.enterConfigMode ()) {
+			/* We'll take this as good anyway, maybe it's an early controller
+			 * that does not support any configuration, like the Namco Arcade
+			 * Stick
 			 */
-			debugln (F("Unknown Controller type found, using anyway"));
+			debugln (F("Cannot enter config mode"));
 			ret = true;
-			break;
-		case 1:
-			debugln (F("DualShock Controller found"));
-			ret = true;
-			break;
-		case 2:
-			/* We used to refuse this, as it does not look suitable, but then we
-			 * found out that the Analog Controller (SCPH-1200) gets detected as
-			 * this... :/
-			 */
-			debugln (F("Analog/GuitarHero Controller found"));
-			ret = true;
-			break;
-		case 3:
-			debugln (F("Wireless Sony DualShock Controller found"));
-			ret = true;
-			break;
+		} else {
+			switch (psx.getControllerType ()) {
+			case PSCTRL_UNKNOWN:
+				/* The Dual Shock controller gets recognized as this sometimes, or
+				 * anyway, whatever controller it is, it might work
+				 */
+				debugln (F("Unknown Controller type found, using anyway"));
+				ret = true;
+				break;
+			case PSCTRL_DUALSHOCK:
+				debugln (F("DualShock Controller found"));
+				ret = true;
+				break;
+			case PSCTRL_GUITHERO:
+				/* We used to refuse this, as it does not look suitable, but then we
+				 * found out that the Analog Controller (SCPH-1200) gets detected as
+				 * this... :/
+				 */
+				debugln (F("Analog/GuitarHero Controller found"));
+				ret = true;
+				break;
+			case PSCTRL_DSWIRELESS:
+				debugln (F("Wireless Sony DualShock Controller found"));
+				ret = true;
+				break;
+			}
+
+			// Try to enable analog sticks
+			if (!psx.enableAnalogSticks ()) {
+				debugln (F("Cannot enable analog sticks"));
+			}
+							
+			if (!psx.exitConfigMode ()) {
+				debugln (F("Cannot exit config mode"));
+			}
 		}
-		break;
-	case 1:
+	} else {
 		debugln (F("No controller found"));
-		break;
-	case 2:
-	default:
-		debugln (F("Cannot initialize controller"));
-		break;
 	}
 
 	return ret;
@@ -544,7 +531,7 @@ const char* const psxButtonNames[PSX_BUTTONS_NO] PROGMEM = {
 
 /** \brief Convert a button on the PSX controller to a small integer
  * 
- * Output will always be in the range [0, #PSX_BUTTONS_NO - 1] and is not
+ * Output will always be in the range [0, PSX_BUTTONS_NO - 1] and is not
  * guaranteed to be valid, so it should be checked to be < PSX_BUTTONS_NO before
  * use.
  * 
@@ -686,8 +673,6 @@ ISR (INT0_vect) {
 
 		// Set state to ST_CD32
 		*state = ST_CD32;
-
-		// TODO: Evaluate if joystick mapping should be reset to default
 
 #ifdef ENABLE_INSTRUMENTATION
 		fastDigitalToggle (PIN_CD32MODE);
@@ -1097,19 +1082,22 @@ inline void buttonRelease (byte pin) {
  * \param[out] j Mapped joystick status
  */
 void mapAnalogStickHorizontal (TwoButtonJoystick& j) {
-	byte lx = ps2x.Analog (PSS_LX);   			// 0 ... 255
-	int8_t deltaLX = lx - ANALOG_IDLE_VALUE;	// --> -127 ... +128
-	j.left = deltaLX < -ANALOG_DEAD_ZONE;
-	j.right = deltaLX > +ANALOG_DEAD_ZONE;
+	byte lx, ly;
+	
+	if (psx.getLeftAnalog (lx, ly)) {				// 0 ... 255
+		int8_t deltaLX = lx - ANALOG_IDLE_VALUE;	// --> -127 ... +128
+		j.left = deltaLX < -ANALOG_DEAD_ZONE;
+		j.right = deltaLX > +ANALOG_DEAD_ZONE;
 
 #ifdef ENABLE_SERIAL_DEBUG
-	static int oldx = -1000;
-	if (deltaLX != oldx) {
-		debug (F("L Analog X = "));
-		debugln (deltaLX);
-		oldx = deltaLX;
-	}
+		static int oldx = -1000;
+		if (deltaLX != oldx) {
+			debug (F("L Analog X = "));
+			debugln (deltaLX);
+			oldx = deltaLX;
+		}
 #endif
+	}
 }
 
 /** \brief Map vertical movements of the left analog stick to a
@@ -1120,19 +1108,22 @@ void mapAnalogStickHorizontal (TwoButtonJoystick& j) {
  * \param[out] j Mapped joystick status
  */
 void mapAnalogStickVertical (TwoButtonJoystick& j) {
-	byte ly = ps2x.Analog (PSS_LY);
-	int8_t deltaLY = ly - ANALOG_IDLE_VALUE;
-	j.up = deltaLY < -ANALOG_DEAD_ZONE;
-	j.down = deltaLY > +ANALOG_DEAD_ZONE;
+	byte lx, ly;
+	
+	if (psx.getLeftAnalog (lx, ly)) {
+		int8_t deltaLY = ly - ANALOG_IDLE_VALUE;
+		j.up = deltaLY < -ANALOG_DEAD_ZONE;
+		j.down = deltaLY > +ANALOG_DEAD_ZONE;
 
 #ifdef ENABLE_SERIAL_DEBUG
-	static int oldy = -1000;
-	if (deltaLY != oldy) {
-		debug (F("L Analog Y = "));
-		debugln (deltaLY);
-		oldy = deltaLY;
-	}
+		static int oldy = -1000;
+		if (deltaLY != oldy) {
+			debug (F("L Analog Y = "));
+			debugln (deltaLY);
+			oldy = deltaLY;
+		}
 #endif
+	}
 }
 
 /** \brief Map PSX controller buttons to two-button joystick according to the
@@ -1152,16 +1143,16 @@ void mapJoystickNormal (TwoButtonJoystick& j) {
 	mapAnalogStickVertical (j);
 
 	// D-Pad is fully functional as well
-	j.up |= ps2x.Button (PSB_PAD_UP);
-	j.down |= ps2x.Button (PSB_PAD_DOWN);
-	j.left |= ps2x.Button (PSB_PAD_LEFT);
-	j.right |= ps2x.Button (PSB_PAD_RIGHT);
+	j.up |= psx.buttonPressed (PSB_PAD_UP);
+	j.down |= psx.buttonPressed (PSB_PAD_DOWN);
+	j.left |= psx.buttonPressed (PSB_PAD_LEFT);
+	j.right |= psx.buttonPressed (PSB_PAD_RIGHT);
 
 	// Square is button 1
-	j.b1 = ps2x.Button (PSB_SQUARE);
+	j.b1 = psx.buttonPressed (PSB_SQUARE);
 
 	// Cross is button 2
-	j.b2 = ps2x.Button (PSB_CROSS);
+	j.b2 = psx.buttonPressed (PSB_CROSS);
 }
 
 /** \brief Map PSX controller buttons to two-button joystick according to Racing
@@ -1174,12 +1165,12 @@ void mapJoystickRacing1 (TwoButtonJoystick& j) {
 	mapAnalogStickHorizontal (j);
 
 	// D-Pad L/R can also be used
-	j.left |= ps2x.Button (PSB_PAD_LEFT);
-	j.right |= ps2x.Button (PSB_PAD_RIGHT);
+	j.left |= psx.buttonPressed (PSB_PAD_LEFT);
+	j.right |= psx.buttonPressed (PSB_PAD_RIGHT);
 
 	// Use D-Pad U/Square to accelerate and D/Cross to brake
-	j.up = ps2x.Button (PSB_PAD_UP) || ps2x.Button (PSB_SQUARE);
-	j.down = ps2x.Button (PSB_PAD_DOWN) || ps2x.Button (PSB_CROSS);
+	j.up = psx.buttonPressed (PSB_PAD_UP) || psx.buttonPressed (PSB_SQUARE);
+	j.down = psx.buttonPressed (PSB_PAD_DOWN) || psx.buttonPressed (PSB_CROSS);
 	
 	/* Games probably did not expect up + down at the same time, so when
 	 * braking, don't accelerate
@@ -1188,10 +1179,10 @@ void mapJoystickRacing1 (TwoButtonJoystick& j) {
 		j.up = false;
 
 	// Triangle/Rx are button 1
-	j.b1 = ps2x.Button (PSB_TRIANGLE) || ps2x.Button (PSB_R1) || ps2x.Button (PSB_R2) || ps2x.Button (PSB_R3);
+	j.b1 = psx.buttonPressed (PSB_TRIANGLE) || psx.buttonPressed (PSB_R1) || psx.buttonPressed (PSB_R2) || psx.buttonPressed (PSB_R3);
 
 	// Circle/Lx are button 2
-	j.b2 = ps2x.Button (PSB_CIRCLE) || ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2) || ps2x.Button (PSB_L3);
+	j.b2 = psx.buttonPressed (PSB_CIRCLE) || psx.buttonPressed (PSB_L1) || psx.buttonPressed (PSB_L2) || psx.buttonPressed (PSB_L3);
 }
 
 /** \brief Map PSX controller buttons to two-button joystick according to Racing
@@ -1204,12 +1195,12 @@ void mapJoystickRacing2 (TwoButtonJoystick& j) {
 	mapAnalogStickHorizontal (j);
 
 	// D-Pad L/R can also be used
-	j.left |= ps2x.Button (PSB_PAD_LEFT);
-	j.right |= ps2x.Button (PSB_PAD_RIGHT);
+	j.left |= psx.buttonPressed (PSB_PAD_LEFT);
+	j.right |= psx.buttonPressed (PSB_PAD_RIGHT);
 
 	// Use D-Pad U/R1/R2 to accelerate and D/Cross/L1/L2 to brake
-	j.up = ps2x.Button (PSB_PAD_UP) || ps2x.Button (PSB_R1) || ps2x.Button (PSB_R2);
-	j.down = ps2x.Button (PSB_PAD_DOWN) || ps2x.Button (PSB_CROSS) || ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2);
+	j.up = psx.buttonPressed (PSB_PAD_UP) || psx.buttonPressed (PSB_R1) || psx.buttonPressed (PSB_R2);
+	j.down = psx.buttonPressed (PSB_PAD_DOWN) || psx.buttonPressed (PSB_CROSS) || psx.buttonPressed (PSB_L1) || psx.buttonPressed (PSB_L2);
 
 	/* Games probably did not expect up + down at the same time, so when
 	 * braking, don't accelerate
@@ -1218,10 +1209,10 @@ void mapJoystickRacing2 (TwoButtonJoystick& j) {
 		j.up = false;
 
 	// Square/R3 are button 1
-	j.b1 = ps2x.Button (PSB_SQUARE) || ps2x.Button (PSB_R3);
+	j.b1 = psx.buttonPressed (PSB_SQUARE) || psx.buttonPressed (PSB_R3);
 
 	// Triangle/L3 are button 2
-	j.b2 = ps2x.Button (PSB_TRIANGLE) || ps2x.Button (PSB_L3);
+	j.b2 = psx.buttonPressed (PSB_TRIANGLE) || psx.buttonPressed (PSB_L3);
 }
 
 /** \brief Map PSX controller buttons to two-button joystick according to
@@ -1235,19 +1226,19 @@ void mapJoystickPlatform (TwoButtonJoystick& j) {
 	mapAnalogStickVertical (j);
 
 	// D-Pad is fully functional
-	j.up = ps2x.Button (PSB_PAD_UP);		// Note the '=', will override analog UP
-	j.down |= ps2x.Button (PSB_PAD_DOWN);
-	j.left |= ps2x.Button (PSB_PAD_LEFT);
-	j.right |= ps2x.Button (PSB_PAD_RIGHT);
+	j.up = psx.buttonPressed (PSB_PAD_UP);		// Note the '=', will override analog UP
+	j.down |= psx.buttonPressed (PSB_PAD_DOWN);
+	j.left |= psx.buttonPressed (PSB_PAD_LEFT);
+	j.right |= psx.buttonPressed (PSB_PAD_RIGHT);
 
 	// Cross is up/jump
-	j.up |= ps2x.Button (PSB_CROSS);
+	j.up |= psx.buttonPressed (PSB_CROSS);
 
 	// Square/Rx are button 1
-	j.b1 = ps2x.Button (PSB_SQUARE) || ps2x.Button (PSB_R1) || ps2x.Button (PSB_R2) || ps2x.Button (PSB_R3);
+	j.b1 = psx.buttonPressed (PSB_SQUARE) || psx.buttonPressed (PSB_R1) || psx.buttonPressed (PSB_R2) || psx.buttonPressed (PSB_R3);
 
 	// Triangle/Lx are button 2
-	j.b2 = ps2x.Button (PSB_TRIANGLE) || ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2) || ps2x.Button (PSB_L3);
+	j.b2 = psx.buttonPressed (PSB_TRIANGLE) || psx.buttonPressed (PSB_L1) || psx.buttonPressed (PSB_L2) || psx.buttonPressed (PSB_L3);
 }
 
 /** \brief Map PSX controller buttons to two-button joystick according to the
@@ -1261,14 +1252,14 @@ void mapJoystickCustom (TwoButtonJoystick& j) {
 	mapAnalogStickVertical (j);
 
 	// D-Pad is fully functional as well
-	j.up |= ps2x.Button (PSB_PAD_UP);
-	j.down |= ps2x.Button (PSB_PAD_DOWN);
-	j.left |= ps2x.Button (PSB_PAD_LEFT);
-	j.right |= ps2x.Button (PSB_PAD_RIGHT);
+	j.up |= psx.buttonPressed (PSB_PAD_UP);
+	j.down |= psx.buttonPressed (PSB_PAD_DOWN);
+	j.left |= psx.buttonPressed (PSB_PAD_LEFT);
+	j.right |= psx.buttonPressed (PSB_PAD_RIGHT);
 
 	for (byte i = 0; i < PSX_BUTTONS_NO; ++i) {
-		PsxButtons button = 1 << i;
-		if (isButtonMappable (button) && ps2x.Button (button)) {
+		PsxButton button = static_cast<PsxButton> (1 << i);
+		if (isButtonMappable (button) && psx.buttonPressed (button)) {
 			byte buttonIdx = psxButtonToIndex (button);
 			mergeButtons (j, currentCustomConfig -> buttonMappings[buttonIdx]);
 		}
@@ -1322,48 +1313,49 @@ void flashLed (byte n) {
  */
 boolean rightAnalogMoved (int8_t& x, int8_t& y) {
 	boolean ret = false;
+	byte rx, ry;
 	
-	uint8_t rx = ps2x.Analog (PSS_RX);   		// [0 ... 255]
-	int8_t deltaRX = rx - ANALOG_IDLE_VALUE;	// [-128 ... 127]
-	uint8_t deltaRXabs = abs (deltaRX);
-	if (deltaRXabs > ANALOG_DEAD_ZONE) {
-		x = deltaRX;
-		if (x == -128)
-			x = -127;
-		ret = true;
-	} else {
-		x = 0;
-	}
-	
-	uint8_t ry = ps2x.Analog (PSS_RY);
-	int8_t deltaRY = ry - ANALOG_IDLE_VALUE;
-	uint8_t deltaRYabs = abs (deltaRY);
-	if (deltaRYabs > ANALOG_DEAD_ZONE) {
-		y = deltaRY;
-		if (y == -128)
-			y = -127;
-		ret = true;
-	} else {
-		y = 0;
-	}
-	
+	if (psx.getRightAnalog (rx, ry)) {				// [0 ... 255]
+		int8_t deltaRX = rx - ANALOG_IDLE_VALUE;	// [-128 ... 127]
+		uint8_t deltaRXabs = abs (deltaRX);
+		if (deltaRXabs > ANALOG_DEAD_ZONE) {
+			x = deltaRX;
+			if (x == -128)
+				x = -127;
+			ret = true;
+		} else {
+			x = 0;
+		}
+		
+		int8_t deltaRY = ry - ANALOG_IDLE_VALUE;
+		uint8_t deltaRYabs = abs (deltaRY);
+		if (deltaRYabs > ANALOG_DEAD_ZONE) {
+			y = deltaRY;
+			if (y == -128)
+				y = -127;
+			ret = true;
+		} else {
+			y = 0;
+		}
+		
 #ifdef ENABLE_SERIAL_DEBUG
-	if (ret) {
-		static int oldx = -1000;
-		if (x != oldx) {
-			debug (F("R Analog X = "));
-			debugln (x);
-			oldx = x;
-		}
+		if (ret) {
+			static int oldx = -1000;
+			if (x != oldx) {
+				debug (F("R Analog X = "));
+				debugln (x);
+				oldx = x;
+			}
 
-		static int oldy = -1000;
-		if (y != oldy) {
-			debug (F("R Analog Y = "));
-			debugln (y);
-			oldy = y;
+			static int oldy = -1000;
+			if (y != oldy) {
+				debug (F("R Analog Y = "));
+				debugln (y);
+				oldy = y;
+			}
 		}
-	}
 #endif
+	}
 	
 	return ret;
 }
@@ -1426,36 +1418,54 @@ void handleJoystickDirections (TwoButtonJoystick& j) {
 	 */
 	byte buttonsTmp = 0xFF;
 
-	if (ps2x.Button (PSB_START))
+	if (psx.buttonJustPressed (PSB_SELECT)) {
+		useAlternativeCd32Mapping = !useAlternativeCd32Mapping;
+		flashLed (((byte) useAlternativeCd32Mapping) + 1);	// Flash-saving hack
+	}
+
+	if (useAlternativeCd32Mapping) {
+		if (psx.buttonPressed (PSB_SQUARE))
+			buttonsTmp &= ~BTN_GREEN;
+
+		if (psx.buttonPressed (PSB_CROSS))
+			buttonsTmp &= ~BTN_RED;
+
+		if (psx.buttonPressed (PSB_CIRCLE))
+			buttonsTmp &= ~BTN_BLUE;
+
+		if (psx.buttonPressed (PSB_TRIANGLE))
+			buttonsTmp &= ~BTN_YELLOW;
+	} else {
+		if (psx.buttonPressed (PSB_TRIANGLE))
+			buttonsTmp &= ~BTN_GREEN;
+
+		if (psx.buttonPressed (PSB_SQUARE))
+			buttonsTmp &= ~BTN_RED;
+
+		if (psx.buttonPressed (PSB_CROSS))
+			buttonsTmp &= ~BTN_BLUE;
+
+		if (psx.buttonPressed (PSB_CIRCLE))
+			buttonsTmp &= ~BTN_YELLOW;
+	}		
+
+	if (psx.buttonPressed (PSB_START))
 		buttonsTmp &= ~BTN_START;
 
-	if (ps2x.Button (PSB_TRIANGLE))
-		buttonsTmp &= ~BTN_GREEN;
-
-	if (ps2x.Button (PSB_SQUARE))
-		buttonsTmp &= ~BTN_RED;
-
-	if (ps2x.Button (PSB_CROSS))
-		buttonsTmp &= ~BTN_BLUE;
-
-	if (ps2x.Button (PSB_CIRCLE))
-		buttonsTmp &= ~BTN_YELLOW;
-
-	if (ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2) || ps2x.Button (PSB_L3))
+	if (psx.buttonPressed (PSB_L1) || psx.buttonPressed (PSB_L2) || psx.buttonPressed (PSB_L3))
 		buttonsTmp &= ~BTN_FRONT_L;
 
-	if (ps2x.Button (PSB_R1) || ps2x.Button (PSB_R2) || ps2x.Button (PSB_R3))
+	if (psx.buttonPressed (PSB_R1) || psx.buttonPressed (PSB_R2) || psx.buttonPressed (PSB_R3))
 		buttonsTmp &= ~BTN_FRONT_R;
 
 	// Atomic operation, interrupt either happens before or after this
 	*buttonsLive = buttonsTmp;
 }
 
-/** \brief Update the output fire button pins
+/** \brief Update the output fire button pins when in joystick mode
  * 
  * This functions updates the status of the 2 fire button pins of the DB-9 port.
- * It shall only be called when state is ST_JOYSTICK or ST_JOYSTICK_TEMP, as
- * when in ST_CD32, buttons are handled by the ISRs.
+ * It shall only be called when state is ST_JOYSTICK.
  *
  * \param[in] j Mapped joystick status, as returned by
  *              handleJoystickDirections().
@@ -1474,7 +1484,7 @@ void handleJoystickButtons (const TwoButtonJoystick& j) {
 	 * interrupts, and we absolutely have to avoid modifying pin
 	 * directions/states if the ISR has already been called.
 	 */
-	if (*state == ST_JOYSTICK || *state == ST_JOYSTICK_TEMP) {
+	if (*state == ST_JOYSTICK) {
 		if (j.b1) {
 			buttonPress (PIN_BTN1);
 		} else {
@@ -1494,6 +1504,45 @@ void handleJoystickButtons (const TwoButtonJoystick& j) {
 			} else {
 				buttonPress (PIN_BTN2);
 			}
+		}
+	}
+	
+	interrupts ();
+}
+
+/** \brief Update the primary output fire button pins when in CD32 mode
+ * 
+ * This functions updates the status of the 2 main fire buttons inbetween two
+ * consecutive CD32-style readings. It might seem counter-intuitive, but many
+ * games (including lowlevel.library, I think!) read the state of the two main
+ * buttons this way, rather than extracting them from the full 7-button reply,
+ * don't ask me why. See \a Banshee, for instance.
+ * 
+ * So we need a different function that does not perform button mapping as when
+ * in 2-button joystick mode, but that rather uses the current CD32 mapping.
+ * This means it shall also be coherent with what onPadModeChange() is doing
+ * when PIN_PADMODE goes high.
+ * 
+ * Of course, this function shall only be called when state is ST_CD32.
+ */
+void handleJoystickButtonsTemp () {
+	// Use the same logic as in handleJoystickButtons()
+	noInterrupts ();
+
+	if (*state == ST_JOYSTICK_TEMP) {
+		/* Relying on buttonsLive guarantees we do the right thing even when
+		 * useAlternativeCd32Mapping is true
+		 */
+		if (!(*buttonsLive & BTN_RED)) {
+			buttonPress (PIN_BTN1);
+		} else {
+			buttonRelease (PIN_BTN1);
+		}
+
+		if (!(*buttonsLive & BTN_BLUE)) {
+			buttonPress (PIN_BTN2);
+		} else {
+			buttonRelease (PIN_BTN2);
 		}
 	}
 	
@@ -1578,13 +1627,13 @@ void handleMouse () {
 	/* Buttons - This won't happen while in CD32 mode, so there's no need to
 	 * disable interrupts
 	 */
-	if (ps2x.Button (PSB_L1) || ps2x.Button (PSB_L2) || ps2x.Button (PSB_L3)) {
+	if (psx.buttonPressed (PSB_L1) || psx.buttonPressed (PSB_L2) || psx.buttonPressed (PSB_L3)) {
 		buttonPress (PIN_BTN1);
 	} else {
 		buttonRelease (PIN_BTN1);
 	}
 
-	if (ps2x.Button (PSB_R1) || ps2x.Button (PSB_R2) || ps2x.Button (PSB_R3)) {
+	if (psx.buttonPressed (PSB_R1) || psx.buttonPressed (PSB_R2) || psx.buttonPressed (PSB_R3)) {
 		buttonPress (PIN_BTN2);
 	} else {
 		buttonRelease (PIN_BTN2);
@@ -1602,12 +1651,12 @@ void handleMouse () {
  * \param[in] holdTime Time the button/combo must be stable for
  */
 PsxButtons debounceButtons (unsigned long holdTime) {
-	static PsxButtons oldButtons = NO_BUTTON;
+	static PsxButtons oldButtons = PSB_NONE;
 	static unsigned long pressedOn = 0;
 
-	PsxButtons ret = NO_BUTTON;
+	PsxButtons ret = PSB_NONE;
 
-	PsxButtons buttons = (PsxButtons) ps2x.ButtonDataByte ();
+	PsxButtons buttons = psx.getButtonWord ();
 	if (buttons == oldButtons) {
 		if (millis () - pressedOn > holdTime) {
 			// Same combo held long enough
@@ -1636,12 +1685,12 @@ PsxButtons debounceButtons (unsigned long holdTime) {
 boolean psxButton2Amiga (PsxButtons psxButtons, TwoButtonJoystick& j) {
 	memset (&j, 0x00, sizeof (j));
 	
-	j.up = ps2x.Button (psxButtons, PSB_PAD_UP);
-	j.down = ps2x.Button (psxButtons, PSB_PAD_DOWN);
-	j.left = ps2x.Button (psxButtons, PSB_PAD_LEFT);
-	j.right = ps2x.Button (psxButtons, PSB_PAD_RIGHT);
-	j.b1 = ps2x.Button (psxButtons, PSB_SQUARE);
-	j.b2 = ps2x.Button (psxButtons, PSB_CROSS);
+	j.up = psx.buttonPressed (psxButtons, PSB_PAD_UP);
+	j.down = psx.buttonPressed (psxButtons, PSB_PAD_DOWN);
+	j.left = psx.buttonPressed (psxButtons, PSB_PAD_LEFT);
+	j.right = psx.buttonPressed (psxButtons, PSB_PAD_RIGHT);
+	j.b1 = psx.buttonPressed (psxButtons, PSB_SQUARE);
+	j.b2 = psx.buttonPressed (psxButtons, PSB_CROSS);
 
 	return *reinterpret_cast<byte *> (&j);
 }
@@ -1702,11 +1751,11 @@ unsigned int countSetBits (int n) {
  */
 boolean isButtonMappable (PsxButtons b) {
 	return countSetBits (b) == 1 &&
-	       !ps2x.Button (b, PSB_SELECT) &&
-	       !ps2x.Button (b, PSB_PAD_UP) &&
-	       !ps2x.Button (b, PSB_PAD_DOWN) &&
-	       !ps2x.Button (b, PSB_PAD_LEFT) &&
-	       !ps2x.Button (b, PSB_PAD_RIGHT);
+	       !psx.buttonPressed (b, PSB_SELECT) &&
+	       !psx.buttonPressed (b, PSB_PAD_UP) &&
+	       !psx.buttonPressed (b, PSB_PAD_DOWN) &&
+	       !psx.buttonPressed (b, PSB_PAD_LEFT) &&
+	       !psx.buttonPressed (b, PSB_PAD_RIGHT);
 }
 
 /** \brief Check if a PSX button is programmable
@@ -1715,17 +1764,17 @@ boolean isButtonMappable (PsxButtons b) {
  * \return True if \b is programmable, false otherwise
  */
 boolean isButtonProgrammable (PsxButtons b) {
-	return ps2x.Button (b, PSB_L1) || ps2x.Button (b, PSB_L2) ||
-	       ps2x.Button (b, PSB_R1) || ps2x.Button (b, PSB_R2);
+	return psx.buttonPressed (b, PSB_L1) || psx.buttonPressed (b, PSB_L2) ||
+	       psx.buttonPressed (b, PSB_R1) || psx.buttonPressed (b, PSB_R2);
 }
 
 //! \brief Handle the internal state machine
 void stateMachine () {
 	static unsigned long stateEnteredTime = 0;
 	static unsigned long lastPoll = 0;
-	static PsxButtons selectComboButton = NO_BUTTON;
-	static PsxButtons programmedButton = NO_BUTTON;
-	PsxButtons buttons = NO_BUTTON;
+	static PsxButton selectComboButton = PSB_NONE;
+	static PsxButton programmedButton = PSB_NONE;
+	PsxButtons buttons = PSB_NONE;
 	TwoButtonJoystick j = {false, false, false, false, false, false};
 
 	/* This is done first since ALL states except NO_CONTROLLER need to poll the
@@ -1734,8 +1783,8 @@ void stateMachine () {
 	if (*state != ST_NO_CONTROLLER) {
 		// We have a controller and we can poll it
 		if (millis () - lastPoll > 1000U / PAD_POLLING_FREQ) {
-			if (ps2x.read_gamepad ()) {
-				dumpButtons (ps2x.ButtonDataByte ());
+			if (psx.read ()) {
+				dumpButtons (psx.getButtonWord ());
 			} else {
 				// Polling failed
 				debugln (F("Controller lost"));
@@ -1762,7 +1811,7 @@ void stateMachine () {
 			}
 			break;
 		case ST_FIRST_READ:
-			if (ps2x.Button (PSB_SELECT)) {
+			if (psx.buttonPressed (PSB_SELECT)) {
 #ifndef DISABLE_FACTORY_RESET
 				/* The controller was plugged in (or the adapter was powered on)
 				 * with SELECT held, so the user wants to do a factory reset
@@ -1785,7 +1834,7 @@ void stateMachine () {
 				// Right analog stick moved, switch to Mouse mode
 				joystickToMouse ();
 				*state = ST_MOUSE;
-			} else if (ps2x.Button (PSB_SELECT)) {
+			} else if (psx.buttonPressed (PSB_SELECT)) {
 				*state = ST_SELECT_HELD;
 			} else {
 				// Handle normal joystick movements
@@ -1794,8 +1843,8 @@ void stateMachine () {
 			}
 			break;
 		} case ST_MOUSE:
-			if (ps2x.Button (PSB_PAD_UP) || ps2x.Button (PSB_PAD_DOWN) ||
-				ps2x.Button (PSB_PAD_LEFT) || ps2x.Button (PSB_PAD_RIGHT)) {
+			if (psx.buttonPressed (PSB_PAD_UP) || psx.buttonPressed (PSB_PAD_DOWN) ||
+				psx.buttonPressed (PSB_PAD_LEFT) || psx.buttonPressed (PSB_PAD_RIGHT)) {
 				// D-Pad pressed, go back to joystick mode
 				mouseToJoystick ();
 				*state = ST_JOYSTICK;
@@ -1817,7 +1866,7 @@ void stateMachine () {
 			break;
 		} case ST_JOYSTICK_TEMP: {
 			handleJoystickDirections (j);
-			handleJoystickButtons (j);
+			handleJoystickButtonsTemp ();
 
 			if (stateEnteredTime == 0) {
 				// State was just entered
@@ -1834,34 +1883,34 @@ void stateMachine () {
 		 * SELECT MAPPING/SWITCH TO PROGRAMMING MODE
 		 **********************************************************************/
 		case ST_SELECT_HELD:
-			if (!ps2x.Button (PSB_SELECT)) {
+			if (!psx.buttonPressed (PSB_SELECT)) {
 				// Select was released
 				*state = ST_JOYSTICK;
-			} else if (ps2x.Button (PSB_SQUARE)) {
+			} else if (psx.buttonPressed (PSB_SQUARE)) {
 				selectComboButton = PSB_SQUARE;
 				*state = ST_SELECT_AND_BTN_HELD;
-			} else if (ps2x.Button (PSB_TRIANGLE)) {
+			} else if (psx.buttonPressed (PSB_TRIANGLE)) {
 				selectComboButton = PSB_TRIANGLE;
 				*state = ST_SELECT_AND_BTN_HELD;
-			} else if (ps2x.Button (PSB_CIRCLE)) {
+			} else if (psx.buttonPressed (PSB_CIRCLE)) {
 				selectComboButton = PSB_CIRCLE;
 				*state = ST_SELECT_AND_BTN_HELD;
-			} else if (ps2x.Button (PSB_CROSS)) {
+			} else if (psx.buttonPressed (PSB_CROSS)) {
 				selectComboButton = PSB_CROSS;
 				*state = ST_SELECT_AND_BTN_HELD;
-			} else if (ps2x.Button (PSB_L1)) {
+			} else if (psx.buttonPressed (PSB_L1)) {
 				selectComboButton = PSB_L1;
 				*state = ST_SELECT_AND_BTN_HELD;
-			} else if (ps2x.Button (PSB_R1)) {
+			} else if (psx.buttonPressed (PSB_R1)) {
 				selectComboButton = PSB_R1;
 				*state = ST_SELECT_AND_BTN_HELD;
-			} else if (ps2x.Button (PSB_L2)) {
+			} else if (psx.buttonPressed (PSB_L2)) {
 				selectComboButton = PSB_L2;
 				*state = ST_SELECT_AND_BTN_HELD;
-			} else if (ps2x.Button (PSB_R2)) {
+			} else if (psx.buttonPressed (PSB_R2)) {
 				selectComboButton = PSB_R2;
 				*state = ST_SELECT_AND_BTN_HELD;
-			} else if (ps2x.Button (PSB_START)) {
+			} else if (psx.buttonPressed (PSB_START)) {
 				selectComboButton = PSB_START;
 				*state = ST_SELECT_AND_BTN_HELD;
 			}
@@ -1876,7 +1925,7 @@ void stateMachine () {
 				debugln (getButtonName (selectComboButton));
 				stateEnteredTime = 0;
 				*state = ST_WAIT_SELECT_RELEASE;
-			} else if (!ps2x.Button (PSB_SELECT) || !ps2x.Button (selectComboButton)) {
+			} else if (!psx.buttonPressed (PSB_SELECT) || !psx.buttonPressed (selectComboButton)) {
 				// Combo released, switch to desired mapping
 				stateEnteredTime = 0;
 				*state = ST_ENABLE_MAPPING;
@@ -1942,12 +1991,12 @@ void stateMachine () {
 		 * PROGRAMMING
 		 **********************************************************************/
 		case ST_WAIT_SELECT_RELEASE:
-			if (!ps2x.Button (PSB_SELECT)) {
+			if (!psx.buttonPressed (PSB_SELECT)) {
 				*state = ST_WAIT_BUTTON_PRESS;
 			}
 			break;
 		case ST_WAIT_BUTTON_PRESS:
-			if (ps2x.Button (PSB_SELECT)) {
+			if (psx.buttonPressed (PSB_SELECT)) {
 				// Exit programming mode
 				debugln (F("Leaving programming mode"));
 				saveConfigurations ();	// No need to check for changes as this uses EEPROM.update()
@@ -1956,7 +2005,7 @@ void stateMachine () {
 				buttons = debounceButtons (DEBOUNCE_TIME_BUTTON);
 				if (isButtonMappable (buttons)) {
 					// Exactly one key pressed, go on
-					programmedButton = buttons;
+					programmedButton = static_cast<PsxButton> (buttons);
 					debug (F("Programming button "));
 					debugln (getButtonName (buttons));
 					flashLed (3);
@@ -1965,15 +2014,13 @@ void stateMachine () {
 			}
 			break;
 		case ST_WAIT_BUTTON_RELEASE:
-			//buttons = debounceButtons (DEBOUNCE_TIME_BUTTON);
-			buttons = ps2x.ButtonDataByte ();
-			if (buttons == NO_BUTTON) {
+			if (psx.noButtonPressed ()) {
 				*state = ST_WAIT_COMBO_PRESS;
 			}
 			break;
 		case ST_WAIT_COMBO_PRESS:
 			buttons = debounceButtons (DEBOUNCE_TIME_COMBO);
-			if (buttons != NO_BUTTON && psxButton2Amiga (buttons, j)) {
+			if (buttons != PSB_NONE && psxButton2Amiga (buttons, j)) {
 				debug (F("Programmed to "));
 				dumpJoy (j);
 
@@ -1990,20 +2037,18 @@ void stateMachine () {
 					config -> buttonMappings[buttonIdx] = j;
 				}
 				
-				programmedButton = NO_BUTTON;
+				programmedButton = PSB_NONE;
 				flashLed (5);
 				*state = ST_WAIT_COMBO_RELEASE;
 			}
 			break;
 		case ST_WAIT_COMBO_RELEASE:
-			//buttons = debounceButtons (DEBOUNCE_TIME_BUTTON);
-			buttons = ps2x.ButtonDataByte ();
-			if (buttons == NO_BUTTON) {
+			if (psx.noButtonPressed ()) {
 				*state = ST_WAIT_BUTTON_PRESS;
 			}
 			break;
 		case ST_WAIT_SELECT_RELEASE_FOR_EXIT:
-			if (!ps2x.Button (PSB_SELECT)) {
+			if (!psx.buttonPressed (PSB_SELECT)) {
 				*state = ST_JOYSTICK;
 			}
 			break;
@@ -2018,7 +2063,7 @@ void stateMachine () {
 			} else if (millis () - stateEnteredTime > 2000UL) {
 				stateEnteredTime = 0;
 				*state = ST_FACTORY_RESET_WAIT_2;
-			} else if (!ps2x.Button (PSB_SELECT)) {
+			} else if (!psx.buttonPressed (PSB_SELECT)) {
 				stateEnteredTime = 0;
 				*state = ST_JOYSTICK;
 			}
@@ -2029,7 +2074,7 @@ void stateMachine () {
 			} else if (millis () - stateEnteredTime > 2000UL) {
 				stateEnteredTime = 0;
 				*state = ST_FACTORY_RESET_PERFORM;
-			} else if (!ps2x.Button (PSB_SELECT)) {
+			} else if (!psx.buttonPressed (PSB_SELECT)) {
 				stateEnteredTime = 0;
 				*state = ST_JOYSTICK;
 			}
