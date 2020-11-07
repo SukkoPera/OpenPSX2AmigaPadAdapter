@@ -144,7 +144,7 @@ This means that the current absorbed by the adapter is "reasonable" and that it 
 ## Enclosure
 Three different 3D-printable enclosures are currently available for this board:
 - The [first](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/tree/master/enclosure) one was kindly contributed by Petros Kokotis and needs screws for assembly.
-- A [second one](https://www.thingiverse.com/thing:4620027) was designed by Lemaru and uses a snap-in design.
+- A [second one](https://www.thingiverse.com/thing:4620027) was designed by Lemaru and uses a snap-in design. It also has holes for the LEDs.
 - [Another one](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter/tree/master/enclosure/cd32) was made by Gary Ogden and is better suited for use with the CD<sup>32</sup>, as it has some kind of bottom support.
 
 My gratitude goes to all the three guys for their great work and support!
