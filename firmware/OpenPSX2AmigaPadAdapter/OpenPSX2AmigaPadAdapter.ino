@@ -196,19 +196,40 @@ const unsigned long DEBOUNCE_TIME_COMBO = 150U;
  * DEBUGGING SUPPORT
  ******************************************************************************/
 
-// Send debug messages to serial port
-//~ #define ENABLE_SERIAL_DEBUG
+/** \def DISABLE_LOGGING
+ *
+ * \brief Fully disable logging to the serial port
+ * 
+ * This also reduces the project size.
+ */
+//~ #define DISABLE_LOGGING
 
-// Print the controller status on serial. Useful for debugging.
-//~ #define DEBUG_PAD
+// Print controller input on serial. Useful for debugging.
+//~ #define DEBUG_PAD_INPUT
+
+// Print controller output on serial. Useful for debugging.
+//~ #define DEBUG_DB9_OUTPUT
 
 // Print the duration of every loop() iteration
-//~ #define ENABLE_DEBUG_LOOP_DURATION
+//~ #define DEBUG_LOOP_DURATION
 
+/* If this is defined, all messages below the threshold will NOT be compiled in
+ * the binary and will not show up even if setLevel() is used at runtime.
+ * 
+ * Useful to strip debug messages from releases.
+ */
+//~ #define THRESHOLD_LEVEL LOG_LEVEL_INFO
 
 /*******************************************************************************
  * END OF SETTINGS
  ******************************************************************************/
+
+
+// Version number
+#define OPSXA_VERSION_MAJOR 3
+#define OPSXA_VERSION_MINOR 0
+#define OPSXA_VERSION_PATCH 1
+#define OPSXA_VERSION_STR "3.0.1"
 
 #ifdef ENABLE_FAST_IO
 #include <DigitalIO.h>		// https://github.com/greiman/DigitalIO
@@ -222,6 +243,9 @@ const unsigned long DEBOUNCE_TIME_COMBO = 150U;
 #define PIN_INTERRUPT_TIMING A2
 #define PIN_CD32MODE A4
 #endif
+
+#include "Log.h"
+Logging Log;
 
 //! \name Button bits for CD32 mode
 //! @{
@@ -408,19 +432,11 @@ boolean useAlternativeCd32Mapping = false;
 
 //! @}		// End of global variables
 
-#ifdef ENABLE_SERIAL_DEBUG
+#ifndef DISABLE_LOGGING
 	#include <avr/pgmspace.h>
 	typedef const __FlashStringHelper * FlashStr;
 	typedef const byte* PGM_BYTES_P;
 	#define PSTR_TO_F(s) reinterpret_cast<const __FlashStringHelper *> (s)
-
-	#define dstart(spd) Serial.begin (spd)
-	#define debug(...) Serial.print (__VA_ARGS__)
-	#define debugln(...) Serial.println (__VA_ARGS__)
-#else
-	#define dstart(...)
-	#define debug(...)
-	#define debugln(...)
 #endif
 
 /** \brief Initialize the Playstation controller
@@ -440,7 +456,7 @@ boolean initPad () {
 			 * that does not support any configuration, like the Namco Arcade
 			 * Stick
 			 */
-			debugln (F("Cannot enter config mode"));
+			Log.error (F("Cannot enter config mode\n"));
 			ret = true;
 		} else {
 			switch (psx.getControllerType ()) {
@@ -448,11 +464,11 @@ boolean initPad () {
 				/* The Dual Shock controller gets recognized as this sometimes, or
 				 * anyway, whatever controller it is, it might work
 				 */
-				debugln (F("Unknown Controller type found, using anyway"));
+				Log.warn (F("Unknown Controller type found, using anyway\n"));
 				ret = true;
 				break;
 			case PSCTRL_DUALSHOCK:
-				debugln (F("DualShock Controller found"));
+				Log.info (F("DualShock Controller found\n"));
 				ret = true;
 				break;
 			case PSCTRL_GUITHERO:
@@ -460,26 +476,26 @@ boolean initPad () {
 				 * found out that the Analog Controller (SCPH-1200) gets detected as
 				 * this... :/
 				 */
-				debugln (F("Analog/GuitarHero Controller found"));
+				Log.info (F("Analog/GuitarHero Controller found\n"));
 				ret = true;
 				break;
 			case PSCTRL_DSWIRELESS:
-				debugln (F("Wireless Sony DualShock Controller found"));
+				Log.info (F("Wireless Sony DualShock Controller found\n"));
 				ret = true;
 				break;
 			}
 
 			// Try to enable analog sticks
 			if (!psx.enableAnalogSticks ()) {
-				debugln (F("Cannot enable analog sticks"));
+				Log.error (F("Cannot enable analog sticks\n"));
 			}
 							
 			if (!psx.exitConfigMode ()) {
-				debugln (F("Cannot exit config mode"));
+				Log.error (F("Cannot exit config mode\n"));
 			}
 		}
 	} else {
-		debugln (F("No controller found"));
+		Log.info (F("No controller found\n"));
 	}
 
 	return ret;
@@ -552,7 +568,7 @@ byte psxButtonToIndex (PsxButtons psxButtons) {
 	return i;
 }
 
-#ifdef ENABLE_SERIAL_DEBUG
+#infdef DISABLE_LOGGING
 /** \brief Return the name of a PSX button
  * 
  * \param[in] psxButtons Button to be converted
@@ -576,29 +592,29 @@ FlashStr getButtonName (PsxButtons psxButton) {
  * \param[in] psxButtons Buttons to be printed
  */
 void dumpButtons (PsxButtons psxButtons) {
-#ifdef DEBUG_PAD
+#ifdef DEBUG_PAD_INPUT
 	static PsxButtons lastB = 0;
 
 	if (psxButtons != lastB) {
 		lastB = psxButtons;			// Save it before we alter it
 		
-		debug (F("Pressed: "));
+		Log.trace (F("Pressed: "));
 
 		for (byte i = 0; i < PSX_BUTTONS_NO; ++i) {
 			byte b = psxButtonToIndex (psxButtons);
 			if (b < PSX_BUTTONS_NO) {
 				PGM_BYTES_P bName = reinterpret_cast<PGM_BYTES_P> (pgm_read_ptr (&(psxButtonNames[b])));
-				debug (PSTR_TO_F (bName));
+				Log.trace (PSTR_TO_F (bName));
 			}
 
 			psxButtons &= ~(1 << b);
 
 			if (psxButtons != 0) {
-				debug (F(", "));
+				Log.trace (F(", "));
 			}
 		}
 
-		debugln ();
+		Log.trace (F("\n"));
 	}
 #else
 	(void) psxButtons;
@@ -638,7 +654,7 @@ ISR (INT0_vect) {
 #endif
 	if (fastDigitalRead (PIN_PADMODE) == LOW) {
 		// Switch to CD32 mode
-		debugln (F("Joystick -> CD32"));
+		Log.info (F("Joystick -> CD32\n"));
 
 		// Immediately disable output on clock pin
 		fastPinMode (PIN_BTNREGCLK, INPUT);
@@ -679,7 +695,7 @@ ISR (INT0_vect) {
 #endif
 	} else {
 		// Switch back to joystick mode
-		debugln (F("CD32 -> Joystick"));
+		Log.info (F("CD32 -> Joystick\n"));
 
 		/* Set pin directions and set levels according to buttons, as waiting
 		 * for the main loop to do it takes too much time (= a few ms), for some
@@ -817,7 +833,7 @@ inline void disableCD32Trigger () {
  * The programming function can then be used to map any button as desired.
  */
 void clearConfigurations () {
-	debugln (F("Clearing controllerConfigs"));
+	Log.info (F("Clearing controllerConfigs\n"));
 	memset (controllerConfigs, 0x00, sizeof (controllerConfigs));
 	for (byte i = 0; i < PSX_BUTTONS_NO; ++i) {
 		ControllerConfiguration& config = controllerConfigs[i];
@@ -853,8 +869,7 @@ uint16_t calculateConfigCrc () {
 boolean loadConfigurations () {
 	boolean ret = false;
 	
-	debug (F("Size of controllerConfigs is "));
-	debugln (sizeof (controllerConfigs));
+	Log.trace (F("Size of controllerConfigs is %d\n"), sizeof (controllerConfigs));
 	
 	EEPROM.get (4, controllerConfigs);
 	
@@ -863,10 +878,10 @@ boolean loadConfigurations () {
 	EEPROM.get (2, goodCrc);
 	uint16_t crc = calculateConfigCrc ();
 	if (crc == goodCrc) {
-		debugln (F("CRCs match"));
+		Log.trace (F("CRCs match\n"));
 		ret = true;
 	} else {
-		debugln (F("CRCs do not match"));
+		Log.error (F("CRCs do not match\n"));
 		clearConfigurations ();
 	}
 	
@@ -875,7 +890,7 @@ boolean loadConfigurations () {
 
 //! \brief Save controller configurations to EEPROM
 void saveConfigurations () {
-	debugln (F("Saving controllerConfigs"));
+	Log.info (F("Saving controllerConfigs\n"));
 	
 	EEPROM.put (4, controllerConfigs);
 	
@@ -885,8 +900,13 @@ void saveConfigurations () {
 }
 
 void setup () {
-	dstart (115200);
-	debugln (F("Starting up..."));
+#if !defined (DISABLE_LOGGING) || defined (ENABLE_SERIAL_COMMANDS)
+	Serial.begin (115200);
+	while (!Serial)
+		;
+#endif
+	Log.begin (LOG_LEVEL_INFO, &Serial);
+	Log.info (F("--- OpenPSX2AmigaPadAdapter " OPSXA_VERSION_STR " ---\n"));
 
 	// Prepare leds
 	fastPinMode (PIN_LED_PAD_OK, OUTPUT);
@@ -940,7 +960,7 @@ void setup () {
  * It is also used at startup to enter Joystick mode for the first time.
  */
 void mouseToJoystick () {
-	debugln (F("Mouse -> Joystick"));
+	Log.info (F("Mouse -> Joystick\n"));
 	
 	// All direction pins to Hi-Z without pull-up
 	fastDigitalWrite (PIN_UP, LOW);
@@ -970,7 +990,7 @@ void mouseToJoystick () {
  * switch from Joystick mode to Mouse mode.
  */
 void joystickToMouse () {
-	debugln (F("Joystick -> Mouse"));
+	Log.info (F("Joystick -> Mouse\n"));
 
 	// When in mouse mode, we can't switch to CD32 mode
 	disableCD32Trigger ();
@@ -988,7 +1008,7 @@ void joystickToMouse () {
  * switch from CD32 mode to Mouse mode.
  */
 void cd32ToMouse () {
-	debugln (F("CD32 -> Mouse"));
+	Log.info (F("CD32 -> Mouse\n"));
 
 	disableCD32Trigger ();	// Stops both interrupts
 	
@@ -1081,7 +1101,7 @@ inline void buttonRelease (byte pin) {
  * 
  * \param[out] j Mapped joystick status
  */
-void mapAnalogStickHorizontal (TwoButtonJoystick& j) {
+void 	 (TwoButtonJoystick& j) {
 	byte lx, ly;
 	
 	if (psx.getLeftAnalog (lx, ly)) {				// 0 ... 255
@@ -1089,11 +1109,10 @@ void mapAnalogStickHorizontal (TwoButtonJoystick& j) {
 		j.left = deltaLX < -ANALOG_DEAD_ZONE;
 		j.right = deltaLX > +ANALOG_DEAD_ZONE;
 
-#ifdef ENABLE_SERIAL_DEBUG
+#ifdef DEBUG_PAD_INPUT
 		static int oldx = -1000;
 		if (deltaLX != oldx) {
-			debug (F("L Analog X = "));
-			debugln (deltaLX);
+			Log.trace (F("L Analog X = %d\n"), (int) deltaLX);
 			oldx = deltaLX;
 		}
 #endif
@@ -1115,11 +1134,10 @@ void mapAnalogStickVertical (TwoButtonJoystick& j) {
 		j.up = deltaLY < -ANALOG_DEAD_ZONE;
 		j.down = deltaLY > +ANALOG_DEAD_ZONE;
 
-#ifdef ENABLE_SERIAL_DEBUG
+#ifdef DEBUG_PAD_INPUT
 		static int oldy = -1000;
 		if (deltaLY != oldy) {
-			debug (F("L Analog Y = "));
-			debugln (deltaLY);
+			Log.trace (F("L Analog Y = %d\n"), (int) deltaLY);
 			oldy = deltaLY;
 		}
 #endif
@@ -1338,19 +1356,17 @@ boolean rightAnalogMoved (int8_t& x, int8_t& y) {
 			y = 0;
 		}
 		
-#ifdef ENABLE_SERIAL_DEBUG
+#ifdef DEBUG_PAD_INPUT
 		if (ret) {
 			static int oldx = -1000;
 			if (x != oldx) {
-				debug (F("R Analog X = "));
-				debugln (x);
+				Log.trace (F("R Analog X = %d\n"), (int) x);
 				oldx = x;
 			}
 
 			static int oldy = -1000;
 			if (y != oldy) {
-				debug (F("R Analog Y = "));
-				debugln (y);
+				Log.trace (F("R Analog Y = %d\n"), (int) y);
 				oldy = y;
 			}
 		}
@@ -1374,12 +1390,12 @@ void handleJoystickDirections (TwoButtonJoystick& j) {
 	// Call button mapping function
 	joyMappingFunc (j);
 
-#ifdef ENABLE_SERIAL_DEBUG
+#ifdef DEBUG_DB9_OUTPUT
 	static TwoButtonJoystick oldJoy = {false, false, false, false, false, false};
 
 	if (memcmp (&j, &oldJoy, sizeof (TwoButtonJoystick)) != 0) {
-		debug (F("Sending to DB-9: "));
-		dumpJoy (j);
+		Log.trace (F("Sending to DB-9: "));
+		dumpJoy (LOG_LEVEL_TRACE, j);
 		oldJoy = j;
 	}
 #endif
@@ -1562,12 +1578,10 @@ void handleMouse () {
 	
 	// Horizontal axis
 	if (x != 0) {
-		debug (F("x = "));
-		debug (x);
+		Log.trace (F("x = %d"), (int) x);
 
 		unsigned int period = map (abs (x), ANALOG_DEAD_ZONE, 127, MOUSE_SLOW_DELTA, MOUSE_FAST_DELTA);
-		debug (F(" --> period = "));
-		debugln (period);
+		Log.trace (" --> period = %u\n", (unsigned long) period);
 
 		if (x > 0) {
 			// Right
@@ -1594,12 +1608,10 @@ void handleMouse () {
 
 	// Vertical axis
 	if (y != 0) {
-		debug (F("y = "));
-		debug (y);
+		Log.trace (F("y = %d"), (int) y);
 
 		unsigned int period = map (abs (y), ANALOG_DEAD_ZONE, 127, MOUSE_SLOW_DELTA, MOUSE_FAST_DELTA);
-		debug (F(" --> period = "));
-		debugln (period);
+		Log.trace (" --> period = %u\n", (unsigned long) period);
 
 		if (y > 0) {
 			// Up
@@ -1701,26 +1713,26 @@ boolean psxButton2Amiga (PsxButtons psxButtons, TwoButtonJoystick& j) {
  * 
  * \param[in] j Two-button joystick to be dumped
  */
-void dumpJoy (TwoButtonJoystick& j) {
+void dumpJoy (DebugLevel level, TwoButtonJoystick& j) {
 	if (j.up) {
-		debug (F("Up "));
+		Log.log (level, F("Up "));
 	}
 	if (j.down) {
-		debug (F("Down "));
+		Log.log (level, F("Down "));
 	}
 	if (j.left) {
-		debug (F("Left "));
+		Log.log (level, F("Left "));
 	}
 	if (j.right) {
-		debug (F("Right "));
+		Log.log (level, F("Right "));
 	}
 	if (j.b1) {
-		debug (F("B1 "));
+		Log.log (level, F("B1 "));
 	}
 	if (j.b2) {
-		debug (F("B2"));
+		Log.log (level, F("B2"));
 	}
-	debugln (F(""));
+	Log.log (level, F("\n"));
 }
 
 /** \brief Get number of set bits in the binary representation of a number
@@ -1787,7 +1799,7 @@ void stateMachine () {
 				dumpButtons (psx.getButtonWord ());
 			} else {
 				// Polling failed
-				debugln (F("Controller lost"));
+				Log.warn (F("Controller lost\n"));
 				*state = ST_NO_CONTROLLER;
 				*buttonsLive = 0x7F;		// No ID sequence, all buttons released
 			}
@@ -1816,7 +1828,7 @@ void stateMachine () {
 				/* The controller was plugged in (or the adapter was powered on)
 				 * with SELECT held, so the user wants to do a factory reset
 				 */
-				debugln (F("SELECT pressed at power-up, starting factory reset"));
+				Log.info (F("SELECT pressed at power-up, starting factory reset\n"));
 				*state = ST_FACTORY_RESET_WAIT_1;
 #endif
 			} else {
@@ -1921,8 +1933,7 @@ void stateMachine () {
 				stateEnteredTime = millis ();
 			} else if (isButtonProgrammable (selectComboButton) && millis () - stateEnteredTime > TIMEOUT_PROGRAMMING_MODE) {
 				// Combo kept pressed, enter programming mode
-				debug (F("Entering programming mode for "));
-				debugln (getButtonName (selectComboButton));
+				Log.info (F("Entering programming mode for %S\n"), getButtonName (selectComboButton));
 				stateEnteredTime = 0;
 				*state = ST_WAIT_SELECT_RELEASE;
 			} else if (!psx.buttonPressed (PSB_SELECT) || !psx.buttonPressed (selectComboButton)) {
@@ -1935,22 +1946,22 @@ void stateMachine () {
 			// Change button mapping
 			switch (selectComboButton) {
 				case PSB_SQUARE:
-					debugln (F("Setting normal mapping"));
+					Log.info (F("Setting normal mapping\n"));
 					joyMappingFunc = mapJoystickNormal;
 					flashLed (JMAP_NORMAL);
 					break;
 				case PSB_TRIANGLE:
-					debugln (F("Setting Racing1 mapping"));
+					Log.info (F("Setting Racing1 mapping\n"));
 					joyMappingFunc = mapJoystickRacing1;
 					flashLed (JMAP_RACING1);
 					break;
 				case PSB_CIRCLE:
-					debugln (F("Setting Racing2 mapping"));
+					Log.info (F("Setting Racing2 mapping\n"));
 					joyMappingFunc = mapJoystickRacing2;
 					flashLed (JMAP_RACING2);
 					break;
 				case PSB_CROSS:
-					debugln (F("Setting Platform mapping"));
+					Log.info (F("Setting Platform mapping\n"));
 					joyMappingFunc = mapJoystickPlatform;
 					flashLed (JMAP_PLATFORM);
 					break;
@@ -1960,8 +1971,7 @@ void stateMachine () {
 				case PSB_R2: {
 					byte configIdx = psxButtonToIndex (selectComboButton);
 					if (configIdx < PSX_BUTTONS_NO) {
-						debug (F("Setting Custom mapping for controllerConfig "));
-						debugln (configIdx);
+						Log.info (F("Setting Custom mapping for controllerConfig %d\n"), (int) configIdx);
 						currentCustomConfig = &controllerConfigs[configIdx];
 						joyMappingFunc = mapJoystickCustom;
 						flashLed (JMAP_CUSTOM);
@@ -1998,7 +2008,7 @@ void stateMachine () {
 		case ST_WAIT_BUTTON_PRESS:
 			if (psx.buttonPressed (PSB_SELECT)) {
 				// Exit programming mode
-				debugln (F("Leaving programming mode"));
+				Log.info (F("Leaving programming mode\n"));
 				saveConfigurations ();	// No need to check for changes as this uses EEPROM.update()
 				*state = ST_WAIT_SELECT_RELEASE_FOR_EXIT;
 			} else {
@@ -2006,8 +2016,7 @@ void stateMachine () {
 				if (isButtonMappable (buttons)) {
 					// Exactly one key pressed, go on
 					programmedButton = static_cast<PsxButton> (buttons);
-					debug (F("Programming button "));
-					debugln (getButtonName (buttons));
+					Log.info (F("Programming button %S\n"), getButtonName (buttons));
 					flashLed (3);
 					*state = ST_WAIT_BUTTON_RELEASE;
 				}
@@ -2021,14 +2030,13 @@ void stateMachine () {
 		case ST_WAIT_COMBO_PRESS:
 			buttons = debounceButtons (DEBOUNCE_TIME_COMBO);
 			if (buttons != PSB_NONE && psxButton2Amiga (buttons, j)) {
-				debug (F("Programmed to "));
-				dumpJoy (j);
+				Log.info (F("Programmed to "));
+				dumpJoy (LOG_LEVEL_INFO, j);
 
 				// First look up the config the mapping shall be saved to
 				byte configIdx = psxButtonToIndex (selectComboButton);
 				if (configIdx < PSX_BUTTONS_NO) {
-					debug (F("Storing to controllerConfig "));
-					debugln (configIdx);
+					Log.info (F("Storing to controllerConfig %d\n"), (int) configIdx);
 					
 					ControllerConfiguration *config = &controllerConfigs[configIdx];
 
@@ -2157,12 +2165,11 @@ void loop () {
 	stateMachine ();
 	updateLeds ();
 
-#ifdef ENABLE_DEBUG_LOOP_DURATION
+#ifdef DEBUG_LOOP_DURATION
 	static unsigned long lastMillis = 0;
 	
 	unsigned long elapsed = millis () - lastMillis;
-	debug (F("Elapsed ms = "));
-	debugln (elapsed);
+	Log.trace (F("Elapsed ms = %u\n"), elapsed);
 	lastMillis = millis ();
 #endif
 }
