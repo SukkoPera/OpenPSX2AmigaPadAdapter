@@ -1984,6 +1984,7 @@ void stateMachine () {
 					// Shouldn't be reached
 					break;
 			}
+			selectComboButton = PSB_NONE;
 			*state = ST_JOYSTICK;
 			break;
 		
