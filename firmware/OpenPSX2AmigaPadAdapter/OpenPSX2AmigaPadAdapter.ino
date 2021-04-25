@@ -638,7 +638,6 @@ ISR (INT0_vect) {
 #endif
 	if (fastDigitalRead (PIN_PADMODE) == LOW) {
 		// Switch to CD32 mode
-		debugln (F("Joystick -> CD32"));
 
 		// Immediately disable output on clock pin
 		fastPinMode (PIN_BTNREGCLK, INPUT);
@@ -672,6 +671,12 @@ ISR (INT0_vect) {
 		restoreClockInterrupt ();
 
 		// Set state to ST_CD32
+#ifdef ENABLE_SERIAL_DEBUG
+		if (*state != ST_CD32 && *state != ST_JOYSTICK_TEMP) {
+			debugln (F("Joystick -> CD32"));
+		}
+#endif
+		//~ stateEnteredTime = 0;		// Do this here too, we are unsure if the SM state is ever entered
 		*state = ST_CD32;
 
 #ifdef ENABLE_INSTRUMENTATION
@@ -679,7 +684,6 @@ ISR (INT0_vect) {
 #endif
 	} else {
 		// Switch back to joystick mode
-		debugln (F("CD32 -> Joystick"));
 
 		/* Set pin directions and set levels according to buttons, as waiting
 		 * for the main loop to do it takes too much time (= a few ms), for some
@@ -1873,6 +1877,7 @@ void stateMachine () {
 				stateEnteredTime = millis ();
 			} else if (millis () - stateEnteredTime > TIMEOUT_CD32_MODE) {
 				// CD32 mode was exited once for all
+				debugln (F("CD32 -> Joystick"));
 				stateEnteredTime = 0;
 				*state = ST_JOYSTICK;
 			}
